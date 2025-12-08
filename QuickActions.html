@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #fff;
+      padding: 16px;
+      min-height: 100vh;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid rgba(255,255,255,0.1);
+    }
+
+    .header h1 {
+      font-size: 1.4rem;
+      color: #00d9ff;
+      margin-bottom: 4px;
+    }
+
+    .header p {
+      font-size: 0.85rem;
+      color: rgba(255,255,255,0.7);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 14px;
+      text-align: center;
+      border: 1px solid rgba(255,255,255,0.1);
+      transition: transform 0.2s, background 0.2s;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      background: rgba(255,255,255,0.12);
+    }
+
+    .stat-value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #00d9ff;
+      display: block;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.6);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-card.hot .stat-value {
+      color: #ff6b6b;
+    }
+
+    .stat-card.profit .stat-value {
+      color: #51cf66;
+    }
+
+    .section-title {
+      font-size: 0.9rem;
+      color: rgba(255,255,255,0.8);
+      margin-bottom: 12px;
+      padding-left: 4px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .actions-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+
+    .action-btn {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 10px;
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 0.95rem;
+    }
+
+    .action-btn:hover {
+      background: rgba(0, 217, 255, 0.2);
+      border-color: #00d9ff;
+      transform: translateX(4px);
+    }
+
+    .action-btn:active {
+      transform: translateX(2px);
+    }
+
+    .action-btn.loading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+
+    .action-icon {
+      font-size: 1.4rem;
+      width: 32px;
+      text-align: center;
+    }
+
+    .action-info {
+      flex: 1;
+    }
+
+    .action-title {
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .action-desc {
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.5);
+    }
+
+    .action-arrow {
+      color: rgba(255,255,255,0.3);
+      font-size: 1.2rem;
+    }
+
+    .platform-stats {
+      background: rgba(255,255,255,0.05);
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 20px;
+    }
+
+    .platform-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .platform-row:last-child {
+      border-bottom: none;
+    }
+
+    .platform-name {
+      font-size: 0.85rem;
+      color: rgba(255,255,255,0.8);
+    }
+
+    .platform-count {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #00d9ff;
+    }
+
+    .status-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(0,0,0,0.8);
+      padding: 10px 16px;
+      font-size: 0.8rem;
+      color: rgba(255,255,255,0.6);
+      text-align: center;
+      display: none;
+    }
+
+    .status-bar.visible {
+      display: block;
+    }
+
+    .status-bar.success {
+      background: rgba(81, 207, 102, 0.9);
+      color: #fff;
+    }
+
+    .status-bar.error {
+      background: rgba(255, 107, 107, 0.9);
+      color: #fff;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s linear infinite;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .refresh-btn {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.5);
+      cursor: pointer;
+      padding: 4px;
+      font-size: 1rem;
+      transition: color 0.2s;
+    }
+
+    .refresh-btn:hover {
+      color: #00d9ff;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Quick Actions</h1>
+    <p>CarHawk Ultimate CRM</p>
+  </div>
+
+  <div class="stats-grid" id="statsGrid">
+    <div class="stat-card">
+      <span class="stat-value" id="totalDeals">--</span>
+      <span class="stat-label">Total Deals</span>
+    </div>
+    <div class="stat-card hot">
+      <span class="stat-value" id="hotDeals">--</span>
+      <span class="stat-label">Hot Deals</span>
+    </div>
+    <div class="stat-card profit">
+      <span class="stat-value" id="totalProfit">--</span>
+      <span class="stat-label">Profit Potential</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value" id="avgROI">--</span>
+      <span class="stat-label">Avg ROI</span>
+    </div>
+  </div>
+
+  <div class="section-title">Quick Actions</div>
+  <div class="actions-list">
+    <button class="action-btn" onclick="runAction('sync')">
+      <span class="action-icon">🔄</span>
+      <div class="action-info">
+        <div class="action-title">Sync Data</div>
+        <div class="action-desc">Import from all sources</div>
+      </div>
+      <span class="action-arrow">›</span>
+    </button>
+
+    <button class="action-btn" onclick="runAction('analyze')">
+      <span class="action-icon">🧠</span>
+      <div class="action-info">
+        <div class="action-title">AI Analysis</div>
+        <div class="action-desc">Run batch analysis on deals</div>
+      </div>
+      <span class="action-arrow">›</span>
+    </button>
+
+    <button class="action-btn" onclick="runAction('alerts')">
+      <span class="action-icon">🔔</span>
+      <div class="action-info">
+        <div class="action-title">Check Alerts</div>
+        <div class="action-desc">Review alert queue</div>
+      </div>
+      <span class="action-arrow">›</span>
+    </button>
+
+    <button class="action-btn" onclick="runAction('export')">
+      <span class="action-icon">📤</span>
+      <div class="action-info">
+        <div class="action-title">Export Hot Deals</div>
+        <div class="action-desc">Quick export to CRM</div>
+      </div>
+      <span class="action-arrow">›</span>
+    </button>
+  </div>
+
+  <div class="section-title">
+    Deals by Platform
+    <button class="refresh-btn" onclick="loadStats()" title="Refresh">🔄</button>
+  </div>
+  <div class="platform-stats" id="platformStats">
+    <div class="platform-row">
+      <span class="platform-name">Facebook</span>
+      <span class="platform-count" id="fbCount">--</span>
+    </div>
+    <div class="platform-row">
+      <span class="platform-name">Craigslist</span>
+      <span class="platform-count" id="clCount">--</span>
+    </div>
+    <div class="platform-row">
+      <span class="platform-name">OfferUp</span>
+      <span class="platform-count" id="ouCount">--</span>
+    </div>
+    <div class="platform-row">
+      <span class="platform-name">eBay</span>
+      <span class="platform-count" id="ebayCount">--</span>
+    </div>
+  </div>
+
+  <div class="status-bar" id="statusBar"></div>
+
+  <script>
+    // Load stats on page load
+    document.addEventListener('DOMContentLoaded', loadStats);
+
+    function loadStats() {
+      google.script.run
+        .withSuccessHandler(updateStats)
+        .withFailureHandler(handleError)
+        .getQuickStats();
+    }
+
+    function updateStats(stats) {
+      if (!stats) return;
+
+      document.getElementById('totalDeals').textContent = stats.totalDeals || 0;
+      document.getElementById('hotDeals').textContent = stats.hotDeals || 0;
+      document.getElementById('totalProfit').textContent = formatCurrency(stats.totalProfit || 0);
+      document.getElementById('avgROI').textContent = (stats.avgROI || 0) + '%';
+
+      if (stats.platforms) {
+        document.getElementById('fbCount').textContent = stats.platforms.facebook || 0;
+        document.getElementById('clCount').textContent = stats.platforms.craigslist || 0;
+        document.getElementById('ouCount').textContent = stats.platforms.offerup || 0;
+        document.getElementById('ebayCount').textContent = stats.platforms.ebay || 0;
+      }
+    }
+
+    function formatCurrency(value) {
+      if (value >= 1000000) {
+        return '$' + (value / 1000000).toFixed(1) + 'M';
+      } else if (value >= 1000) {
+        return '$' + (value / 1000).toFixed(1) + 'K';
+      }
+      return '$' + value.toFixed(0);
+    }
+
+    function runAction(action) {
+      const btn = event.currentTarget;
+      btn.classList.add('loading');
+      showStatus('Running ' + action + '...', 'loading');
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          btn.classList.remove('loading');
+          if (result && result.success) {
+            showStatus(result.message || 'Action completed!', 'success');
+            loadStats(); // Refresh stats after action
+          } else {
+            showStatus(result ? result.message : 'Action failed', 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          btn.classList.remove('loading');
+          showStatus('Error: ' + error.message, 'error');
+        })
+        .runQuickAction(action);
+    }
+
+    function showStatus(message, type) {
+      const bar = document.getElementById('statusBar');
+      bar.textContent = type === 'loading' ? '' : message;
+
+      if (type === 'loading') {
+        bar.innerHTML = '<span class="spinner"></span>' + message;
+      }
+
+      bar.className = 'status-bar visible';
+      if (type === 'success') bar.classList.add('success');
+      if (type === 'error') bar.classList.add('error');
+
+      if (type !== 'loading') {
+        setTimeout(function() {
+          bar.classList.remove('visible');
+        }, 3000);
+      }
+    }
+
+    function handleError(error) {
+      console.error('Error loading stats:', error);
+      showStatus('Failed to load stats', 'error');
+    }
+  </script>
+</body>
+</html>

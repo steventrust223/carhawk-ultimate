@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 100%);
+      color: #fff;
+      min-height: 100vh;
+    }
+
+    .container {
+      padding: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid rgba(255,255,255,0.1);
+    }
+
+    .header h1 {
+      font-size: 1.6rem;
+      color: #00d9ff;
+    }
+
+    .header-stats {
+      display: flex;
+      gap: 24px;
+    }
+
+    .header-stat {
+      text-align: center;
+    }
+
+    .header-stat-value {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #00d9ff;
+    }
+
+    .header-stat-label {
+      font-size: 0.7rem;
+      color: rgba(255,255,255,0.5);
+      text-transform: uppercase;
+    }
+
+    .filters {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      padding: 8px 16px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 20px;
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 0.85rem;
+    }
+
+    .filter-btn:hover, .filter-btn.active {
+      background: rgba(0, 217, 255, 0.2);
+      border-color: #00d9ff;
+    }
+
+    .deals-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .deal-card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      overflow: hidden;
+      transition: transform 0.2s, box-shadow 0.2s;
+      cursor: pointer;
+    }
+
+    .deal-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      border-color: rgba(0, 217, 255, 0.3);
+    }
+
+    .deal-header {
+      padding: 14px 16px;
+      background: rgba(0,0,0,0.3);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .deal-verdict {
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .deal-verdict.hot {
+      background: rgba(255, 107, 107, 0.3);
+      color: #ff6b6b;
+    }
+
+    .deal-verdict.good {
+      background: rgba(81, 207, 102, 0.3);
+      color: #51cf66;
+    }
+
+    .deal-verdict.pass {
+      background: rgba(255,255,255,0.1);
+      color: rgba(255,255,255,0.5);
+    }
+
+    .deal-platform {
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.5);
+    }
+
+    .deal-body {
+      padding: 16px;
+    }
+
+    .deal-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #fff;
+    }
+
+    .deal-meta {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 12px;
+      font-size: 0.85rem;
+      color: rgba(255,255,255,0.6);
+    }
+
+    .deal-price {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #00d9ff;
+      margin-bottom: 8px;
+    }
+
+    .deal-stats {
+      display: flex;
+      gap: 16px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .deal-stat {
+      flex: 1;
+      text-align: center;
+    }
+
+    .deal-stat-value {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #51cf66;
+    }
+
+    .deal-stat-value.negative {
+      color: #ff6b6b;
+    }
+
+    .deal-stat-label {
+      font-size: 0.65rem;
+      color: rgba(255,255,255,0.4);
+      text-transform: uppercase;
+    }
+
+    .deal-actions {
+      display: flex;
+      gap: 8px;
+      padding: 12px 16px;
+      background: rgba(0,0,0,0.2);
+    }
+
+    .deal-action-btn {
+      flex: 1;
+      padding: 8px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 6px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 0.75rem;
+      transition: all 0.2s;
+    }
+
+    .deal-action-btn:hover {
+      background: rgba(0, 217, 255, 0.2);
+      border-color: #00d9ff;
+    }
+
+    .deal-action-btn.primary {
+      background: rgba(0, 217, 255, 0.2);
+      border-color: #00d9ff;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: rgba(255,255,255,0.5);
+    }
+
+    .empty-state-icon {
+      font-size: 3rem;
+      margin-bottom: 16px;
+    }
+
+    .status-toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 12px 24px;
+      background: rgba(0,0,0,0.9);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 0.9rem;
+      display: none;
+      z-index: 1000;
+    }
+
+    .status-toast.visible {
+      display: block;
+    }
+
+    .status-toast.success {
+      background: rgba(81, 207, 102, 0.9);
+    }
+
+    .status-toast.error {
+      background: rgba(255, 107, 107, 0.9);
+    }
+
+    .confidence-bar {
+      height: 3px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 2px;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+
+    .confidence-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #00d9ff, #51cf66);
+      border-radius: 2px;
+      transition: width 0.3s;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Deal Gallery</h1>
+      <div class="header-stats">
+        <div class="header-stat">
+          <div class="header-stat-value" id="totalCount">0</div>
+          <div class="header-stat-label">Total Deals</div>
+        </div>
+        <div class="header-stat">
+          <div class="header-stat-value" id="hotCount" style="color: #ff6b6b">0</div>
+          <div class="header-stat-label">Hot Deals</div>
+        </div>
+        <div class="header-stat">
+          <div class="header-stat-value" id="totalProfit" style="color: #51cf66">$0</div>
+          <div class="header-stat-label">Profit Potential</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="filters">
+      <button class="filter-btn active" onclick="filterDeals('all')">All Deals</button>
+      <button class="filter-btn" onclick="filterDeals('hot')">Hot Deals</button>
+      <button class="filter-btn" onclick="filterDeals('good')">Good Deals</button>
+      <button class="filter-btn" onclick="filterDeals('facebook')">Facebook</button>
+      <button class="filter-btn" onclick="filterDeals('craigslist')">Craigslist</button>
+      <button class="filter-btn" onclick="filterDeals('offerup')">OfferUp</button>
+    </div>
+
+    <div class="deals-grid" id="dealsGrid">
+      <!-- Deals will be rendered here -->
+    </div>
+
+    <div class="empty-state" id="emptyState" style="display: none;">
+      <div class="empty-state-icon">📭</div>
+      <div>No deals found matching your criteria</div>
+    </div>
+  </div>
+
+  <div class="status-toast" id="statusToast"></div>
+
+  <script>
+    // Data from server
+    var deals = <?!= JSON.stringify(deals || []) ?>;
+    var stats = <?!= JSON.stringify(stats || {}) ?>;
+    var currentFilter = 'all';
+
+    document.addEventListener('DOMContentLoaded', function() {
+      updateHeaderStats();
+      renderDeals(deals);
+    });
+
+    function updateHeaderStats() {
+      document.getElementById('totalCount').textContent = stats.totalDeals || deals.length;
+      document.getElementById('hotCount').textContent = stats.hotDeals || 0;
+      document.getElementById('totalProfit').textContent = formatCurrency(stats.totalProfit || 0);
+    }
+
+    function renderDeals(dealsToShow) {
+      var grid = document.getElementById('dealsGrid');
+      var emptyState = document.getElementById('emptyState');
+
+      if (!dealsToShow || dealsToShow.length === 0) {
+        grid.innerHTML = '';
+        emptyState.style.display = 'block';
+        return;
+      }
+
+      emptyState.style.display = 'none';
+      grid.innerHTML = dealsToShow.map(function(deal) {
+        return createDealCard(deal);
+      }).join('');
+    }
+
+    function createDealCard(deal) {
+      var verdictClass = getVerdictClass(deal.verdict);
+      var profitClass = (deal.profit || 0) >= 0 ? '' : 'negative';
+
+      return '<div class="deal-card" onclick="viewDeal(\'' + deal.dealId + '\')">' +
+        '<div class="deal-header">' +
+          '<span class="deal-verdict ' + verdictClass + '">' + (deal.verdict || 'Pending') + '</span>' +
+          '<span class="deal-platform">' + (deal.platform || 'Unknown') + '</span>' +
+        '</div>' +
+        '<div class="deal-body">' +
+          '<div class="deal-title">' + (deal.year || '') + ' ' + (deal.make || '') + ' ' + (deal.model || '') + '</div>' +
+          '<div class="deal-meta">' +
+            '<span>' + formatNumber(deal.mileage || 0) + ' mi</span>' +
+            '<span>' + (deal.location || 'Unknown') + '</span>' +
+          '</div>' +
+          '<div class="deal-price">' + formatCurrency(deal.price || 0) + '</div>' +
+          '<div class="deal-stats">' +
+            '<div class="deal-stat">' +
+              '<div class="deal-stat-value ' + profitClass + '">' + formatCurrency(deal.profit || 0) + '</div>' +
+              '<div class="deal-stat-label">Est. Profit</div>' +
+            '</div>' +
+            '<div class="deal-stat">' +
+              '<div class="deal-stat-value">' + (deal.roi || 0) + '%</div>' +
+              '<div class="deal-stat-label">ROI</div>' +
+            '</div>' +
+            '<div class="deal-stat">' +
+              '<div class="deal-stat-value">' + (deal.daysListed || 0) + 'd</div>' +
+              '<div class="deal-stat-label">Listed</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="confidence-bar">' +
+            '<div class="confidence-fill" style="width: ' + (deal.confidence || 0) + '%"></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="deal-actions">' +
+          '<button class="deal-action-btn" onclick="event.stopPropagation(); exportDeal(\'' + deal.dealId + '\')">Export</button>' +
+          '<button class="deal-action-btn" onclick="event.stopPropagation(); analyzeDeal(\'' + deal.dealId + '\')">Analyze</button>' +
+          '<button class="deal-action-btn primary" onclick="event.stopPropagation(); contactSeller(\'' + deal.dealId + '\')">Contact</button>' +
+        '</div>' +
+      '</div>';
+    }
+
+    function getVerdictClass(verdict) {
+      if (!verdict) return 'pass';
+      if (verdict.includes('PASS')) return 'pass';
+      if (verdict.includes('HOT') || verdict.includes('BUY')) return 'hot';
+      return 'good';
+    }
+
+    function filterDeals(filter) {
+      currentFilter = filter;
+
+      // Update active button
+      document.querySelectorAll('.filter-btn').forEach(function(btn) {
+        btn.classList.remove('active');
+        if (btn.textContent.toLowerCase().includes(filter) ||
+            (filter === 'all' && btn.textContent === 'All Deals')) {
+          btn.classList.add('active');
+        }
+      });
+
+      var filtered = deals;
+      switch(filter) {
+        case 'hot':
+          filtered = deals.filter(function(d) {
+            return d.verdict && (d.verdict.includes('HOT') || d.verdict.includes('BUY'));
+          });
+          break;
+        case 'good':
+          filtered = deals.filter(function(d) {
+            return d.verdict && !d.verdict.includes('PASS') && !d.verdict.includes('HOT');
+          });
+          break;
+        case 'facebook':
+        case 'craigslist':
+        case 'offerup':
+          filtered = deals.filter(function(d) {
+            return d.platform && d.platform.toLowerCase() === filter;
+          });
+          break;
+      }
+
+      renderDeals(filtered);
+    }
+
+    function viewDeal(dealId) {
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result && result.success) {
+            showToast('Navigated to deal', 'success');
+          } else {
+            showToast(result ? result.message : 'Could not find deal', 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          showToast('Error: ' + error.message, 'error');
+        })
+        .processDealAction('view', dealId);
+    }
+
+    function exportDeal(dealId) {
+      showToast('Exporting deal...', '');
+      google.script.run
+        .withSuccessHandler(function(result) {
+          showToast(result && result.success ? 'Deal exported!' : 'Export failed', result && result.success ? 'success' : 'error');
+        })
+        .withFailureHandler(function(error) {
+          showToast('Error: ' + error.message, 'error');
+        })
+        .processDealAction('export', dealId);
+    }
+
+    function analyzeDeal(dealId) {
+      showToast('Starting analysis...', '');
+      google.script.run
+        .withSuccessHandler(function(result) {
+          showToast(result && result.success ? 'Analysis started!' : 'Analysis failed', result && result.success ? 'success' : 'error');
+        })
+        .withFailureHandler(function(error) {
+          showToast('Error: ' + error.message, 'error');
+        })
+        .processDealAction('analyze', dealId);
+    }
+
+    function contactSeller(dealId) {
+      showToast('Initiating contact...', '');
+      google.script.run
+        .withSuccessHandler(function(result) {
+          showToast(result && result.success ? 'Contact sequence initiated!' : 'Contact failed', result && result.success ? 'success' : 'error');
+        })
+        .withFailureHandler(function(error) {
+          showToast('Error: ' + error.message, 'error');
+        })
+        .processDealAction('contact', dealId);
+    }
+
+    function formatCurrency(value) {
+      if (value >= 1000000) return '$' + (value / 1000000).toFixed(1) + 'M';
+      if (value >= 1000) return '$' + (value / 1000).toFixed(1) + 'K';
+      return '$' + Math.round(value).toLocaleString();
+    }
+
+    function formatNumber(value) {
+      return Math.round(value).toLocaleString();
+    }
+
+    function showToast(message, type) {
+      var toast = document.getElementById('statusToast');
+      toast.textContent = message;
+      toast.className = 'status-toast visible';
+      if (type) toast.classList.add(type);
+
+      setTimeout(function() {
+        toast.classList.remove('visible');
+      }, 3000);
+    }
+  </script>
+</body>
+</html>

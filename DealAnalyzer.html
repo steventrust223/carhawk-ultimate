@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #fff;
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    .analyzer-container {
+      max-width: 760px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    .header h1 {
+      font-size: 1.6rem;
+      color: #00d9ff;
+      margin-bottom: 8px;
+    }
+
+    .header p {
+      color: rgba(255,255,255,0.6);
+      font-size: 0.9rem;
+    }
+
+    .form-section {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .section-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #00d9ff;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .form-row.single {
+      grid-template-columns: 1fr;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-label {
+      font-size: 0.85rem;
+      color: rgba(255,255,255,0.7);
+    }
+
+    .form-input, .form-select, .form-textarea {
+      padding: 12px 14px;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 0.95rem;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      outline: none;
+      border-color: #00d9ff;
+      background: rgba(0,0,0,0.4);
+    }
+
+    .form-input::placeholder {
+      color: rgba(255,255,255,0.3);
+    }
+
+    .form-select option {
+      background: #1a1a2e;
+      color: #fff;
+    }
+
+    .form-textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    .analyze-btn {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #00d9ff 0%, #0077ff 100%);
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .analyze-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 217, 255, 0.3);
+    }
+
+    .analyze-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .results-section {
+      display: none;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-top: 24px;
+    }
+
+    .results-section.visible {
+      display: block;
+    }
+
+    .results-header {
+      background: rgba(0,0,0,0.3);
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .verdict-badge {
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .verdict-badge.hot {
+      background: rgba(255, 107, 107, 0.3);
+      color: #ff6b6b;
+    }
+
+    .verdict-badge.buy {
+      background: rgba(81, 207, 102, 0.3);
+      color: #51cf66;
+    }
+
+    .verdict-badge.consider {
+      background: rgba(255, 193, 7, 0.3);
+      color: #ffc107;
+    }
+
+    .verdict-badge.pass {
+      background: rgba(255,255,255,0.1);
+      color: rgba(255,255,255,0.6);
+    }
+
+    .results-body {
+      padding: 20px;
+    }
+
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .result-card {
+      background: rgba(0,0,0,0.2);
+      border-radius: 10px;
+      padding: 14px;
+      text-align: center;
+    }
+
+    .result-value {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #00d9ff;
+      margin-bottom: 4px;
+    }
+
+    .result-value.profit {
+      color: #51cf66;
+    }
+
+    .result-value.negative {
+      color: #ff6b6b;
+    }
+
+    .result-label {
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.5);
+      text-transform: uppercase;
+    }
+
+    .insights-section {
+      background: rgba(0,0,0,0.2);
+      border-radius: 10px;
+      padding: 16px;
+      margin-top: 16px;
+    }
+
+    .insights-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #00d9ff;
+      margin-bottom: 12px;
+    }
+
+    .insight-item {
+      display: flex;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      font-size: 0.9rem;
+      color: rgba(255,255,255,0.8);
+    }
+
+    .insight-item:last-child {
+      border-bottom: none;
+    }
+
+    .insight-icon {
+      width: 24px;
+      text-align: center;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .action-btn {
+      flex: 1;
+      padding: 12px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .action-btn:hover {
+      background: rgba(0, 217, 255, 0.2);
+      border-color: #00d9ff;
+    }
+
+    .action-btn.primary {
+      background: linear-gradient(135deg, #00d9ff 0%, #0077ff 100%);
+      border: none;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s linear infinite;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.7);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .loading-overlay.visible {
+      display: flex;
+    }
+
+    .loading-content {
+      text-align: center;
+    }
+
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 3px solid rgba(255,255,255,0.2);
+      border-radius: 50%;
+      border-top-color: #00d9ff;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="analyzer-container">
+    <div class="header">
+      <h1>Deal Analyzer</h1>
+      <p>Enter vehicle details for instant AI analysis</p>
+    </div>
+
+    <form id="analyzerForm" onsubmit="analyzeDeal(event)">
+      <div class="form-section">
+        <div class="section-title">Vehicle Information</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Year</label>
+            <input type="number" class="form-input" id="year" placeholder="2020" min="1980" max="2025" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Make</label>
+            <input type="text" class="form-input" id="make" placeholder="Toyota" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Model</label>
+            <input type="text" class="form-input" id="model" placeholder="Camry" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Trim (Optional)</label>
+            <input type="text" class="form-input" id="trim" placeholder="SE, XLE, etc.">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Mileage</label>
+            <input type="number" class="form-input" id="mileage" placeholder="50000" min="0" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Condition</label>
+            <select class="form-select" id="condition" required>
+              <option value="">Select condition</option>
+              <option value="Excellent">Excellent</option>
+              <option value="Good">Good</option>
+              <option value="Fair">Fair</option>
+              <option value="Poor">Poor</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="section-title">Listing Details</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Asking Price</label>
+            <input type="number" class="form-input" id="price" placeholder="15000" min="0" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Platform</label>
+            <select class="form-select" id="platform" required>
+              <option value="">Select platform</option>
+              <? for (var i = 0; i < platforms.length; i++) { ?>
+              <option value="<?= platforms[i] ?>"><?= platforms[i] ?></option>
+              <? } ?>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Location</label>
+            <input type="text" class="form-input" id="location" placeholder="City, State">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Days Listed</label>
+            <input type="number" class="form-input" id="daysListed" placeholder="7" min="0">
+          </div>
+        </div>
+        <div class="form-row single">
+          <div class="form-group">
+            <label class="form-label">Listing URL (Optional)</label>
+            <input type="url" class="form-input" id="listingUrl" placeholder="https://...">
+          </div>
+        </div>
+        <div class="form-row single">
+          <div class="form-group">
+            <label class="form-label">Additional Notes</label>
+            <textarea class="form-textarea" id="notes" placeholder="Any additional details about the vehicle..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="analyze-btn" id="submitBtn">
+        Analyze Deal
+      </button>
+    </form>
+
+    <div class="results-section" id="resultsSection">
+      <div class="results-header">
+        <span style="font-size: 1.1rem; font-weight: 600;">Analysis Results</span>
+        <span class="verdict-badge" id="verdictBadge">--</span>
+      </div>
+      <div class="results-body">
+        <div class="results-grid">
+          <div class="result-card">
+            <div class="result-value" id="marketValue">--</div>
+            <div class="result-label">Market Value</div>
+          </div>
+          <div class="result-card">
+            <div class="result-value profit" id="estProfit">--</div>
+            <div class="result-label">Est. Profit</div>
+          </div>
+          <div class="result-card">
+            <div class="result-value" id="roi">--</div>
+            <div class="result-label">ROI</div>
+          </div>
+          <div class="result-card">
+            <div class="result-value" id="confidence">--</div>
+            <div class="result-label">Confidence</div>
+          </div>
+        </div>
+
+        <div class="insights-section">
+          <div class="insights-title">AI Insights</div>
+          <div id="insightsList">
+            <!-- Insights will be rendered here -->
+          </div>
+        </div>
+
+        <div class="action-buttons">
+          <button class="action-btn" onclick="saveToDatabase()">Save to Database</button>
+          <button class="action-btn" onclick="exportToCRM()">Export to CRM</button>
+          <button class="action-btn primary" onclick="resetForm()">Analyze Another</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-content">
+      <div class="loading-spinner"></div>
+      <div style="color: #fff;">Analyzing deal...</div>
+    </div>
+  </div>
+
+  <script>
+    var lastAnalysis = null;
+
+    function analyzeDeal(event) {
+      event.preventDefault();
+
+      var formData = {
+        year: parseInt(document.getElementById('year').value),
+        make: document.getElementById('make').value,
+        model: document.getElementById('model').value,
+        trim: document.getElementById('trim').value || '',
+        mileage: parseInt(document.getElementById('mileage').value),
+        condition: document.getElementById('condition').value,
+        price: parseFloat(document.getElementById('price').value),
+        platform: document.getElementById('platform').value,
+        location: document.getElementById('location').value || '',
+        daysListed: parseInt(document.getElementById('daysListed').value) || 0,
+        listingUrl: document.getElementById('listingUrl').value || '',
+        notes: document.getElementById('notes').value || ''
+      };
+
+      showLoading(true);
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          showLoading(false);
+          if (result && result.success) {
+            lastAnalysis = result;
+            displayResults(result);
+          } else {
+            alert('Analysis failed: ' + (result ? result.message : 'Unknown error'));
+          }
+        })
+        .withFailureHandler(function(error) {
+          showLoading(false);
+          alert('Error: ' + error.message);
+        })
+        .analyzeManualDeal(formData);
+    }
+
+    function displayResults(result) {
+      var section = document.getElementById('resultsSection');
+      section.classList.add('visible');
+
+      // Verdict
+      var badge = document.getElementById('verdictBadge');
+      badge.textContent = result.verdict || 'Unknown';
+      badge.className = 'verdict-badge ' + getVerdictClass(result.verdict);
+
+      // Metrics
+      document.getElementById('marketValue').textContent = formatCurrency(result.marketValue || 0);
+
+      var profitEl = document.getElementById('estProfit');
+      profitEl.textContent = formatCurrency(result.profit || 0);
+      profitEl.className = 'result-value ' + ((result.profit || 0) >= 0 ? 'profit' : 'negative');
+
+      document.getElementById('roi').textContent = (result.roi || 0) + '%';
+      document.getElementById('confidence').textContent = (result.confidence || 0) + '%';
+
+      // Insights
+      var insightsList = document.getElementById('insightsList');
+      var insights = result.insights || ['Analysis complete'];
+      insightsList.innerHTML = insights.map(function(insight) {
+        return '<div class="insight-item">' +
+          '<span class="insight-icon">💡</span>' +
+          '<span>' + insight + '</span>' +
+        '</div>';
+      }).join('');
+
+      // Scroll to results
+      section.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function getVerdictClass(verdict) {
+      if (!verdict) return 'pass';
+      var v = verdict.toUpperCase();
+      if (v.includes('HOT') || v.includes('FIRE')) return 'hot';
+      if (v.includes('BUY') || v.includes('GREAT')) return 'buy';
+      if (v.includes('CONSIDER') || v.includes('MAYBE')) return 'consider';
+      return 'pass';
+    }
+
+    function formatCurrency(value) {
+      return '$' + Math.round(value).toLocaleString();
+    }
+
+    function showLoading(show) {
+      var overlay = document.getElementById('loadingOverlay');
+      overlay.classList.toggle('visible', show);
+    }
+
+    function saveToDatabase() {
+      if (!lastAnalysis) return;
+
+      showLoading(true);
+      google.script.run
+        .withSuccessHandler(function(result) {
+          showLoading(false);
+          alert(result && result.success ? 'Saved to database!' : 'Save failed');
+        })
+        .withFailureHandler(function(error) {
+          showLoading(false);
+          alert('Error: ' + error.message);
+        })
+        .saveDealToDatabase(lastAnalysis);
+    }
+
+    function exportToCRM() {
+      if (!lastAnalysis) return;
+
+      showLoading(true);
+      google.script.run
+        .withSuccessHandler(function(result) {
+          showLoading(false);
+          alert(result && result.success ? 'Exported to CRM!' : 'Export failed');
+        })
+        .withFailureHandler(function(error) {
+          showLoading(false);
+          alert('Error: ' + error.message);
+        })
+        .exportDealToCRM(lastAnalysis);
+    }
+
+    function resetForm() {
+      document.getElementById('analyzerForm').reset();
+      document.getElementById('resultsSection').classList.remove('visible');
+      lastAnalysis = null;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  </script>
+</body>
+</html>

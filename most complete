@@ -6171,5 +6171,444 @@ function include(filename) {
 }
 
 // =========================================================
+// MISSING CRM FUNCTIONS - Added for Dashboard Sidebar Fix
+// =========================================================
+
+/**
+ * Opens the Appointment Manager interface
+ */
+function openAppointmentManager() {
+  const ui = SpreadsheetApp.getUi();
+  const sheet = SpreadsheetApp.getActiveSpreadsheet()
+    .getSheetByName(QUANTUM_SHEETS.CRM.name);
+
+  if (!sheet) {
+    ui.alert('Appointment Manager',
+      'CRM sheet not found. Please run setup first.',
+      ui.ButtonSet.OK);
+    return;
+  }
+
+  // Get upcoming appointments
+  const data = sheet.getDataRange().getValues();
+  const appointments = [];
+
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    if (row[52]) { // Appointment date column
+      appointments.push({
+        dealId: row[0],
+        vehicle: `${row[5]} ${row[6]} ${row[7]}`,
+        date: row[52],
+        type: row[53] || 'Inspection',
+        notes: row[54] || ''
+      });
+    }
+  }
+
+  // Sort by date
+  appointments.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  let message = 'Upcoming Appointments:\n\n';
+  if (appointments.length === 0) {
+    message += 'No scheduled appointments.';
+  } else {
+    appointments.slice(0, 10).forEach((apt, i) => {
+      message += `${i + 1}. ${apt.vehicle}\n`;
+      message += `   📅 ${new Date(apt.date).toLocaleDateString()}\n`;
+      message += `   📋 ${apt.type}\n\n`;
+    });
+  }
+
+  ui.alert('📅 Appointment Manager', message, ui.ButtonSet.OK);
+}
+
+/**
+ * Opens the Follow-Up Center interface
+ */
+function openFollowUpCenter() {
+  const ui = SpreadsheetApp.getUi();
+  const sheet = SpreadsheetApp.getActiveSpreadsheet()
+    .getSheetByName(QUANTUM_SHEETS.CRM.name);
+
+  if (!sheet) {
+    ui.alert('Follow-Up Center',
+      'CRM sheet not found. Please run setup first.',
+      ui.ButtonSet.OK);
+    return;
+  }
+
+  const data = sheet.getDataRange().getValues();
+  let pendingFollowUps = 0;
+  let overdueFollowUps = 0;
+  const today = new Date();
+
+  for (let i = 1; i < data.length; i++) {
+    const followUpDate = data[i][55]; // Follow-up date column
+    if (followUpDate) {
+      const fDate = new Date(followUpDate);
+      if (fDate <= today) {
+        overdueFollowUps++;
+      } else {
+        pendingFollowUps++;
+      }
+    }
+  }
+
+  const message = `Follow-Up Status:\n\n` +
+    `⚠️ Overdue: ${overdueFollowUps}\n` +
+    `📋 Pending: ${pendingFollowUps}\n` +
+    `✅ Total Active: ${overdueFollowUps + pendingFollowUps}\n\n` +
+    `Use the CRM sheet to manage follow-ups.`;
+
+  ui.alert('📞 Follow-Up Center', message, ui.ButtonSet.OK);
+}
+
+/**
+ * Opens the Lead Tracker interface
+ */
+function openLeadTracker() {
+  const ui = SpreadsheetApp.getUi();
+  const sheet = SpreadsheetApp.getActiveSpreadsheet()
+    .getSheetByName(QUANTUM_SHEETS.DATABASE.name);
+
+  if (!sheet) {
+    ui.alert('Lead Tracker',
+      'Database sheet not found. Please run setup first.',
+      ui.ButtonSet.OK);
+    return;
+  }
+
+  const data = sheet.getDataRange().getValues();
+  const stages = {
+    'IMPORTED': 0,
+    'CONTACTED': 0,
+    'NEGOTIATING': 0,
+    'SCHEDULED': 0,
+    'PURCHASED': 0,
+    'PASSED': 0
+  };
+
+  for (let i = 1; i < data.length; i++) {
+    const stage = data[i][50] || 'IMPORTED';
+    if (stages.hasOwnProperty(stage)) {
+      stages[stage]++;
+    } else {
+      stages['IMPORTED']++;
+    }
+  }
+
+  const message = `Lead Pipeline Status:\n\n` +
+    `📥 Imported: ${stages['IMPORTED']}\n` +
+    `📞 Contacted: ${stages['CONTACTED']}\n` +
+    `💬 Negotiating: ${stages['NEGOTIATING']}\n` +
+    `📅 Scheduled: ${stages['SCHEDULED']}\n` +
+    `✅ Purchased: ${stages['PURCHASED']}\n` +
+    `❌ Passed: ${stages['PASSED']}\n\n` +
+    `Total Leads: ${data.length - 1}`;
+
+  ui.alert('👥 Lead Tracker', message, ui.ButtonSet.OK);
+}
+
+/**
+ * Opens the Lead Scoring interface
+ */
+function openLeadScoring() {
+  const ui = SpreadsheetApp.getUi();
+  const sheet = SpreadsheetApp.getActiveSpreadsheet()
+    .getSheetByName(QUANTUM_SHEETS.DATABASE.name);
+
+  if (!sheet) {
+    ui.alert('Lead Scoring',
+      'Database sheet not found. Please run setup first.',
+      ui.ButtonSet.OK);
+    return;
+  }
+
+  const data = sheet.getDataRange().getValues();
+  let hotLeads = 0;
+  let warmLeads = 0;
+  let coldLeads = 0;
+
+  for (let i = 1; i < data.length; i++) {
+    const score = data[i][41] || 0; // Confidence/score column
+    if (score >= 80) {
+      hotLeads++;
+    } else if (score >= 50) {
+      warmLeads++;
+    } else {
+      coldLeads++;
+    }
+  }
+
+  const message = `Lead Scoring Summary:\n\n` +
+    `🔥 Hot Leads (80%+): ${hotLeads}\n` +
+    `🌡️ Warm Leads (50-79%): ${warmLeads}\n` +
+    `❄️ Cold Leads (<50%): ${coldLeads}\n\n` +
+    `Scoring Criteria:\n` +
+    `• Price vs Market Value\n` +
+    `• Days Listed\n` +
+    `• Seller Motivation\n` +
+    `• Vehicle Condition\n` +
+    `• Profit Potential`;
+
+  ui.alert('📊 Lead Scoring', message, ui.ButtonSet.OK);
+}
+
+/**
+ * Analyzes a manually entered deal from the Deal Analyzer form
+ * @param {Object} formData - The form data from the Deal Analyzer
+ * @returns {Object} Analysis results
+ */
+function analyzeManualDeal(formData) {
+  try {
+    // Calculate market value (simplified estimation)
+    const baseValue = estimateBaseValue(formData.year, formData.make, formData.model);
+    const mileageAdjustment = calculateMileageAdjustment(formData.mileage, formData.year);
+    const conditionMultiplier = getConditionMultiplier(formData.condition);
+
+    const marketValue = Math.round(baseValue * mileageAdjustment * conditionMultiplier);
+    const profit = marketValue - formData.price;
+    const roi = formData.price > 0 ? Math.round((profit / formData.price) * 100) : 0;
+
+    // Determine verdict
+    let verdict = '❌ PASS';
+    let confidence = 50;
+
+    if (roi >= 30 && profit >= 2000) {
+      verdict = '🔥 HOT BUY';
+      confidence = 90;
+    } else if (roi >= 20 && profit >= 1500) {
+      verdict = '✅ BUY';
+      confidence = 80;
+    } else if (roi >= 10 && profit >= 1000) {
+      verdict = '🤔 CONSIDER';
+      confidence = 65;
+    } else if (profit > 0) {
+      verdict = '⚠️ MARGINAL';
+      confidence = 55;
+    }
+
+    // Adjust confidence based on days listed
+    if (formData.daysListed > 30) {
+      confidence += 5; // Motivated seller
+    }
+
+    // Generate insights
+    const insights = generateDealInsights(formData, marketValue, profit, roi);
+
+    return {
+      success: true,
+      verdict: verdict,
+      marketValue: marketValue,
+      profit: profit,
+      roi: roi,
+      confidence: Math.min(confidence, 100),
+      insights: insights,
+      formData: formData
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: 'Analysis error: ' + error.message
+    };
+  }
+}
+
+/**
+ * Helper function to estimate base value
+ */
+function estimateBaseValue(year, make, model) {
+  const currentYear = new Date().getFullYear();
+  const age = currentYear - year;
+
+  // Base prices by make tier
+  const makeTiers = {
+    luxury: ['BMW', 'Mercedes', 'Audi', 'Lexus', 'Porsche', 'Land Rover', 'Jaguar'],
+    premium: ['Acura', 'Infiniti', 'Volvo', 'Lincoln', 'Cadillac', 'Genesis'],
+    standard: ['Toyota', 'Honda', 'Ford', 'Chevrolet', 'Nissan', 'Hyundai', 'Kia', 'Mazda', 'Subaru', 'Volkswagen']
+  };
+
+  let basePrice = 25000;
+  const upperMake = make.toUpperCase();
+
+  if (makeTiers.luxury.some(m => upperMake.includes(m.toUpperCase()))) {
+    basePrice = 45000;
+  } else if (makeTiers.premium.some(m => upperMake.includes(m.toUpperCase()))) {
+    basePrice = 35000;
+  }
+
+  // Depreciation: ~15% first year, ~10% subsequent years
+  let value = basePrice;
+  if (age >= 1) value *= 0.85;
+  for (let i = 1; i < age && i < 10; i++) {
+    value *= 0.90;
+  }
+
+  return Math.max(value, 3000);
+}
+
+/**
+ * Helper function to calculate mileage adjustment
+ */
+function calculateMileageAdjustment(mileage, year) {
+  const currentYear = new Date().getFullYear();
+  const age = currentYear - year;
+  const expectedMileage = age * 12000;
+
+  const mileageDiff = mileage - expectedMileage;
+
+  if (mileageDiff < -20000) return 1.10; // Low mileage bonus
+  if (mileageDiff < 0) return 1.05;
+  if (mileageDiff < 20000) return 1.00;
+  if (mileageDiff < 40000) return 0.95;
+  if (mileageDiff < 60000) return 0.90;
+  return 0.85;
+}
+
+/**
+ * Helper function to get condition multiplier
+ */
+function getConditionMultiplier(condition) {
+  const multipliers = {
+    'Excellent': 1.10,
+    'Good': 1.00,
+    'Fair': 0.85,
+    'Poor': 0.70
+  };
+  return multipliers[condition] || 1.00;
+}
+
+/**
+ * Helper function to generate insights
+ */
+function generateDealInsights(formData, marketValue, profit, roi) {
+  const insights = [];
+
+  if (profit > 2000) {
+    insights.push(`Strong profit potential of $${profit.toLocaleString()}`);
+  } else if (profit > 0) {
+    insights.push(`Modest profit margin of $${profit.toLocaleString()}`);
+  } else {
+    insights.push(`Vehicle is priced above estimated market value`);
+  }
+
+  if (formData.daysListed > 30) {
+    insights.push('Listed for over 30 days - seller may be motivated');
+  } else if (formData.daysListed < 7) {
+    insights.push('Fresh listing - act fast if interested');
+  }
+
+  if (formData.mileage < 50000) {
+    insights.push('Low mileage adds to resale value');
+  } else if (formData.mileage > 150000) {
+    insights.push('High mileage may limit buyer pool');
+  }
+
+  if (formData.condition === 'Excellent') {
+    insights.push('Excellent condition commands premium pricing');
+  } else if (formData.condition === 'Poor') {
+    insights.push('Factor in repair costs before purchasing');
+  }
+
+  if (roi >= 25) {
+    insights.push(`ROI of ${roi}% is above target threshold`);
+  }
+
+  return insights;
+}
+
+/**
+ * Saves analyzed deal to the database
+ * @param {Object} analysisResult - The analysis result to save
+ * @returns {Object} Save result
+ */
+function saveDealToDatabase(analysisResult) {
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet()
+      .getSheetByName(QUANTUM_SHEETS.DATABASE.name);
+
+    if (!sheet) {
+      return { success: false, message: 'Database sheet not found' };
+    }
+
+    const formData = analysisResult.formData;
+    const dealId = 'MANUAL-' + Date.now();
+
+    // Create new row with deal data
+    const newRow = [];
+    newRow[0] = dealId;
+    newRow[1] = new Date();
+    newRow[2] = formData.platform || 'Manual';
+    newRow[5] = formData.year;
+    newRow[6] = formData.make;
+    newRow[7] = formData.model;
+    newRow[8] = formData.trim || '';
+    newRow[10] = formData.mileage;
+    newRow[13] = formData.price;
+    newRow[14] = formData.location || '';
+    newRow[19] = formData.condition;
+    newRow[26] = analysisResult.profit;
+    newRow[27] = analysisResult.roi;
+    newRow[32] = formData.daysListed || 0;
+    newRow[41] = analysisResult.confidence;
+    newRow[42] = analysisResult.verdict;
+    newRow[50] = 'IMPORTED';
+
+    sheet.appendRow(newRow);
+
+    return { success: true, message: 'Deal saved to database', dealId: dealId };
+  } catch (error) {
+    return { success: false, message: 'Save error: ' + error.message };
+  }
+}
+
+/**
+ * Exports analyzed deal to CRM
+ * @param {Object} analysisResult - The analysis result to export
+ * @returns {Object} Export result
+ */
+function exportDealToCRM(analysisResult) {
+  try {
+    // First save to database if not already saved
+    const saveResult = saveDealToDatabase(analysisResult);
+
+    if (!saveResult.success) {
+      return saveResult;
+    }
+
+    // Create CRM entry
+    const crmSheet = SpreadsheetApp.getActiveSpreadsheet()
+      .getSheetByName(QUANTUM_SHEETS.CRM.name);
+
+    if (!crmSheet) {
+      return { success: false, message: 'CRM sheet not found' };
+    }
+
+    const formData = analysisResult.formData;
+
+    const crmRow = [];
+    crmRow[0] = saveResult.dealId;
+    crmRow[1] = new Date();
+    crmRow[2] = `${formData.year} ${formData.make} ${formData.model}`;
+    crmRow[3] = formData.price;
+    crmRow[4] = analysisResult.profit;
+    crmRow[5] = analysisResult.verdict;
+    crmRow[6] = 'NEW';
+    crmRow[7] = formData.platform;
+
+    crmSheet.appendRow(crmRow);
+
+    return {
+      success: true,
+      message: 'Deal exported to CRM',
+      dealId: saveResult.dealId
+    };
+  } catch (error) {
+    return { success: false, message: 'Export error: ' + error.message };
+  }
+}
+
+// =========================================================
 // END OF CARHAWK ULTIMATE QUANTUM CRM SYSTEM
 // =========================================================
