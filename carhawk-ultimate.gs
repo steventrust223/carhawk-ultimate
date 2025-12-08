@@ -1177,6 +1177,152 @@ function updateQuantumResults(sheet, rowNum, analysis) {
   }
 }
 
+function executeQuantumAIBatch() {
+  const ui = SpreadsheetApp.getUi();
+  const dbSheet = getQuantumSheet(QUANTUM_SHEETS.DATABASE.name);
+  const data = dbSheet.getDataRange().getValues();
+
+  if (data.length < 2) {
+    ui.alert('No deals to analyze.');
+    return;
+  }
+
+  // Check for API key
+  const apiKey = getQuantumSetting('OPENAI_API_KEY');
+  if (!apiKey) {
+    ui.alert('OpenAI API key not configured. Please set it in Quantum Settings.');
+    return;
+  }
+
+  // Find deals that need analysis (no verdict or older than 7 days)
+  const dealsToAnalyze = [];
+  const now = new Date();
+  const sevenDaysAgo = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
+
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const verdict = row[42]; // Verdict column
+    const lastUpdated = row[45]; // Last Updated column
+    const status = row[3]; // Status column
+
+    // Skip completed/closed deals
+    if (status === 'Sold' || status === 'Closed' || status === 'Passed') continue;
+
+    // Include if no verdict or outdated
+    if (!verdict || (lastUpdated && new Date(lastUpdated) < sevenDaysAgo)) {
+      const dealId = row[0];
+      const metrics = calculateQuantumMetrics({
+        year: row[5],
+        make: row[6],
+        model: row[7],
+        trim: row[8],
+        mileage: row[10],
+        condition: row[19],
+        price: row[13],
+        zip: row[15],
+        platform: row[2],
+        repairKeywords: row[21],
+        daysListed: row[32],
+        imageCount: row[44] || 0
+      });
+
+      dealsToAnalyze.push({
+        dealId: dealId,
+        rowNum: i + 1,
+        metrics: metrics
+      });
+    }
+  }
+
+  if (dealsToAnalyze.length === 0) {
+    ui.alert('All deals are up to date with current analysis.');
+    return;
+  }
+
+  // Show processing dialog
+  const htmlOutput = HtmlService.createHtmlOutput(getQuantumProcessingHTML(dealsToAnalyze.length))
+    .setWidth(500)
+    .setHeight(300);
+  ui.showModalDialog(htmlOutput, '⚛️ Quantum AI Batch Analysis');
+
+  // Process batch
+  const batchSize = 10; // Process 10 at a time to avoid timeout
+  const batches = [];
+  for (let i = 0; i < dealsToAnalyze.length; i += batchSize) {
+    batches.push(dealsToAnalyze.slice(i, i + batchSize));
+  }
+
+  let processed = 0;
+  for (const batch of batches) {
+    triggerQuantumAnalysis(batch);
+    processed += batch.length;
+
+    // Update progress (in production, use PropertiesService to track)
+    logQuantum('Batch Analysis', `Processed ${processed}/${dealsToAnalyze.length} deals`);
+  }
+
+  // Send completion notification
+  const alertEmail = getQuantumSetting('ALERT_EMAIL');
+  if (alertEmail) {
+    MailApp.sendEmail({
+      to: alertEmail,
+      subject: '⚛️ Quantum AI Batch Analysis Complete',
+      body: `Analysis complete!\n\nProcessed: ${processed} deals\nHot Deals: Check your dashboard\n\n- CarHawk Ultimate`
+    });
+  }
+
+  SpreadsheetApp.flush();
+  ui.alert(`Batch analysis complete! Processed ${processed} deals.`);
+}
+
+function generateFallbackAnalysis(context) {
+  // Fallback analysis when AI is unavailable
+  const estimatedProfit = context.pricing.marketValue - context.pricing.askingPrice - context.pricing.estimatedRepairCost - 500;
+  const roi = (estimatedProfit / context.pricing.askingPrice) * 100;
+
+  let verdict = '❌ PASS';
+  let strategy = 'Pass';
+
+  if (roi > 50 && context.condition.repairRisk < 30) {
+    verdict = '🔥 HOT DEAL';
+    strategy = 'Quick Flip';
+  } else if (roi > 30) {
+    verdict = '✅ SOLID DEAL';
+    strategy = 'Repair + Resell';
+  } else if (roi > 15) {
+    verdict = '⚠️ PORTFOLIO FOUNDATION';
+    strategy = 'Wholesale';
+  }
+
+  return {
+    quantumScore: Math.max(Math.min(roi, 100), 0),
+    verdict: verdict,
+    confidence: 60, // Lower confidence for fallback
+    flipStrategy: strategy,
+    profitPotential: estimatedProfit,
+    riskAssessment: {
+      overall: context.condition.repairRisk > 50 ? 'High' : 'Medium',
+      factors: ['AI analysis unavailable', 'Using basic calculation']
+    },
+    marketTiming: 'Fair',
+    priceOptimization: {
+      suggestedOffer: context.pricing.mao,
+      maxOffer: context.pricing.mao * 1.05,
+      negotiationRoom: 15
+    },
+    quickSaleProbability: 50,
+    repairComplexity: context.condition.repairRisk > 50 ? 'Complex' : 'Moderate',
+    hiddenCostRisk: 40,
+    flipTimeline: '30-60 days',
+    successProbability: 60,
+    keyInsights: ['Based on basic calculation', 'AI analysis unavailable'],
+    redFlags: ['AI analysis failed'],
+    greenLights: [],
+    sellerMessage: 'I saw your listing online. Is this still available?',
+    recommended: roi > 30
+  };
+}
+
 // =========================================================
 // FILE: quantum-calculations.gs - Advanced Calculations
 // =========================================================
@@ -2989,9 +3135,49 @@ function sendViaSMSIT(phoneNumber, message, dealId) {
       payload: JSON.stringify(payload)
     });
   } else if (apiKey) {
-    // Direct API call to SMS-iT
-    // Implementation depends on SMS-iT API structure
-    throw new Error('SMS-iT direct API not implemented');
+    // Direct API call to SMS-iT REST API
+    const apiEndpoint = getQuantumSetting('SMSIT_API_ENDPOINT') || 'https://api.sms-it.com/v1/send';
+
+    try {
+      const payload = {
+        to: formatPhoneForSMSIT(phoneNumber),
+        text: message,
+        from: getQuantumSetting('SMSIT_FROM_NUMBER') || 'CarHawk',
+        tags: ['carhawk', dealId].filter(Boolean),
+        metadata: {
+          dealId: dealId,
+          source: 'CarHawk Ultimate',
+          timestamp: new Date().toISOString()
+        }
+      };
+
+      const response = UrlFetchApp.fetch(apiEndpoint, {
+        method: 'post',
+        headers: {
+          'Authorization': 'Bearer ' + apiKey,
+          'Content-Type': 'application/json'
+        },
+        payload: JSON.stringify(payload),
+        muteHttpExceptions: true
+      });
+
+      const responseCode = response.getResponseCode();
+
+      if (responseCode >= 200 && responseCode < 300) {
+        const result = JSON.parse(response.getContentText());
+        logQuantum('SMS-iT Success', `Message sent to ${phoneNumber}: ${result.messageId || 'OK'}`);
+        incrementContactCount(dealId, 'SMS');
+        return result;
+      } else {
+        // Log error and fallback to Twilio
+        logQuantum('SMS-iT Error', `API returned ${responseCode}: ${response.getContentText()}`);
+        sendSMS(phoneNumber, message);
+      }
+    } catch (error) {
+      // Log error and fallback to Twilio
+      logQuantum('SMS-iT Error', `API call failed: ${error.toString()}`);
+      sendSMS(phoneNumber, message);
+    }
   } else {
     // Fallback to Twilio
     sendSMS(phoneNumber, message);
@@ -3823,17 +4009,213 @@ function createQuantumMetrics(sheet) {
 }
 
 function createQuantumCharts(sheet) {
-  // Placeholder for chart creation
-  // In production, would create actual charts using Charts service
-  
+  const dbSheet = getQuantumSheet(QUANTUM_SHEETS.DATABASE.name);
+  const data = dbSheet.getDataRange().getValues();
+
   sheet.getRange('A10').setValue('📊 Performance Charts');
   sheet.getRange('A10').setFontSize(18).setFontWeight('bold');
-  
-  // Chart placeholders
-  sheet.getRange('A12').setValue('Deal Flow Chart');
-  sheet.getRange('E12').setValue('ROI Distribution');
-  sheet.getRange('A20').setValue('Platform Performance');
-  sheet.getRange('E20').setValue('Stage Pipeline');
+
+  // Remove existing charts to avoid duplicates
+  const charts = sheet.getCharts();
+  charts.forEach(chart => sheet.removeChart(chart));
+
+  // 1. Deal Flow Chart (Line Chart - Deals over time)
+  const dealFlowData = prepareDealFlowData(data);
+  if (dealFlowData.length > 1) {
+    const dealFlowChart = sheet.newChart()
+      .setChartType(Charts.ChartType.LINE)
+      .addRange(dealFlowData.range)
+      .setPosition(12, 1, 0, 0)
+      .setOption('title', 'Deal Flow Over Time')
+      .setOption('width', 400)
+      .setOption('height', 250)
+      .setOption('legend', {position: 'bottom'})
+      .setOption('colors', ['#667eea', '#4caf50'])
+      .build();
+    sheet.insertChart(dealFlowChart);
+  }
+
+  // 2. ROI Distribution Chart (Column Chart)
+  const roiData = prepareROIDistributionData(data);
+  if (roiData.length > 1) {
+    const roiChart = sheet.newChart()
+      .setChartType(Charts.ChartType.COLUMN)
+      .addRange(roiData.range)
+      .setPosition(12, 5, 0, 0)
+      .setOption('title', 'ROI Distribution')
+      .setOption('width', 400)
+      .setOption('height', 250)
+      .setOption('colors', ['#4caf50'])
+      .setOption('vAxis', {title: 'Count'})
+      .setOption('hAxis', {title: 'ROI Range (%)'})
+      .build();
+    sheet.insertChart(roiChart);
+  }
+
+  // 3. Platform Performance Chart (Pie Chart)
+  const platformData = preparePlatformData(data);
+  if (platformData.length > 1) {
+    const platformChart = sheet.newChart()
+      .setChartType(Charts.ChartType.PIE)
+      .addRange(platformData.range)
+      .setPosition(20, 1, 0, 0)
+      .setOption('title', 'Deals by Platform')
+      .setOption('width', 400)
+      .setOption('height', 250)
+      .setOption('pieSliceText', 'value')
+      .build();
+    sheet.insertChart(platformChart);
+  }
+
+  // 4. Stage Pipeline Chart (Bar Chart)
+  const stageData = prepareStageData();
+  if (stageData.length > 1) {
+    const stageChart = sheet.newChart()
+      .setChartType(Charts.ChartType.BAR)
+      .addRange(stageData.range)
+      .setPosition(20, 5, 0, 0)
+      .setOption('title', 'Pipeline Stages')
+      .setOption('width', 400)
+      .setOption('height', 250)
+      .setOption('colors', ['#ff9800'])
+      .setOption('hAxis', {title: 'Count'})
+      .build();
+    sheet.insertChart(stageChart);
+  }
+}
+
+function prepareDealFlowData(data) {
+  // Group deals by date
+  const dealsByDate = {};
+  let hotCount = {};
+
+  for (let i = 1; i < data.length; i++) {
+    const date = data[i][1]; // Import Date
+    if (!date) continue;
+
+    const dateKey = Utilities.formatDate(new Date(date), Session.getScriptTimeZone(), 'MM/dd');
+
+    dealsByDate[dateKey] = (dealsByDate[dateKey] || 0) + 1;
+    if (data[i][42] === '🔥 HOT DEAL') {
+      hotCount[dateKey] = (hotCount[dateKey] || 0) + 1;
+    }
+  }
+
+  // Create data table in a temporary area
+  const tempSheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const startRow = 100; // Use rows far from visible area
+  const dates = Object.keys(dealsByDate).sort().slice(-7); // Last 7 days
+
+  tempSheet.getRange(startRow, 9).setValue('Date');
+  tempSheet.getRange(startRow, 10).setValue('All Deals');
+  tempSheet.getRange(startRow, 11).setValue('Hot Deals');
+
+  dates.forEach((date, i) => {
+    tempSheet.getRange(startRow + 1 + i, 9).setValue(date);
+    tempSheet.getRange(startRow + 1 + i, 10).setValue(dealsByDate[date] || 0);
+    tempSheet.getRange(startRow + 1 + i, 11).setValue(hotCount[date] || 0);
+  });
+
+  return {
+    range: tempSheet.getRange(startRow, 9, dates.length + 1, 3),
+    length: dates.length + 1
+  };
+}
+
+function prepareROIDistributionData(data) {
+  const roiBuckets = {
+    '0-25%': 0,
+    '25-50%': 0,
+    '50-75%': 0,
+    '75-100%': 0,
+    '100%+': 0
+  };
+
+  for (let i = 1; i < data.length; i++) {
+    const roi = data[i][27];
+    if (!roi || roi < 0) continue;
+
+    if (roi < 25) roiBuckets['0-25%']++;
+    else if (roi < 50) roiBuckets['25-50%']++;
+    else if (roi < 75) roiBuckets['50-75%']++;
+    else if (roi < 100) roiBuckets['75-100%']++;
+    else roiBuckets['100%+']++;
+  }
+
+  // Create data table
+  const tempSheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const startRow = 110;
+
+  tempSheet.getRange(startRow, 9).setValue('ROI Range');
+  tempSheet.getRange(startRow, 10).setValue('Count');
+
+  Object.entries(roiBuckets).forEach(([range, count], i) => {
+    tempSheet.getRange(startRow + 1 + i, 9).setValue(range);
+    tempSheet.getRange(startRow + 1 + i, 10).setValue(count);
+  });
+
+  return {
+    range: tempSheet.getRange(startRow, 9, 6, 2),
+    length: 6
+  };
+}
+
+function preparePlatformData(data) {
+  const platforms = {};
+
+  for (let i = 1; i < data.length; i++) {
+    const platform = data[i][2];
+    if (!platform) continue;
+    platforms[platform] = (platforms[platform] || 0) + 1;
+  }
+
+  // Create data table
+  const tempSheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const startRow = 120;
+
+  tempSheet.getRange(startRow, 9).setValue('Platform');
+  tempSheet.getRange(startRow, 10).setValue('Deals');
+
+  const platformEntries = Object.entries(platforms);
+  platformEntries.forEach(([platform, count], i) => {
+    tempSheet.getRange(startRow + 1 + i, 9).setValue(platform);
+    tempSheet.getRange(startRow + 1 + i, 10).setValue(count);
+  });
+
+  return {
+    range: tempSheet.getRange(startRow, 9, platformEntries.length + 1, 2),
+    length: platformEntries.length + 1
+  };
+}
+
+function prepareStageData() {
+  const leadsSheet = getQuantumSheet(QUANTUM_SHEETS.LEADS.name);
+  const data = leadsSheet.getDataRange().getValues();
+
+  const stages = {};
+
+  for (let i = 1; i < data.length; i++) {
+    const stage = data[i][5] || 'New';
+    stages[stage] = (stages[stage] || 0) + 1;
+  }
+
+  // Create data table
+  const tempSheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const startRow = 130;
+
+  tempSheet.getRange(startRow, 9).setValue('Stage');
+  tempSheet.getRange(startRow, 10).setValue('Count');
+
+  const stageEntries = Object.entries(stages);
+  stageEntries.forEach(([stage, count], i) => {
+    tempSheet.getRange(startRow + 1 + i, 9).setValue(stage);
+    tempSheet.getRange(startRow + 1 + i, 10).setValue(count);
+  });
+
+  return {
+    range: tempSheet.getRange(startRow, 9, stageEntries.length + 1, 2),
+    length: stageEntries.length + 1
+  };
 }
 
 function createQuantumLeaderboard(sheet) {
@@ -4685,12 +5067,17 @@ function openQuantumDashboard() {
 function toggleRealTimeMode() {
   const currentMode = getQuantumSetting('REALTIME_MODE') === 'true';
   const newMode = !currentMode;
-  
-  setQuantumSetting('REALTIME_MODE', newMode.toString());
-  
+
+  if (newMode) {
+    enableRealTimeMode();
+  } else {
+    disableRealTimeMode();
+  }
+
   SpreadsheetApp.getUi().alert(
     'Real-time Mode ' + (newMode ? 'Enabled' : 'Disabled'),
-    'Quantum system is now in ' + (newMode ? 'real-time' : 'batch') + ' processing mode.',
+    'Quantum system is now in ' + (newMode ? 'real-time (every 5 minutes)' : 'batch (hourly)') + ' processing mode.\n\n' +
+    (newMode ? 'The system will check for new deals every 5 minutes and process them immediately.' : 'The system will check for new deals every hour.'),
     SpreadsheetApp.getUi().ButtonSet.OK
   );
 }
@@ -4771,6 +5158,786 @@ function syncQuantumCRM() {
   } catch (error) {
     ui.alert('Sync Error', error.toString(), ui.ButtonSet.OK);
   }
+}
+
+// =========================================================
+// FILE: quantum-crm-ui.gs - CRM User Interface Functions
+// =========================================================
+
+function openAppointmentManager() {
+  const ui = SpreadsheetApp.getUi();
+  const appointmentSheet = getQuantumSheet(QUANTUM_SHEETS.APPOINTMENTS.name);
+  const data = appointmentSheet.getDataRange().getValues();
+
+  if (data.length < 2) {
+    ui.alert('No appointments scheduled yet. Appointments will appear here when scheduled.');
+    return;
+  }
+
+  // Build appointments HTML
+  let upcomingHtml = '';
+  let pastHtml = '';
+  const now = new Date();
+
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const scheduledTime = new Date(row[6]);
+    const status = row[10];
+    const vehicle = row[2];
+    const seller = row[3];
+    const phone = row[4];
+    const location = row[7];
+    const outcome = row[19] || 'Pending';
+
+    const appointmentHtml = `
+      <div class="appointment-card" style="border-left: 4px solid ${status === 'Confirmed' ? '#4caf50' : '#ff9800'}; padding: 15px; margin: 10px 0; background: #f9f9f9;">
+        <div style="font-weight: bold; font-size: 16px;">${vehicle}</div>
+        <div style="color: #666; margin: 5px 0;">
+          📅 ${scheduledTime.toLocaleDateString()} ${scheduledTime.toLocaleTimeString()}<br>
+          👤 ${seller} | 📞 ${phone}<br>
+          📍 ${location}<br>
+          Status: <span style="color: ${status === 'Confirmed' ? 'green' : 'orange'}">${status}</span>
+        </div>
+        ${outcome !== 'Pending' ? `<div style="margin-top: 5px;"><strong>Outcome:</strong> ${outcome}</div>` : ''}
+      </div>
+    `;
+
+    if (scheduledTime > now && status !== 'Completed') {
+      upcomingHtml += appointmentHtml;
+    } else {
+      pastHtml += appointmentHtml;
+    }
+  }
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <base target="_top">
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; }
+          h2 { color: #4caf50; border-bottom: 2px solid #4caf50; padding-bottom: 10px; }
+          .section { margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <h1>📅 Appointment Manager</h1>
+
+        <div class="section">
+          <h2>Upcoming Appointments</h2>
+          ${upcomingHtml || '<p>No upcoming appointments</p>'}
+        </div>
+
+        <div class="section">
+          <h2>Past Appointments</h2>
+          ${pastHtml || '<p>No past appointments</p>'}
+        </div>
+
+        <button onclick="google.script.host.close()">Close</button>
+      </body>
+    </html>
+  `;
+
+  const htmlOutput = HtmlService.createHtmlOutput(html).setWidth(700).setHeight(600);
+  ui.showModalDialog(htmlOutput, '📅 Appointment Manager');
+}
+
+function openFollowUpCenter() {
+  const ui = SpreadsheetApp.getUi();
+  const followUpSheet = getQuantumSheet(QUANTUM_SHEETS.FOLLOWUPS.name);
+  const data = followUpSheet.getDataRange().getValues();
+
+  if (data.length < 2) {
+    ui.alert('No follow-ups scheduled. Follow-ups are automatically created for hot deals.');
+    return;
+  }
+
+  // Count follow-up statuses
+  let pending = 0, sent = 0, responded = 0;
+  let followUpList = '';
+
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const dealId = row[1];
+    const sequenceType = row[3];
+    const stepNumber = row[4];
+    const scheduledTime = new Date(row[5]);
+    const type = row[6];
+    const status = row[8];
+    const response = row[10];
+
+    if (status === 'Pending') pending++;
+    else if (status === 'Sent') sent++;
+    if (response) responded++;
+
+    const statusColor = status === 'Pending' ? '#ff9800' : status === 'Sent' ? '#2196f3' : '#4caf50';
+
+    followUpList += `
+      <tr>
+        <td>${dealId}</td>
+        <td>${sequenceType}</td>
+        <td>Step ${stepNumber}</td>
+        <td>${type}</td>
+        <td>${scheduledTime.toLocaleDateString()}</td>
+        <td style="color: ${statusColor}; font-weight: bold;">${status}</td>
+        <td>${response ? '✓' : '—'}</td>
+      </tr>
+    `;
+  }
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <base target="_top">
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; }
+          .stats { display: flex; justify-content: space-around; margin: 20px 0; }
+          .stat-card { text-align: center; padding: 20px; background: #f5f5f5; border-radius: 8px; flex: 1; margin: 0 10px; }
+          .stat-value { font-size: 32px; font-weight: bold; color: #667eea; }
+          .stat-label { color: #666; margin-top: 5px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+          th { background: #667eea; color: white; }
+          tr:hover { background: #f5f5f5; }
+        </style>
+      </head>
+      <body>
+        <h1>🔄 Follow-up Center</h1>
+
+        <div class="stats">
+          <div class="stat-card">
+            <div class="stat-value">${pending}</div>
+            <div class="stat-label">Pending</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">${sent}</div>
+            <div class="stat-label">Sent</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">${responded}</div>
+            <div class="stat-label">Responded</div>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Deal ID</th>
+              <th>Sequence</th>
+              <th>Step</th>
+              <th>Type</th>
+              <th>Scheduled</th>
+              <th>Status</th>
+              <th>Response</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${followUpList}
+          </tbody>
+        </table>
+
+        <button onclick="google.script.host.close()">Close</button>
+      </body>
+    </html>
+  `;
+
+  const htmlOutput = HtmlService.createHtmlOutput(html).setWidth(900).setHeight(600);
+  ui.showModalDialog(htmlOutput, '🔄 Follow-up Center');
+}
+
+function openCampaignManager() {
+  const ui = SpreadsheetApp.getUi();
+  const campaignSheet = getQuantumSheet(QUANTUM_SHEETS.CAMPAIGNS.name);
+  const data = campaignSheet.getDataRange().getValues();
+
+  if (data.length < 2) {
+    ui.alert('No campaigns created yet. Create campaigns to automate your outreach.');
+    return;
+  }
+
+  // Analyze campaigns
+  let totalTouches = data.length - 1;
+  let delivered = 0, opened = 0, responded = 0;
+  let campaignList = '';
+
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const campaignId = row[1];
+    const dealId = row[2];
+    const type = row[5];
+    const status = row[10];
+    const deliveredStatus = row[12];
+    const response = row[13];
+    const sentTime = row[11];
+
+    if (deliveredStatus) delivered++;
+    if (response) responded++;
+
+    campaignList += `
+      <tr>
+        <td>${campaignId}</td>
+        <td>${dealId}</td>
+        <td>${type}</td>
+        <td>${sentTime ? new Date(sentTime).toLocaleDateString() : 'Scheduled'}</td>
+        <td style="color: ${status === 'Sent' ? 'green' : 'orange'};">${status}</td>
+        <td>${response ? '✓' : '—'}</td>
+      </tr>
+    `;
+  }
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <base target="_top">
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; }
+          .stats { display: flex; justify-content: space-around; margin: 20px 0; }
+          .stat-card { text-align: center; padding: 20px; background: #f5f5f5; border-radius: 8px; flex: 1; margin: 0 10px; }
+          .stat-value { font-size: 32px; font-weight: bold; color: #9c27b0; }
+          .stat-label { color: #666; margin-top: 5px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+          th { background: #9c27b0; color: white; }
+        </style>
+      </head>
+      <body>
+        <h1>📧 Campaign Manager</h1>
+
+        <div class="stats">
+          <div class="stat-card">
+            <div class="stat-value">${totalTouches}</div>
+            <div class="stat-label">Total Touches</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">${delivered}</div>
+            <div class="stat-label">Delivered</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">${responded}</div>
+            <div class="stat-label">Responded</div>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Campaign ID</th>
+              <th>Deal ID</th>
+              <th>Type</th>
+              <th>Sent Date</th>
+              <th>Status</th>
+              <th>Response</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${campaignList}
+          </tbody>
+        </table>
+
+        <button onclick="google.script.host.close()">Close</button>
+      </body>
+    </html>
+  `;
+
+  const htmlOutput = HtmlService.createHtmlOutput(html).setWidth(900).setHeight(600);
+  ui.showModalDialog(htmlOutput, '📧 Campaign Manager');
+}
+
+function openSMSConversations() {
+  const ui = SpreadsheetApp.getUi();
+  const smsSheet = getQuantumSheet(QUANTUM_SHEETS.SMS.name);
+  const data = smsSheet.getDataRange().getValues();
+
+  if (data.length < 2) {
+    ui.alert('No SMS conversations yet. SMS conversations are logged automatically when you use SMS campaigns.');
+    return;
+  }
+
+  // Group by deal/contact
+  const conversations = {};
+
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const dealId = row[1];
+    const contact = row[2];
+    const direction = row[4];
+    const message = row[5];
+    const timestamp = new Date(row[6]);
+
+    if (!conversations[dealId]) {
+      conversations[dealId] = {
+        contact: contact,
+        messages: []
+      };
+    }
+
+    conversations[dealId].messages.push({
+      direction: direction,
+      message: message,
+      timestamp: timestamp
+    });
+  }
+
+  let conversationHtml = '';
+  for (const [dealId, conv] of Object.entries(conversations)) {
+    conversationHtml += `
+      <div class="conversation" style="border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 8px;">
+        <div style="font-weight: bold; font-size: 16px; margin-bottom: 10px;">
+          ${dealId} - ${conv.contact}
+        </div>
+        ${conv.messages.map(msg => `
+          <div class="message ${msg.direction}" style="padding: 10px; margin: 5px 0; border-radius: 8px; ${msg.direction === 'Outbound' ? 'background: #e3f2fd; text-align: right;' : 'background: #f5f5f5;'}">
+            <div style="font-size: 12px; color: #666; margin-bottom: 5px;">${msg.timestamp.toLocaleString()}</div>
+            <div>${msg.message}</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <base target="_top">
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+          h1 { color: #00bcd4; }
+        </style>
+      </head>
+      <body>
+        <h1>💬 SMS Conversations</h1>
+        ${conversationHtml}
+        <button onclick="google.script.host.close()">Close</button>
+      </body>
+    </html>
+  `;
+
+  const htmlOutput = HtmlService.createHtmlOutput(html).setWidth(900).setHeight(600);
+  ui.showModalDialog(htmlOutput, '💬 SMS Conversations');
+}
+
+function openCallLogs() {
+  const ui = SpreadsheetApp.getUi();
+  const callSheet = getQuantumSheet(QUANTUM_SHEETS.CALLS.name);
+  const data = callSheet.getDataRange().getValues();
+
+  if (data.length < 2) {
+    ui.alert('No call logs yet. Call logs are created when you make calls through integrated systems.');
+    return;
+  }
+
+  // Build call log table
+  let callList = '';
+  let totalCalls = data.length - 1;
+  let connected = 0;
+  let avgDuration = 0;
+  let totalDuration = 0;
+
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const dealId = row[1];
+    const contact = row[2];
+    const phone = row[3];
+    const callTime = new Date(row[4]);
+    const duration = row[5];
+    const status = row[6];
+    const outcome = row[7];
+    const aiSummary = row[9];
+
+    if (status === 'Connected') {
+      connected++;
+      totalDuration += duration || 0;
+    }
+
+    callList += `
+      <tr>
+        <td>${dealId}</td>
+        <td>${contact}</td>
+        <td>${phone}</td>
+        <td>${callTime.toLocaleString()}</td>
+        <td>${duration ? Math.floor(duration / 60) + 'm ' + (duration % 60) + 's' : 'N/A'}</td>
+        <td style="color: ${status === 'Connected' ? 'green' : 'red'};">${status}</td>
+        <td>${outcome || '—'}</td>
+        <td style="font-size: 12px; max-width: 200px;">${aiSummary || '—'}</td>
+      </tr>
+    `;
+  }
+
+  avgDuration = connected > 0 ? Math.floor(totalDuration / connected) : 0;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <base target="_top">
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; }
+          .stats { display: flex; justify-content: space-around; margin: 20px 0; }
+          .stat-card { text-align: center; padding: 20px; background: #f5f5f5; border-radius: 8px; flex: 1; margin: 0 10px; }
+          .stat-value { font-size: 32px; font-weight: bold; color: #f44336; }
+          .stat-label { color: #666; margin-top: 5px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }
+          th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+          th { background: #f44336; color: white; }
+        </style>
+      </head>
+      <body>
+        <h1>📞 AI Call Logs</h1>
+
+        <div class="stats">
+          <div class="stat-card">
+            <div class="stat-value">${totalCalls}</div>
+            <div class="stat-label">Total Calls</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">${connected}</div>
+            <div class="stat-label">Connected</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">${avgDuration}s</div>
+            <div class="stat-label">Avg Duration</div>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Deal ID</th>
+              <th>Contact</th>
+              <th>Phone</th>
+              <th>Time</th>
+              <th>Duration</th>
+              <th>Status</th>
+              <th>Outcome</th>
+              <th>AI Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${callList}
+          </tbody>
+        </table>
+
+        <button onclick="google.script.host.close()">Close</button>
+      </body>
+    </html>
+  `;
+
+  const htmlOutput = HtmlService.createHtmlOutput(html).setWidth(1000).setHeight(600);
+  ui.showModalDialog(htmlOutput, '📞 AI Call Logs');
+}
+
+function openLeadTracker() {
+  const ui = SpreadsheetApp.getUi();
+  const leadsSheet = getQuantumSheet(QUANTUM_SHEETS.LEADS.name);
+  const data = leadsSheet.getDataRange().getValues();
+
+  if (data.length < 2) {
+    ui.alert('No leads tracked yet. Leads are automatically created from hot deals.');
+    return;
+  }
+
+  // Organize leads by stage
+  const stages = {
+    'New': [],
+    'Contacted': [],
+    'Negotiating': [],
+    'Ready to Close': [],
+    'Lost': []
+  };
+
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const stage = row[5] || 'New';
+    const leadId = row[0];
+    const vehicle = row[6];
+    const price = row[7];
+    const profit = row[8];
+    const roi = row[9];
+    const seller = row[12];
+    const phone = row[13];
+    const priority = row[3];
+
+    if (stages[stage]) {
+      stages[stage].push({
+        leadId, vehicle, price, profit, roi, seller, phone, priority
+      });
+    }
+  }
+
+  let pipelineHtml = '';
+  for (const [stage, leads] of Object.entries(stages)) {
+    pipelineHtml += `
+      <div class="stage" style="margin: 20px 0;">
+        <h3 style="background: #667eea; color: white; padding: 10px; border-radius: 5px;">
+          ${stage} (${leads.length})
+        </h3>
+        ${leads.map(lead => `
+          <div class="lead-card" style="border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px; background: ${lead.priority === 'High' ? '#fff3cd' : '#fff'};">
+            <div style="font-weight: bold;">${lead.leadId}: ${lead.vehicle}</div>
+            <div style="color: #666; font-size: 14px; margin: 5px 0;">
+              💰 ${lead.price} | 📈 ROI: ${lead.roi}% | 💵 Profit: ${lead.profit}<br>
+              👤 ${lead.seller} | 📞 ${lead.phone}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <base target="_top">
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; }
+          h1 { color: #667eea; }
+        </style>
+      </head>
+      <body>
+        <h1>🎯 Lead Tracker - Pipeline View</h1>
+        ${pipelineHtml}
+        <button onclick="google.script.host.close()">Close</button>
+      </body>
+    </html>
+  `;
+
+  const htmlOutput = HtmlService.createHtmlOutput(html).setWidth(800).setHeight(600);
+  ui.showModalDialog(htmlOutput, '🎯 Lead Tracker');
+}
+
+function openLeadScoring() {
+  const ui = SpreadsheetApp.getUi();
+  const scoringSheet = getQuantumSheet(QUANTUM_SHEETS.SCORING.name);
+  const data = scoringSheet.getDataRange().getValues();
+
+  if (data.length < 2) {
+    ui.alert('No lead scores yet. Scores are calculated automatically during analysis.');
+    return;
+  }
+
+  // Sort by quantum score
+  const scores = [];
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    scores.push({
+      dealId: row[1],
+      quantumScore: row[3],
+      marketScore: row[5],
+      vehicleScore: row[6],
+      profitScore: row[11],
+      riskScore: row[12],
+      category: row[17],
+      grade: row[18]
+    });
+  }
+
+  scores.sort((a, b) => b.quantumScore - a.quantumScore);
+
+  let scoreList = '';
+  scores.forEach((score, index) => {
+    const gradeColor = score.grade === 'A' ? '#4caf50' : score.grade === 'B' ? '#8bc34a' : score.grade === 'C' ? '#ffc107' : '#f44336';
+
+    scoreList += `
+      <tr style="background: ${index % 2 === 0 ? '#f9f9f9' : 'white'};">
+        <td>${index + 1}</td>
+        <td>${score.dealId}</td>
+        <td style="font-weight: bold; color: #667eea;">${score.quantumScore}</td>
+        <td>${score.marketScore}</td>
+        <td>${score.vehicleScore}</td>
+        <td>${score.profitScore}</td>
+        <td>${score.riskScore}</td>
+        <td>${score.category}</td>
+        <td style="font-weight: bold; color: ${gradeColor};">${score.grade}</td>
+      </tr>
+    `;
+  });
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <base target="_top">
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; }
+          h1 { color: #ff6d00; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+          th { background: #ff6d00; color: white; position: sticky; top: 0; }
+        </style>
+      </head>
+      <body>
+        <h1>📊 Lead Scoring Dashboard</h1>
+        <p>Deals ranked by Quantum Score (highest first)</p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Deal ID</th>
+              <th>Quantum Score</th>
+              <th>Market</th>
+              <th>Vehicle</th>
+              <th>Profit</th>
+              <th>Risk</th>
+              <th>Category</th>
+              <th>Grade</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${scoreList}
+          </tbody>
+        </table>
+
+        <button onclick="google.script.host.close()">Close</button>
+      </body>
+    </html>
+  `;
+
+  const htmlOutput = HtmlService.createHtmlOutput(html).setWidth(1000).setHeight(600);
+  ui.showModalDialog(htmlOutput, '📊 Lead Scoring');
+}
+
+function openCRMAnalytics() {
+  const ui = SpreadsheetApp.getUi();
+
+  // Gather analytics from multiple sheets
+  const dbSheet = getQuantumSheet(QUANTUM_SHEETS.DATABASE.name);
+  const leadsSheet = getQuantumSheet(QUANTUM_SHEETS.LEADS.name);
+  const appointmentsSheet = getQuantumSheet(QUANTUM_SHEETS.APPOINTMENTS.name);
+  const closedSheet = getQuantumSheet(QUANTUM_SHEETS.CLOSED.name);
+
+  const dbData = dbSheet.getDataRange().getValues();
+  const leadsData = leadsSheet.getDataRange().getValues();
+  const appointmentsData = appointmentsSheet.getDataRange().getValues();
+  const closedData = closedSheet.getDataRange().getValues();
+
+  // Calculate metrics
+  const metrics = {
+    totalDeals: dbData.length - 1,
+    hotDeals: 0,
+    totalLeads: leadsData.length - 1,
+    activeLeads: 0,
+    appointments: appointmentsData.length - 1,
+    confirmedAppointments: 0,
+    closedDeals: closedData.length - 1,
+    totalRevenue: 0,
+    avgROI: 0,
+    conversionRate: 0
+  };
+
+  // Count hot deals
+  for (let i = 1; i < dbData.length; i++) {
+    if (dbData[i][42] === '🔥 HOT DEAL') metrics.hotDeals++;
+  }
+
+  // Count active leads
+  for (let i = 1; i < leadsData.length; i++) {
+    if (['New', 'Contacted', 'Negotiating'].includes(leadsData[i][3])) metrics.activeLeads++;
+  }
+
+  // Count confirmed appointments
+  for (let i = 1; i < appointmentsData.length; i++) {
+    if (appointmentsData[i][10] === 'Confirmed') metrics.confirmedAppointments++;
+  }
+
+  // Calculate revenue and ROI
+  let totalROI = 0;
+  for (let i = 1; i < closedData.length; i++) {
+    metrics.totalRevenue += closedData[i][13] || 0; // Net profit
+    totalROI += closedData[i][16] || 0; // ROI%
+  }
+  metrics.avgROI = metrics.closedDeals > 0 ? (totalROI / metrics.closedDeals).toFixed(1) : 0;
+  metrics.conversionRate = metrics.totalLeads > 0 ? ((metrics.closedDeals / metrics.totalLeads) * 100).toFixed(1) : 0;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <base target="_top">
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+          h1 { color: #00acc1; text-align: center; }
+          .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin: 20px 0; }
+          .metric-card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            text-align: center;
+          }
+          .metric-value {
+            font-size: 42px;
+            font-weight: bold;
+            color: #00acc1;
+            margin: 10px 0;
+          }
+          .metric-label {
+            color: #666;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+          }
+          .revenue { color: #4caf50 !important; }
+          .deals { color: #ff9800 !important; }
+        </style>
+      </head>
+      <body>
+        <h1>📊 CRM Analytics Dashboard</h1>
+
+        <div class="grid">
+          <div class="metric-card">
+            <div class="metric-label">Total Deals</div>
+            <div class="metric-value">${metrics.totalDeals}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Hot Deals</div>
+            <div class="metric-value deals">${metrics.hotDeals}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Total Leads</div>
+            <div class="metric-value">${metrics.totalLeads}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Active Leads</div>
+            <div class="metric-value">${metrics.activeLeads}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Appointments</div>
+            <div class="metric-value">${metrics.appointments}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Confirmed</div>
+            <div class="metric-value">${metrics.confirmedAppointments}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Closed Deals</div>
+            <div class="metric-value revenue">${metrics.closedDeals}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Total Revenue</div>
+            <div class="metric-value revenue">$${metrics.totalRevenue.toLocaleString()}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Avg ROI</div>
+            <div class="metric-value">${metrics.avgROI}%</div>
+          </div>
+          <div class="metric-card" style="grid-column: span 3;">
+            <div class="metric-label">Conversion Rate</div>
+            <div class="metric-value revenue">${metrics.conversionRate}%</div>
+          </div>
+        </div>
+
+        <button onclick="google.script.host.close()" style="display: block; margin: 20px auto; padding: 10px 30px; background: #00acc1; color: white; border: none; border-radius: 5px; cursor: pointer;">Close</button>
+      </body>
+    </html>
+  `;
+
+  const htmlOutput = HtmlService.createHtmlOutput(html).setWidth(1000).setHeight(700);
+  ui.showModalDialog(htmlOutput, '📊 CRM Analytics');
 }
 
 function exportQuantumAnalytics() {
@@ -6148,9 +7315,181 @@ function logQuantumVerdict(sheet, dealId, analysis) {
 }
 
 function setupRealtimeSync() {
-  // Placeholder for real-time sync setup
-  setQuantumSetting('REALTIME_SYNC', 'false');
+  // Configure real-time sync settings
+  setQuantumSetting('REALTIME_MODE', 'false'); // Default to batch mode
   setQuantumSetting('SYNC_INTERVAL', '300'); // 5 minutes
+
+  // Create time-driven trigger for periodic sync
+  const triggers = ScriptApp.getProjectTriggers();
+
+  // Remove existing sync triggers
+  triggers.forEach(trigger => {
+    if (trigger.getHandlerFunction() === 'quantumHourlySync' ||
+        trigger.getHandlerFunction() === 'quantumRealtimeProcessor') {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+
+  // Create hourly sync trigger (default mode)
+  ScriptApp.newTrigger('quantumHourlySync')
+    .timeBased()
+    .everyHours(1)
+    .create();
+
+  logQuantum('Real-time Sync', 'Hourly sync trigger created');
+}
+
+function quantumHourlySync() {
+  // Periodic sync function - runs every hour
+  try {
+    logQuantum('Hourly Sync', 'Starting hourly quantum sync');
+
+    // 1. Import from Browse.AI integrations
+    const integrations = getActiveIntegrations();
+    const browseAIIntegrations = integrations.filter(i => i.provider === 'Browse.ai' && i.enabled);
+
+    let totalImported = 0;
+    for (const integration of browseAIIntegrations) {
+      try {
+        const result = processBrowseAIIntegration(integration);
+        totalImported += result.imported;
+        updateIntegrationSync(integration.integrationId, result.imported);
+      } catch (error) {
+        logQuantum('Browse.ai Sync Error', `${integration.name}: ${error.toString()}`);
+      }
+    }
+
+    // 2. Process import queue
+    if (totalImported > 0) {
+      quantumImportSync();
+    }
+
+    // 3. Run analysis on unanalyzed deals if API key exists
+    const apiKey = getQuantumSetting('OPENAI_API_KEY');
+    if (apiKey) {
+      const dbSheet = getQuantumSheet(QUANTUM_SHEETS.DATABASE.name);
+      const data = dbSheet.getDataRange().getValues();
+
+      const dealsToAnalyze = [];
+      for (let i = 1; i < data.length && dealsToAnalyze.length < 5; i++) {
+        // Analyze up to 5 new deals per hour
+        if (!data[i][42]) { // No verdict yet
+          dealsToAnalyze.push({
+            dealId: data[i][0],
+            rowNum: i + 1,
+            metrics: calculateQuantumMetrics({
+              year: data[i][5],
+              make: data[i][6],
+              model: data[i][7],
+              trim: data[i][8],
+              mileage: data[i][10],
+              condition: data[i][19],
+              price: data[i][13],
+              zip: data[i][15],
+              platform: data[i][2],
+              repairKeywords: data[i][21],
+              daysListed: data[i][32],
+              imageCount: data[i][44] || 0
+            })
+          });
+        }
+      }
+
+      if (dealsToAnalyze.length > 0) {
+        triggerQuantumAnalysis(dealsToAnalyze);
+      }
+    }
+
+    // 4. Process pending follow-ups
+    processPendingFollowUps();
+
+    logQuantum('Hourly Sync', `Complete - Imported: ${totalImported} deals`);
+
+  } catch (error) {
+    logQuantum('Hourly Sync Error', error.toString());
+  }
+}
+
+function quantumRealtimeProcessor() {
+  // Real-time processor - runs every 5 minutes when real-time mode is enabled
+  const realtimeMode = getQuantumSetting('REALTIME_MODE') === 'true';
+
+  if (!realtimeMode) {
+    return; // Exit if not in real-time mode
+  }
+
+  try {
+    logQuantum('Real-time Processor', 'Processing in real-time mode');
+
+    // Check for new deals in Import sheet
+    const importSheet = getQuantumSheet(QUANTUM_SHEETS.IMPORT.name);
+    const data = importSheet.getDataRange().getValues();
+
+    let newDeals = 0;
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][13] === 'Pending') { // Import Status
+        newDeals++;
+      }
+    }
+
+    // Process immediately if new deals found
+    if (newDeals > 0) {
+      quantumImportSync();
+
+      // Trigger immediate analysis if API key exists
+      const apiKey = getQuantumSetting('OPENAI_API_KEY');
+      if (apiKey) {
+        executeQuantumAIBatch();
+      }
+
+      // Send real-time alert
+      const alertEmail = getQuantumSetting('ALERT_EMAIL');
+      if (alertEmail && getQuantumSetting('REALTIME_ALERTS') === 'true') {
+        MailApp.sendEmail({
+          to: alertEmail,
+          subject: '⚡ Real-time Alert: New Deals Processed',
+          body: `${newDeals} new deals have been processed and analyzed.\n\nView Dashboard: ${SpreadsheetApp.getActiveSpreadsheet().getUrl()}`
+        });
+      }
+    }
+
+  } catch (error) {
+    logQuantum('Real-time Processor Error', error.toString());
+  }
+}
+
+function enableRealTimeMode() {
+  setQuantumSetting('REALTIME_MODE', 'true');
+
+  // Remove existing real-time trigger if any
+  const triggers = ScriptApp.getProjectTriggers();
+  triggers.forEach(trigger => {
+    if (trigger.getHandlerFunction() === 'quantumRealtimeProcessor') {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+
+  // Create 5-minute trigger for real-time processing
+  ScriptApp.newTrigger('quantumRealtimeProcessor')
+    .timeBased()
+    .everyMinutes(5)
+    .create();
+
+  logQuantum('Real-time Mode', 'Enabled - Processing every 5 minutes');
+}
+
+function disableRealTimeMode() {
+  setQuantumSetting('REALTIME_MODE', 'false');
+
+  // Remove real-time trigger
+  const triggers = ScriptApp.getProjectTriggers();
+  triggers.forEach(trigger => {
+    if (trigger.getHandlerFunction() === 'quantumRealtimeProcessor') {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+
+  logQuantum('Real-time Mode', 'Disabled - Switched to hourly batch mode');
 }
 
 function initializeAIModels(config) {
