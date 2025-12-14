@@ -6171,5 +6171,1735 @@ function include(filename) {
 }
 
 // =========================================================
+// FILE: quantum-speed-to-lead.gs - Speed-to-Lead Metrics System
+// =========================================================
+
+/**
+ * Comprehensive Speed-to-Lead (STL) Metrics
+ * Tracks and optimizes the time from lead import to first contact
+ */
+
+const STL_CONFIG = {
+  // Target response times in minutes
+  TARGETS: {
+    OPTIMAL: 5,      // 5 minutes - industry best practice
+    GOOD: 15,        // 15 minutes - above average
+    ACCEPTABLE: 60,  // 1 hour - acceptable
+    POOR: 240,       // 4 hours - needs improvement
+    CRITICAL: 1440   // 24 hours - critical delay
+  },
+  // Scoring weights
+  WEIGHTS: {
+    responseTime: 0.40,
+    contactAttempts: 0.20,
+    conversionRate: 0.25,
+    followUpCompliance: 0.15
+  },
+  // Lead decay rates (percentage per hour)
+  DECAY_RATES: {
+    HOT: 5,          // Hot leads lose 5% value per hour
+    WARM: 2,         // Warm leads lose 2% value per hour
+    COLD: 0.5        // Cold leads lose 0.5% value per hour
+  }
+};
+
+/**
+ * Calculate Speed-to-Lead metrics for a single deal
+ */
+function calculateSpeedToLeadMetrics(dealId) {
+  const deal = getDealById(dealId);
+  if (!deal) return null;
+
+  const dbSheet = getQuantumSheet(QUANTUM_SHEETS.DATABASE.name);
+  const leadsSheet = getQuantumSheet(QUANTUM_SHEETS.LEADS.name);
+  const smsSheet = getQuantumSheet(QUANTUM_SHEETS.SMS.name);
+
+  // Get deal import time
+  const importTime = getDealImportTime(dealId);
+  const firstContactTime = getFirstContactTime(dealId);
+
+  const metrics = {
+    dealId: dealId,
+    importTime: importTime,
+    firstContactTime: firstContactTime,
+    responseTimeMinutes: null,
+    responseTimeFormatted: null,
+    responseGrade: 'N/A',
+    responseScore: 0,
+    leadDecayPercentage: 0,
+    adjustedLeadValue: 0,
+    contactAttempts: getContactAttempts(dealId),
+    isContacted: firstContactTime !== null,
+    leadTemperature: getLeadTemperature(dealId),
+    urgencyScore: 0,
+    recommendedAction: ''
+  };
+
+  // Calculate response time
+  if (importTime && firstContactTime) {
+    const diffMs = firstContactTime - importTime;
+    metrics.responseTimeMinutes = Math.max(0, Math.round(diffMs / (1000 * 60)));
+    metrics.responseTimeFormatted = formatResponseTime(metrics.responseTimeMinutes);
+    metrics.responseGrade = gradeResponseTime(metrics.responseTimeMinutes);
+    metrics.responseScore = scoreResponseTime(metrics.responseTimeMinutes);
+  } else if (importTime && !firstContactTime) {
+    // Lead not yet contacted - calculate time since import
+    const now = new Date();
+    const waitingMinutes = Math.round((now - importTime) / (1000 * 60));
+    metrics.responseTimeMinutes = waitingMinutes;
+    metrics.responseTimeFormatted = formatResponseTime(waitingMinutes) + ' (waiting)';
+    metrics.responseGrade = 'PENDING';
+    metrics.responseScore = 0;
+  }
+
+  // Calculate lead decay
+  if (importTime) {
+    const hoursElapsed = (new Date() - importTime) / (1000 * 60 * 60);
+    const decayRate = STL_CONFIG.DECAY_RATES[metrics.leadTemperature] || 1;
+    metrics.leadDecayPercentage = Math.min(100, Math.round(hoursElapsed * decayRate));
+    metrics.adjustedLeadValue = Math.round((100 - metrics.leadDecayPercentage));
+  }
+
+  // Calculate urgency score
+  metrics.urgencyScore = calculateLeadUrgency(metrics);
+
+  // Generate recommended action
+  metrics.recommendedAction = generateSTLRecommendation(metrics);
+
+  return metrics;
+}
+
+/**
+ * Get deal import timestamp
+ */
+function getDealImportTime(dealId) {
+  const sheet = getQuantumSheet(QUANTUM_SHEETS.DATABASE.name);
+  const data = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === dealId) {
+      return new Date(data[i][1]); // Import date is column B (index 1)
+    }
+  }
+  return null;
+}
+
+/**
+ * Get first contact timestamp for a deal
+ */
+function getFirstContactTime(dealId) {
+  // Check SMS conversations
+  const smsSheet = getQuantumSheet(QUANTUM_SHEETS.SMS.name);
+  if (smsSheet) {
+    const smsData = smsSheet.getDataRange().getValues();
+    for (let i = 1; i < smsData.length; i++) {
+      if (smsData[i][1] === dealId && smsData[i][4] === 'OUTBOUND') {
+        return new Date(smsData[i][5]); // Sent time
+      }
+    }
+  }
+
+  // Check leads tracker for last contact date
+  const leadsSheet = getQuantumSheet(QUANTUM_SHEETS.LEADS.name);
+  if (leadsSheet) {
+    const leadsData = leadsSheet.getDataRange().getValues();
+    for (let i = 1; i < leadsData.length; i++) {
+      if (leadsData[i][1] === dealId && leadsData[i][17]) { // Last contact column
+        return new Date(leadsData[i][17]);
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Get total contact attempts for a deal
+ */
+function getContactAttempts(dealId) {
+  const leadsSheet = getQuantumSheet(QUANTUM_SHEETS.LEADS.name);
+  if (!leadsSheet) return 0;
+
+  const data = leadsSheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][1] === dealId) {
+      return data[i][16] || 0; // Contact attempts column
+    }
+  }
+  return 0;
+}
+
+/**
+ * Get lead temperature classification
+ */
+function getLeadTemperature(dealId) {
+  const dbSheet = getQuantumSheet(QUANTUM_SHEETS.DATABASE.name);
+  if (!dbSheet) return 'WARM';
+
+  const data = dbSheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === dealId) {
+      const verdict = data[i][42] || '';
+      const priority = data[i][4] || '';
+
+      if (verdict.includes('HOT') || priority === 'High') return 'HOT';
+      if (priority === 'Low' || verdict.includes('PASS')) return 'COLD';
+      return 'WARM';
+    }
+  }
+  return 'WARM';
+}
+
+/**
+ * Format response time into human-readable string
+ */
+function formatResponseTime(minutes) {
+  if (minutes < 60) {
+    return `${minutes} min`;
+  } else if (minutes < 1440) {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+  } else {
+    const days = Math.floor(minutes / 1440);
+    const hours = Math.floor((minutes % 1440) / 60);
+    return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
+  }
+}
+
+/**
+ * Grade response time (A-F scale)
+ */
+function gradeResponseTime(minutes) {
+  if (minutes <= STL_CONFIG.TARGETS.OPTIMAL) return 'A+';
+  if (minutes <= STL_CONFIG.TARGETS.GOOD) return 'A';
+  if (minutes <= 30) return 'B+';
+  if (minutes <= STL_CONFIG.TARGETS.ACCEPTABLE) return 'B';
+  if (minutes <= 120) return 'C+';
+  if (minutes <= STL_CONFIG.TARGETS.POOR) return 'C';
+  if (minutes <= 480) return 'D';
+  return 'F';
+}
+
+/**
+ * Score response time (0-100)
+ */
+function scoreResponseTime(minutes) {
+  if (minutes <= STL_CONFIG.TARGETS.OPTIMAL) return 100;
+  if (minutes <= STL_CONFIG.TARGETS.GOOD) return 90;
+  if (minutes <= 30) return 80;
+  if (minutes <= STL_CONFIG.TARGETS.ACCEPTABLE) return 70;
+  if (minutes <= 120) return 60;
+  if (minutes <= STL_CONFIG.TARGETS.POOR) return 40;
+  if (minutes <= 480) return 20;
+  if (minutes <= STL_CONFIG.TARGETS.CRITICAL) return 10;
+  return 5;
+}
+
+/**
+ * Calculate lead urgency score
+ */
+function calculateLeadUrgency(metrics) {
+  let score = 50; // Base score
+
+  // Temperature factor
+  if (metrics.leadTemperature === 'HOT') score += 30;
+  else if (metrics.leadTemperature === 'WARM') score += 10;
+  else score -= 10;
+
+  // Response status factor
+  if (!metrics.isContacted) {
+    // Increase urgency for uncontacted leads
+    if (metrics.responseTimeMinutes > 60) score += 20;
+    if (metrics.responseTimeMinutes > 240) score += 20;
+  }
+
+  // Decay factor
+  score += Math.round(metrics.leadDecayPercentage / 5);
+
+  return Math.min(100, Math.max(0, score));
+}
+
+/**
+ * Generate STL recommendation
+ */
+function generateSTLRecommendation(metrics) {
+  if (!metrics.isContacted) {
+    if (metrics.leadTemperature === 'HOT') {
+      return '🚨 CONTACT IMMEDIATELY - Hot lead losing value!';
+    } else if (metrics.responseTimeMinutes > 60) {
+      return '⚠️ Contact ASAP - Lead waiting too long';
+    } else {
+      return '📞 Contact within 15 minutes';
+    }
+  }
+
+  if (metrics.contactAttempts < 3 && metrics.responseGrade !== 'A+') {
+    return '🔄 Schedule follow-up contact';
+  }
+
+  if (metrics.responseScore >= 90) {
+    return '✅ Excellent response - Maintain engagement';
+  }
+
+  return '📋 Monitor and follow standard sequence';
+}
+
+/**
+ * Get aggregate Speed-to-Lead statistics
+ */
+function getSpeedToLeadStats() {
+  const dbSheet = getQuantumSheet(QUANTUM_SHEETS.DATABASE.name);
+  if (!dbSheet) return null;
+
+  const data = dbSheet.getDataRange().getValues();
+
+  const stats = {
+    totalLeads: 0,
+    contactedLeads: 0,
+    pendingLeads: 0,
+    avgResponseTimeMinutes: 0,
+    medianResponseTimeMinutes: 0,
+    responseWithin5Min: 0,
+    responseWithin15Min: 0,
+    responseWithin1Hour: 0,
+    responseOver24Hours: 0,
+    overallGrade: 'N/A',
+    overallScore: 0,
+    hotLeadsAvgResponse: 0,
+    warmLeadsAvgResponse: 0,
+    coldLeadsAvgResponse: 0,
+    gradeDistribution: { 'A+': 0, 'A': 0, 'B+': 0, 'B': 0, 'C+': 0, 'C': 0, 'D': 0, 'F': 0 },
+    urgentLeads: [],
+    topPerformers: [],
+    needsImprovement: []
+  };
+
+  const responseTimes = [];
+  const hotTimes = [];
+  const warmTimes = [];
+  const coldTimes = [];
+
+  for (let i = 1; i < data.length; i++) {
+    const dealId = data[i][0];
+    if (!dealId) continue;
+
+    stats.totalLeads++;
+
+    const metrics = calculateSpeedToLeadMetrics(dealId);
+    if (!metrics) continue;
+
+    if (metrics.isContacted) {
+      stats.contactedLeads++;
+      responseTimes.push(metrics.responseTimeMinutes);
+
+      // Track by temperature
+      if (metrics.leadTemperature === 'HOT') hotTimes.push(metrics.responseTimeMinutes);
+      else if (metrics.leadTemperature === 'WARM') warmTimes.push(metrics.responseTimeMinutes);
+      else coldTimes.push(metrics.responseTimeMinutes);
+
+      // Count by response time bucket
+      if (metrics.responseTimeMinutes <= 5) stats.responseWithin5Min++;
+      if (metrics.responseTimeMinutes <= 15) stats.responseWithin15Min++;
+      if (metrics.responseTimeMinutes <= 60) stats.responseWithin1Hour++;
+      if (metrics.responseTimeMinutes > 1440) stats.responseOver24Hours++;
+
+      // Track grade distribution
+      if (stats.gradeDistribution[metrics.responseGrade] !== undefined) {
+        stats.gradeDistribution[metrics.responseGrade]++;
+      }
+    } else {
+      stats.pendingLeads++;
+
+      // Track urgent uncontacted leads
+      if (metrics.urgencyScore >= 70) {
+        stats.urgentLeads.push({
+          dealId: dealId,
+          waitingTime: metrics.responseTimeFormatted,
+          temperature: metrics.leadTemperature,
+          urgencyScore: metrics.urgencyScore
+        });
+      }
+    }
+  }
+
+  // Calculate averages
+  if (responseTimes.length > 0) {
+    stats.avgResponseTimeMinutes = Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length);
+    responseTimes.sort((a, b) => a - b);
+    stats.medianResponseTimeMinutes = responseTimes[Math.floor(responseTimes.length / 2)];
+    stats.overallScore = scoreResponseTime(stats.avgResponseTimeMinutes);
+    stats.overallGrade = gradeResponseTime(stats.avgResponseTimeMinutes);
+  }
+
+  if (hotTimes.length > 0) {
+    stats.hotLeadsAvgResponse = Math.round(hotTimes.reduce((a, b) => a + b, 0) / hotTimes.length);
+  }
+  if (warmTimes.length > 0) {
+    stats.warmLeadsAvgResponse = Math.round(warmTimes.reduce((a, b) => a + b, 0) / warmTimes.length);
+  }
+  if (coldTimes.length > 0) {
+    stats.coldLeadsAvgResponse = Math.round(coldTimes.reduce((a, b) => a + b, 0) / coldTimes.length);
+  }
+
+  // Sort urgent leads by urgency
+  stats.urgentLeads.sort((a, b) => b.urgencyScore - a.urgencyScore);
+  stats.urgentLeads = stats.urgentLeads.slice(0, 10); // Top 10
+
+  return stats;
+}
+
+/**
+ * Record first contact for a deal (updates STL metrics)
+ */
+function recordFirstContact(dealId, contactType) {
+  const importTime = getDealImportTime(dealId);
+  const contactTime = new Date();
+
+  if (importTime) {
+    const responseMinutes = Math.round((contactTime - importTime) / (1000 * 60));
+
+    // Log the STL metric
+    logSTLMetric(dealId, {
+      importTime: importTime,
+      contactTime: contactTime,
+      responseMinutes: responseMinutes,
+      contactType: contactType,
+      grade: gradeResponseTime(responseMinutes),
+      score: scoreResponseTime(responseMinutes)
+    });
+
+    // Update leads tracker
+    updateLeadContactTime(dealId, contactTime);
+  }
+
+  return contactTime;
+}
+
+/**
+ * Log Speed-to-Lead metric
+ */
+function logSTLMetric(dealId, metric) {
+  const logsSheet = getQuantumSheet(QUANTUM_SHEETS.LOGS.name);
+  if (!logsSheet) return;
+
+  logsSheet.appendRow([
+    new Date(),
+    'STL',
+    'FIRST_CONTACT',
+    'METRIC',
+    `Response Time: ${formatResponseTime(metric.responseMinutes)} | Grade: ${metric.grade} | Score: ${metric.score}`,
+    Session.getActiveUser().getEmail(),
+    dealId,
+    metric.responseMinutes * 60 * 1000, // Duration in ms
+    true,
+    '',
+    ''
+  ]);
+}
+
+/**
+ * Update lead contact time in tracker
+ */
+function updateLeadContactTime(dealId, contactTime) {
+  const leadsSheet = getQuantumSheet(QUANTUM_SHEETS.LEADS.name);
+  if (!leadsSheet) return;
+
+  const data = leadsSheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][1] === dealId) {
+      // Update Last Contact column (index 17, column R)
+      leadsSheet.getRange(i + 1, 18).setValue(contactTime);
+
+      // Increment contact attempts if this is first contact
+      if (!data[i][17]) {
+        const attempts = (data[i][16] || 0) + 1;
+        leadsSheet.getRange(i + 1, 17).setValue(attempts);
+      }
+      break;
+    }
+  }
+}
+
+/**
+ * Open Speed-to-Lead Dashboard (inline HTML)
+ */
+function openSpeedToLead() {
+  const stats = getSpeedToLeadStats();
+  const html = HtmlService.createHtmlOutput(getSpeedToLeadHTML(stats))
+    .setWidth(700)
+    .setHeight(800);
+
+  SpreadsheetApp.getUi().showSidebar(html);
+}
+
+/**
+ * Generate Speed-to-Lead Dashboard HTML
+ */
+function getSpeedToLeadHTML(stats) {
+  if (!stats) {
+    stats = {
+      totalLeads: 0,
+      contactedLeads: 0,
+      pendingLeads: 0,
+      avgResponseTimeMinutes: 0,
+      overallGrade: 'N/A',
+      overallScore: 0,
+      responseWithin5Min: 0,
+      responseWithin15Min: 0,
+      responseWithin1Hour: 0,
+      hotLeadsAvgResponse: 0,
+      warmLeadsAvgResponse: 0,
+      coldLeadsAvgResponse: 0,
+      urgentLeads: [],
+      gradeDistribution: {}
+    };
+  }
+
+  const urgentLeadsHTML = stats.urgentLeads.map(lead => `
+    <div class="urgent-lead" onclick="google.script.run.focusOnDeal('${lead.dealId}')">
+      <div class="lead-info">
+        <span class="lead-id">${lead.dealId}</span>
+        <span class="lead-temp temp-${lead.temperature.toLowerCase()}">${lead.temperature}</span>
+      </div>
+      <div class="lead-waiting">Waiting: ${lead.waitingTime}</div>
+      <div class="lead-urgency">Urgency: ${lead.urgencyScore}%</div>
+    </div>
+  `).join('') || '<p class="no-urgent">No urgent leads - Great job!</p>';
+
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <base target="_top">
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+        <style>
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+
+          body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f8f9fa;
+            color: #333;
+            padding: 20px;
+          }
+
+          .stl-header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 2px solid #e0e0e0;
+            margin-bottom: 20px;
+          }
+
+          .stl-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1a73e8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+          }
+
+          .stl-subtitle {
+            font-size: 13px;
+            color: #666;
+            margin-top: 5px;
+          }
+
+          .main-score {
+            background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 16px;
+            text-align: center;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(26, 115, 232, 0.3);
+          }
+
+          .score-grade {
+            font-size: 64px;
+            font-weight: 700;
+            line-height: 1;
+          }
+
+          .score-label {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-top: 5px;
+          }
+
+          .score-details {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255,255,255,0.2);
+          }
+
+          .score-detail {
+            text-align: center;
+          }
+
+          .detail-value {
+            font-size: 20px;
+            font-weight: 600;
+          }
+
+          .detail-label {
+            font-size: 11px;
+            opacity: 0.8;
+            text-transform: uppercase;
+          }
+
+          .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+          }
+
+          .metric-card {
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+          }
+
+          .metric-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1a73e8;
+          }
+
+          .metric-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+          }
+
+          .metric-bar {
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            margin-top: 10px;
+            overflow: hidden;
+          }
+
+          .metric-bar-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.5s ease;
+          }
+
+          .fill-good { background: #34a853; }
+          .fill-warning { background: #fbbc04; }
+          .fill-danger { background: #ea4335; }
+
+          .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 20px 0 12px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          }
+
+          .response-breakdown {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+          }
+
+          .breakdown-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+          }
+
+          .breakdown-row:last-child {
+            border-bottom: none;
+          }
+
+          .temp-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+          }
+
+          .temp-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+          }
+
+          .temp-hot { background: #fce4ec; color: #c62828; }
+          .temp-warm { background: #fff3e0; color: #ef6c00; }
+          .temp-cold { background: #e3f2fd; color: #1565c0; }
+
+          .breakdown-value {
+            font-weight: 600;
+            color: #1a73e8;
+          }
+
+          .urgent-section {
+            background: #fff8e1;
+            border: 1px solid #ffcc02;
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 15px;
+          }
+
+          .urgent-title {
+            font-weight: 600;
+            color: #f57c00;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          }
+
+          .urgent-lead {
+            background: white;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-left: 4px solid #f57c00;
+          }
+
+          .urgent-lead:hover {
+            transform: translateX(5px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+          }
+
+          .lead-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+          }
+
+          .lead-id {
+            font-weight: 600;
+            font-size: 13px;
+          }
+
+          .lead-temp {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 500;
+          }
+
+          .temp-hot { background: #ffebee; color: #c62828; }
+          .temp-warm { background: #fff3e0; color: #ef6c00; }
+          .temp-cold { background: #e3f2fd; color: #1565c0; }
+
+          .lead-waiting, .lead-urgency {
+            font-size: 12px;
+            color: #666;
+          }
+
+          .no-urgent {
+            text-align: center;
+            color: #34a853;
+            font-weight: 500;
+            padding: 15px;
+          }
+
+          .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+          }
+
+          .btn {
+            flex: 1;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+          }
+
+          .btn-primary {
+            background: #1a73e8;
+            color: white;
+          }
+
+          .btn-primary:hover {
+            background: #1557b0;
+          }
+
+          .btn-secondary {
+            background: #f1f3f4;
+            color: #333;
+          }
+
+          .btn-secondary:hover {
+            background: #e0e0e0;
+          }
+
+          .tips-section {
+            background: #e8f5e9;
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 15px;
+          }
+
+          .tips-title {
+            font-weight: 600;
+            color: #2e7d32;
+            margin-bottom: 10px;
+          }
+
+          .tip-item {
+            font-size: 12px;
+            color: #333;
+            padding: 6px 0;
+            padding-left: 20px;
+            position: relative;
+          }
+
+          .tip-item::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: #34a853;
+            font-weight: bold;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="stl-header">
+          <div class="stl-title">⚡ Speed-to-Lead Dashboard</div>
+          <div class="stl-subtitle">Real-time response metrics & optimization</div>
+        </div>
+
+        <div class="main-score">
+          <div class="score-grade">${stats.overallGrade}</div>
+          <div class="score-label">Overall Response Grade</div>
+          <div class="score-details">
+            <div class="score-detail">
+              <div class="detail-value">${stats.overallScore}%</div>
+              <div class="detail-label">Score</div>
+            </div>
+            <div class="score-detail">
+              <div class="detail-value">${formatResponseTime(stats.avgResponseTimeMinutes)}</div>
+              <div class="detail-label">Avg Response</div>
+            </div>
+            <div class="score-detail">
+              <div class="detail-value">${stats.totalLeads > 0 ? Math.round((stats.contactedLeads / stats.totalLeads) * 100) : 0}%</div>
+              <div class="detail-label">Contact Rate</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-value">${stats.totalLeads}</div>
+            <div class="metric-label">Total Leads</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-value">${stats.contactedLeads}</div>
+            <div class="metric-label">Contacted</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-value" style="color: ${stats.pendingLeads > 0 ? '#ea4335' : '#34a853'}">${stats.pendingLeads}</div>
+            <div class="metric-label">Awaiting Contact</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-value">${stats.responseWithin5Min}</div>
+            <div class="metric-label">Under 5 Minutes</div>
+            <div class="metric-bar">
+              <div class="metric-bar-fill fill-good" style="width: ${stats.contactedLeads > 0 ? Math.round((stats.responseWithin5Min / stats.contactedLeads) * 100) : 0}%"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title">🌡️ Response by Lead Temperature</div>
+        <div class="response-breakdown">
+          <div class="breakdown-row">
+            <div class="temp-label">
+              <div class="temp-icon temp-hot">🔥</div>
+              Hot Leads
+            </div>
+            <div class="breakdown-value">${stats.hotLeadsAvgResponse > 0 ? formatResponseTime(stats.hotLeadsAvgResponse) : 'N/A'}</div>
+          </div>
+          <div class="breakdown-row">
+            <div class="temp-label">
+              <div class="temp-icon temp-warm">🌤️</div>
+              Warm Leads
+            </div>
+            <div class="breakdown-value">${stats.warmLeadsAvgResponse > 0 ? formatResponseTime(stats.warmLeadsAvgResponse) : 'N/A'}</div>
+          </div>
+          <div class="breakdown-row">
+            <div class="temp-label">
+              <div class="temp-icon temp-cold">❄️</div>
+              Cold Leads
+            </div>
+            <div class="breakdown-value">${stats.coldLeadsAvgResponse > 0 ? formatResponseTime(stats.coldLeadsAvgResponse) : 'N/A'}</div>
+          </div>
+        </div>
+
+        <div class="urgent-section">
+          <div class="urgent-title">🚨 Urgent - Needs Contact Now</div>
+          ${urgentLeadsHTML}
+        </div>
+
+        <div class="tips-section">
+          <div class="tips-title">💡 Speed-to-Lead Best Practices</div>
+          <div class="tip-item">Contact hot leads within 5 minutes for 21x higher conversion</div>
+          <div class="tip-item">Set up automated SMS for immediate engagement</div>
+          <div class="tip-item">Use follow-up sequences for consistent outreach</div>
+          <div class="tip-item">Prioritize by lead temperature and ROI potential</div>
+        </div>
+
+        <div class="action-buttons">
+          <button class="btn btn-primary" onclick="google.script.run.contactNextUrgentLead()">
+            📞 Contact Next Lead
+          </button>
+          <button class="btn btn-secondary" onclick="google.script.run.generateSTLReport()">
+            📊 Full Report
+          </button>
+        </div>
+
+        <script>
+          // Auto-refresh every 60 seconds
+          setTimeout(() => {
+            google.script.run.withSuccessHandler(data => {
+              // Refresh would happen here in production
+            }).getSpeedToLeadStats();
+          }, 60000);
+        </script>
+      </body>
+    </html>
+  `;
+}
+
+/**
+ * Contact the next most urgent lead
+ */
+function contactNextUrgentLead() {
+  const stats = getSpeedToLeadStats();
+
+  if (stats.urgentLeads && stats.urgentLeads.length > 0) {
+    const nextLead = stats.urgentLeads[0];
+    const deal = getDealById(nextLead.dealId);
+
+    if (deal && deal.sellerPhone) {
+      // Open SMS dialog or initiate contact
+      SpreadsheetApp.getUi().alert(
+        'Contact Next Lead',
+        `Ready to contact:\n\n` +
+        `Deal: ${nextLead.dealId}\n` +
+        `Phone: ${deal.sellerPhone}\n` +
+        `Temperature: ${nextLead.temperature}\n` +
+        `Waiting: ${nextLead.waitingTime}\n\n` +
+        `Click OK to log this contact.`,
+        SpreadsheetApp.getUi().ButtonSet.OK_CANCEL
+      );
+
+      // Record the contact
+      recordFirstContact(nextLead.dealId, 'MANUAL');
+    } else {
+      SpreadsheetApp.getUi().alert('No phone number available for this lead.');
+    }
+  } else {
+    SpreadsheetApp.getUi().alert('No urgent leads to contact. Great job keeping up!');
+  }
+}
+
+/**
+ * Generate comprehensive STL report
+ */
+function generateSTLReport() {
+  const stats = getSpeedToLeadStats();
+  const reportSheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet('STL Report ' + new Date().toLocaleDateString());
+
+  // Header
+  reportSheet.getRange('A1').setValue('Speed-to-Lead Performance Report');
+  reportSheet.getRange('A1').setFontSize(18).setFontWeight('bold');
+  reportSheet.getRange('A2').setValue('Generated: ' + new Date().toLocaleString());
+
+  // Summary metrics
+  const summaryData = [
+    ['Metric', 'Value', 'Target', 'Status'],
+    ['Overall Grade', stats.overallGrade, 'A', stats.overallScore >= 90 ? '✅' : '⚠️'],
+    ['Overall Score', stats.overallScore + '%', '90%', stats.overallScore >= 90 ? '✅' : '⚠️'],
+    ['Avg Response Time', formatResponseTime(stats.avgResponseTimeMinutes), '< 15 min', stats.avgResponseTimeMinutes <= 15 ? '✅' : '⚠️'],
+    ['Total Leads', stats.totalLeads, '-', '-'],
+    ['Contacted', stats.contactedLeads, '-', '-'],
+    ['Pending', stats.pendingLeads, '0', stats.pendingLeads === 0 ? '✅' : '⚠️'],
+    ['Response < 5 min', stats.responseWithin5Min, '-', '-'],
+    ['Response < 15 min', stats.responseWithin15Min, '-', '-'],
+    ['Response < 1 hour', stats.responseWithin1Hour, '-', '-'],
+    ['Hot Leads Avg', formatResponseTime(stats.hotLeadsAvgResponse), '< 5 min', stats.hotLeadsAvgResponse <= 5 ? '✅' : '⚠️'],
+    ['Warm Leads Avg', formatResponseTime(stats.warmLeadsAvgResponse), '< 30 min', stats.warmLeadsAvgResponse <= 30 ? '✅' : '⚠️'],
+    ['Cold Leads Avg', formatResponseTime(stats.coldLeadsAvgResponse), '< 4 hours', stats.coldLeadsAvgResponse <= 240 ? '✅' : '⚠️']
+  ];
+
+  reportSheet.getRange(4, 1, summaryData.length, 4).setValues(summaryData);
+  reportSheet.getRange(4, 1, 1, 4).setFontWeight('bold').setBackground('#f0f0f0');
+
+  // Format
+  reportSheet.setColumnWidth(1, 200);
+  reportSheet.setColumnWidth(2, 120);
+  reportSheet.setColumnWidth(3, 100);
+  reportSheet.setColumnWidth(4, 80);
+
+  SpreadsheetApp.getUi().alert('STL Report generated! Check the new sheet.');
+}
+
+// =========================================================
+// FILE: quantum-lead-scoring-enhanced.gs - Enhanced Lead Scoring
+// =========================================================
+
+/**
+ * Enhanced Lead Scoring System
+ * Comprehensive multi-dimensional scoring with advanced metrics
+ */
+
+const SCORING_CONFIG = {
+  // Dimension weights (must sum to 1.0)
+  WEIGHTS: {
+    profitPotential: 0.25,
+    vehicleQuality: 0.15,
+    locationFactor: 0.10,
+    marketTiming: 0.15,
+    sellerMotivation: 0.10,
+    speedFactor: 0.10,
+    riskAssessment: 0.15
+  },
+  // Grade thresholds
+  GRADES: {
+    'A+': 95, 'A': 90, 'A-': 85,
+    'B+': 80, 'B': 75, 'B-': 70,
+    'C+': 65, 'C': 60, 'C-': 55,
+    'D+': 50, 'D': 45, 'D-': 40,
+    'F': 0
+  }
+};
+
+/**
+ * Calculate comprehensive lead score
+ */
+function calculateEnhancedLeadScore(dealId) {
+  const deal = getDealById(dealId);
+  if (!deal) return null;
+
+  const dbSheet = getQuantumSheet(QUANTUM_SHEETS.DATABASE.name);
+  const data = dbSheet.getDataRange().getValues();
+  let dealRow = null;
+
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === dealId) {
+      dealRow = data[i];
+      break;
+    }
+  }
+
+  if (!dealRow) return null;
+
+  const scores = {
+    // Individual dimension scores (0-100)
+    profitPotential: calculateProfitScore(dealRow),
+    vehicleQuality: calculateVehicleQualityScore(dealRow),
+    locationFactor: calculateLocationScore(dealRow),
+    marketTiming: calculateMarketTimingScore(dealRow),
+    sellerMotivation: calculateSellerMotivationScore(dealRow),
+    speedFactor: calculateSpeedFactorScore(dealRow),
+    riskAssessment: calculateRiskScore(dealRow)
+  };
+
+  // Calculate weighted total
+  let totalScore = 0;
+  for (const [dimension, weight] of Object.entries(SCORING_CONFIG.WEIGHTS)) {
+    totalScore += (scores[dimension] || 0) * weight;
+  }
+
+  // Round to nearest integer
+  totalScore = Math.round(totalScore);
+
+  // Determine grade
+  const grade = getLetterGrade(totalScore);
+
+  // Determine lead quality tier
+  const tier = getLeadTier(totalScore);
+
+  // Generate insights
+  const insights = generateScoringInsights(scores);
+
+  return {
+    dealId: dealId,
+    totalScore: totalScore,
+    grade: grade,
+    tier: tier,
+    dimensions: scores,
+    insights: insights,
+    recommendation: generateScoreRecommendation(totalScore, scores),
+    timestamp: new Date()
+  };
+}
+
+/**
+ * Calculate profit potential score
+ */
+function calculateProfitScore(dealRow) {
+  const price = dealRow[13] || 0;
+  const marketValue = dealRow[24] || 0;
+  const repairCost = dealRow[23] || 0;
+  const roi = dealRow[27] || 0;
+
+  let score = 50; // Base score
+
+  // ROI factor (major weight)
+  if (roi >= 100) score += 35;
+  else if (roi >= 75) score += 30;
+  else if (roi >= 50) score += 25;
+  else if (roi >= 30) score += 15;
+  else if (roi >= 15) score += 5;
+  else if (roi < 0) score -= 20;
+
+  // Profit margin factor
+  const profitMargin = dealRow[26] || 0;
+  if (profitMargin >= 30) score += 15;
+  else if (profitMargin >= 20) score += 10;
+  else if (profitMargin >= 10) score += 5;
+
+  return Math.min(100, Math.max(0, score));
+}
+
+/**
+ * Calculate vehicle quality score
+ */
+function calculateVehicleQualityScore(dealRow) {
+  let score = 50;
+
+  // Condition score
+  const conditionScore = dealRow[20] || 50;
+  score = conditionScore * 0.5; // 50% weight to condition
+
+  // Image score factor
+  const imageCount = dealRow[44] || 0;
+  if (imageCount >= 15) score += 20;
+  else if (imageCount >= 10) score += 15;
+  else if (imageCount >= 5) score += 10;
+  else if (imageCount >= 1) score += 5;
+
+  // Mileage factor
+  const mileage = dealRow[10] || 0;
+  const year = parseInt(dealRow[5]) || 2015;
+  const age = new Date().getFullYear() - year;
+  const expectedMiles = age * 12000;
+
+  if (mileage < expectedMiles * 0.7) score += 15; // Low mileage
+  else if (mileage < expectedMiles) score += 10;
+  else if (mileage > expectedMiles * 1.5) score -= 15; // High mileage
+
+  // Title status
+  const title = (dealRow[12] || '').toLowerCase();
+  if (title.includes('clean')) score += 10;
+  else if (title.includes('salvage') || title.includes('rebuilt')) score -= 20;
+
+  return Math.min(100, Math.max(0, score));
+}
+
+/**
+ * Calculate location score
+ */
+function calculateLocationScore(dealRow) {
+  const distance = dealRow[16] || 999;
+
+  if (distance <= 10) return 100;
+  if (distance <= 25) return 90;
+  if (distance <= 50) return 75;
+  if (distance <= 75) return 60;
+  if (distance <= 100) return 45;
+  if (distance <= 150) return 30;
+  return 15;
+}
+
+/**
+ * Calculate market timing score
+ */
+function calculateMarketTimingScore(dealRow) {
+  let score = 50;
+
+  // Days listed factor
+  const daysListed = dealRow[32] || 0;
+  if (daysListed <= 3) score += 30; // Fresh listing
+  else if (daysListed <= 7) score += 20;
+  else if (daysListed <= 14) score += 10;
+  else if (daysListed > 30) score -= 10; // Stale listing
+  else if (daysListed > 60) score -= 20;
+
+  // Sales velocity score
+  const velocityScore = dealRow[30] || 50;
+  score += (velocityScore - 50) * 0.3;
+
+  // Market advantage score
+  const marketAdvantage = dealRow[31] || 50;
+  score += (marketAdvantage - 50) * 0.2;
+
+  return Math.min(100, Math.max(0, score));
+}
+
+/**
+ * Calculate seller motivation score
+ */
+function calculateSellerMotivationScore(dealRow) {
+  let score = 50;
+
+  // Seller type
+  const sellerType = (dealRow[36] || '').toLowerCase();
+  if (sellerType === 'private') score += 15;
+  else if (sellerType === 'dealer') score -= 10;
+
+  // Hot seller indicator
+  if (dealRow[37]) score += 20;
+
+  // Price vs market value
+  const price = dealRow[13] || 0;
+  const marketValue = dealRow[24] || price;
+  const priceRatio = price / marketValue;
+
+  if (priceRatio < 0.7) score += 25; // Significantly underpriced
+  else if (priceRatio < 0.8) score += 15;
+  else if (priceRatio < 0.9) score += 5;
+  else if (priceRatio > 1.1) score -= 20; // Overpriced
+
+  // Multiple vehicles indicator (might need to sell)
+  if (dealRow[38]) score += 10;
+
+  return Math.min(100, Math.max(0, score));
+}
+
+/**
+ * Calculate speed/urgency factor score
+ */
+function calculateSpeedFactorScore(dealRow) {
+  let score = 50;
+
+  // Days listed urgency
+  const daysListed = dealRow[32] || 0;
+  if (daysListed <= 2) score += 30;
+  else if (daysListed <= 5) score += 20;
+  else if (daysListed <= 10) score += 10;
+
+  // Competition level (inverse)
+  const competition = dealRow[46] || 50;
+  score += (100 - competition) * 0.2;
+
+  // Platform speed factor
+  const platform = (dealRow[2] || '').toLowerCase();
+  if (platform.includes('facebook')) score += 10; // Fast moving
+  else if (platform.includes('craigslist')) score += 5;
+  else if (platform.includes('ebay')) score -= 5; // More competition
+
+  return Math.min(100, Math.max(0, score));
+}
+
+/**
+ * Calculate risk assessment score (higher = lower risk)
+ */
+function calculateRiskScore(dealRow) {
+  let score = 100; // Start at max (no risk)
+
+  // Repair risk
+  const repairRisk = dealRow[22] || 0;
+  score -= repairRisk * 0.3;
+
+  // Location risk
+  const locationRisk = (dealRow[17] || '').toLowerCase();
+  if (locationRisk === 'high') score -= 20;
+  else if (locationRisk === 'moderate') score -= 10;
+
+  // Title risk
+  const title = (dealRow[12] || '').toLowerCase();
+  if (title.includes('salvage')) score -= 30;
+  else if (title.includes('rebuilt')) score -= 20;
+  else if (title.includes('lien')) score -= 15;
+
+  // Estimated repair cost risk
+  const repairCost = dealRow[23] || 0;
+  if (repairCost > 3000) score -= 25;
+  else if (repairCost > 2000) score -= 15;
+  else if (repairCost > 1000) score -= 10;
+
+  // Capital risk (higher price = higher risk)
+  const price = dealRow[13] || 0;
+  if (price > 15000) score -= 10;
+  else if (price > 10000) score -= 5;
+
+  return Math.min(100, Math.max(0, score));
+}
+
+/**
+ * Get letter grade from score
+ */
+function getLetterGrade(score) {
+  for (const [grade, threshold] of Object.entries(SCORING_CONFIG.GRADES)) {
+    if (score >= threshold) return grade;
+  }
+  return 'F';
+}
+
+/**
+ * Get lead quality tier
+ */
+function getLeadTier(score) {
+  if (score >= 90) return { name: 'Platinum', color: '#e5e4e2', emoji: '💎' };
+  if (score >= 80) return { name: 'Gold', color: '#ffd700', emoji: '🥇' };
+  if (score >= 70) return { name: 'Silver', color: '#c0c0c0', emoji: '🥈' };
+  if (score >= 60) return { name: 'Bronze', color: '#cd7f32', emoji: '🥉' };
+  return { name: 'Standard', color: '#808080', emoji: '📋' };
+}
+
+/**
+ * Generate scoring insights
+ */
+function generateScoringInsights(scores) {
+  const insights = [];
+
+  // Find strengths (top scores)
+  const sortedDimensions = Object.entries(scores)
+    .sort((a, b) => b[1] - a[1]);
+
+  const topDimension = sortedDimensions[0];
+  const bottomDimension = sortedDimensions[sortedDimensions.length - 1];
+
+  // Strength insight
+  if (topDimension[1] >= 80) {
+    const dimensionNames = {
+      profitPotential: 'profit potential',
+      vehicleQuality: 'vehicle quality',
+      locationFactor: 'location',
+      marketTiming: 'market timing',
+      sellerMotivation: 'seller motivation',
+      speedFactor: 'speed opportunity',
+      riskAssessment: 'risk profile'
+    };
+    insights.push(`💪 Strong ${dimensionNames[topDimension[0]]}: ${topDimension[1]}%`);
+  }
+
+  // Weakness insight
+  if (bottomDimension[1] < 50) {
+    const dimensionNames = {
+      profitPotential: 'profit margins',
+      vehicleQuality: 'vehicle condition',
+      locationFactor: 'distance',
+      marketTiming: 'timing',
+      sellerMotivation: 'seller flexibility',
+      speedFactor: 'competition',
+      riskAssessment: 'risk factors'
+    };
+    insights.push(`⚠️ Watch ${dimensionNames[bottomDimension[0]]}: ${bottomDimension[1]}%`);
+  }
+
+  // Specific insights
+  if (scores.profitPotential >= 85) {
+    insights.push('🎯 High ROI opportunity - prioritize contact');
+  }
+  if (scores.speedFactor >= 80 && scores.marketTiming >= 75) {
+    insights.push('⚡ Quick flip potential - act fast');
+  }
+  if (scores.riskAssessment < 40) {
+    insights.push('🔴 Multiple risk factors present - proceed with caution');
+  }
+  if (scores.sellerMotivation >= 80) {
+    insights.push('🔥 Motivated seller - good negotiation opportunity');
+  }
+
+  return insights;
+}
+
+/**
+ * Generate score-based recommendation
+ */
+function generateScoreRecommendation(totalScore, scores) {
+  if (totalScore >= 90) {
+    return '🚀 PREMIUM DEAL - Contact immediately, this is a top-tier opportunity!';
+  } else if (totalScore >= 80) {
+    return '✅ STRONG BUY - Excellent opportunity, prioritize for quick action.';
+  } else if (totalScore >= 70) {
+    return '👍 GOOD OPPORTUNITY - Solid deal worth pursuing with standard due diligence.';
+  } else if (totalScore >= 60) {
+    return '⚖️ CONSIDER - Decent potential but review weak areas before proceeding.';
+  } else if (totalScore >= 50) {
+    return '🔍 INVESTIGATE - Below average, only proceed if weaknesses can be mitigated.';
+  } else {
+    return '⛔ PASS - Score too low, focus resources on better opportunities.';
+  }
+}
+
+/**
+ * Update lead scoring for all deals
+ */
+function updateAllLeadScores() {
+  const dbSheet = getQuantumSheet(QUANTUM_SHEETS.DATABASE.name);
+  const scoringSheet = getQuantumSheet(QUANTUM_SHEETS.SCORING.name);
+
+  if (!dbSheet || !scoringSheet) {
+    SpreadsheetApp.getUi().alert('Required sheets not found.');
+    return;
+  }
+
+  const data = dbSheet.getDataRange().getValues();
+  let updated = 0;
+
+  for (let i = 1; i < data.length; i++) {
+    const dealId = data[i][0];
+    if (!dealId) continue;
+
+    const scoreData = calculateEnhancedLeadScore(dealId);
+    if (scoreData) {
+      // Update scoring sheet
+      const scoreRow = [
+        generateQuantumId('SCR'),
+        dealId,
+        new Date(),
+        scoreData.totalScore,
+        JSON.stringify(scoreData.dimensions),
+        scoreData.dimensions.marketTiming,
+        scoreData.dimensions.vehicleQuality,
+        scoreData.dimensions.sellerMotivation,
+        scoreData.dimensions.speedFactor,
+        scoreData.dimensions.locationFactor,
+        scoreData.dimensions.riskAssessment,
+        scoreData.dimensions.profitPotential,
+        100 - scoreData.dimensions.riskAssessment,
+        scoreData.dimensions.speedFactor,
+        scoreData.dimensions.vehicleQuality,
+        scoreData.totalScore,
+        calculatePercentileRank(scoreData.totalScore),
+        scoreData.tier.name,
+        scoreData.grade,
+        scoreData.insights.join('; '),
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        scoreData.grade
+      ];
+
+      scoringSheet.appendRow(scoreRow);
+      updated++;
+    }
+  }
+
+  logQuantum('Lead Scoring Update', `Updated scores for ${updated} deals`);
+  SpreadsheetApp.getUi().alert(`Lead Scoring Complete! Updated ${updated} deals.`);
+}
+
+/**
+ * Calculate percentile rank
+ */
+function calculatePercentileRank(score) {
+  // Simplified percentile calculation
+  if (score >= 90) return 95;
+  if (score >= 80) return 85;
+  if (score >= 70) return 70;
+  if (score >= 60) return 55;
+  if (score >= 50) return 40;
+  return 20;
+}
+
+/**
+ * Open Lead Scoring Dashboard
+ */
+function openLeadScoring() {
+  const dbSheet = getQuantumSheet(QUANTUM_SHEETS.DATABASE.name);
+  if (!dbSheet) {
+    SpreadsheetApp.getUi().alert('Database sheet not found.');
+    return;
+  }
+
+  const data = dbSheet.getDataRange().getValues();
+  const scores = [];
+
+  // Calculate scores for top deals
+  for (let i = 1; i < Math.min(data.length, 51); i++) { // Top 50
+    const dealId = data[i][0];
+    if (dealId) {
+      const scoreData = calculateEnhancedLeadScore(dealId);
+      if (scoreData) {
+        scores.push({
+          ...scoreData,
+          vehicle: `${data[i][5]} ${data[i][6]} ${data[i][7]}`,
+          price: data[i][13],
+          roi: data[i][27]
+        });
+      }
+    }
+  }
+
+  // Sort by score
+  scores.sort((a, b) => b.totalScore - a.totalScore);
+
+  const html = HtmlService.createHtmlOutput(getLeadScoringHTML(scores))
+    .setWidth(750)
+    .setHeight(800);
+
+  SpreadsheetApp.getUi().showSidebar(html);
+}
+
+/**
+ * Generate Lead Scoring Dashboard HTML
+ */
+function getLeadScoringHTML(scores) {
+  const leadsHTML = scores.slice(0, 20).map((score, index) => `
+    <div class="lead-row ${score.totalScore >= 80 ? 'premium' : score.totalScore >= 60 ? 'good' : 'standard'}">
+      <div class="lead-rank">#${index + 1}</div>
+      <div class="lead-details">
+        <div class="lead-title">${score.vehicle}</div>
+        <div class="lead-meta">$${(score.price || 0).toLocaleString()} | ROI: ${Math.round(score.roi || 0)}%</div>
+      </div>
+      <div class="lead-score-section">
+        <div class="lead-score">${score.totalScore}</div>
+        <div class="lead-grade grade-${score.grade.replace('+', 'plus').replace('-', 'minus')}">${score.grade}</div>
+      </div>
+      <div class="lead-tier">${score.tier.emoji}</div>
+    </div>
+  `).join('');
+
+  // Calculate summary stats
+  const avgScore = scores.length > 0 ? Math.round(scores.reduce((sum, s) => sum + s.totalScore, 0) / scores.length) : 0;
+  const premiumCount = scores.filter(s => s.totalScore >= 80).length;
+  const goodCount = scores.filter(s => s.totalScore >= 60 && s.totalScore < 80).length;
+
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <base target="_top">
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+        <style>
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+
+          body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f8f9fa;
+            color: #333;
+            padding: 20px;
+          }
+
+          .scoring-header {
+            text-align: center;
+            padding: 15px 0 20px;
+            border-bottom: 2px solid #e0e0e0;
+            margin-bottom: 20px;
+          }
+
+          .scoring-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1a73e8;
+          }
+
+          .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+          }
+
+          .summary-card {
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+          }
+
+          .summary-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1a73e8;
+          }
+
+          .summary-label {
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+            margin-top: 4px;
+          }
+
+          .leads-list {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            overflow: hidden;
+          }
+
+          .list-header {
+            background: #f5f5f5;
+            padding: 12px 15px;
+            font-weight: 600;
+            font-size: 14px;
+            border-bottom: 1px solid #e0e0e0;
+          }
+
+          .lead-row {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background 0.2s;
+          }
+
+          .lead-row:hover {
+            background: #f8f9fa;
+          }
+
+          .lead-row.premium {
+            border-left: 4px solid #34a853;
+          }
+
+          .lead-row.good {
+            border-left: 4px solid #1a73e8;
+          }
+
+          .lead-row.standard {
+            border-left: 4px solid #9e9e9e;
+          }
+
+          .lead-rank {
+            width: 35px;
+            font-weight: 600;
+            color: #666;
+            font-size: 13px;
+          }
+
+          .lead-details {
+            flex: 1;
+          }
+
+          .lead-title {
+            font-weight: 600;
+            font-size: 13px;
+          }
+
+          .lead-meta {
+            font-size: 11px;
+            color: #666;
+            margin-top: 2px;
+          }
+
+          .lead-score-section {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-right: 10px;
+          }
+
+          .lead-score {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1a73e8;
+          }
+
+          .lead-grade {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 4px;
+          }
+
+          .grade-Aplus, .grade-A { background: #e8f5e9; color: #2e7d32; }
+          .grade-Aminus, .grade-Bplus { background: #e3f2fd; color: #1565c0; }
+          .grade-B, .grade-Bminus { background: #fff3e0; color: #ef6c00; }
+          .grade-Cplus, .grade-C, .grade-Cminus { background: #fff8e1; color: #f57c00; }
+          .grade-D, .grade-Dplus, .grade-Dminus, .grade-F { background: #ffebee; color: #c62828; }
+
+          .lead-tier {
+            font-size: 20px;
+          }
+
+          .action-btn {
+            display: block;
+            width: 100%;
+            padding: 14px;
+            margin-top: 20px;
+            background: #1a73e8;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+          }
+
+          .action-btn:hover {
+            background: #1557b0;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="scoring-header">
+          <div class="scoring-title">📊 Lead Scoring Dashboard</div>
+        </div>
+
+        <div class="summary-cards">
+          <div class="summary-card">
+            <div class="summary-value">${avgScore}</div>
+            <div class="summary-label">Avg Score</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-value" style="color: #34a853">${premiumCount}</div>
+            <div class="summary-label">Premium Leads</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-value" style="color: #1a73e8">${goodCount}</div>
+            <div class="summary-label">Good Leads</div>
+          </div>
+        </div>
+
+        <div class="leads-list">
+          <div class="list-header">Top Scored Leads</div>
+          ${leadsHTML || '<p style="padding: 20px; text-align: center; color: #666;">No leads to display</p>'}
+        </div>
+
+        <button class="action-btn" onclick="google.script.run.updateAllLeadScores()">
+          🔄 Refresh All Scores
+        </button>
+      </body>
+    </html>
+  `;
+}
+
+/**
+ * Focus on a specific deal (navigate to it)
+ */
+function focusOnDeal(dealId) {
+  const dbSheet = getQuantumSheet(QUANTUM_SHEETS.DATABASE.name);
+  if (!dbSheet) return;
+
+  const data = dbSheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === dealId) {
+      dbSheet.setActiveRange(dbSheet.getRange(i + 1, 1));
+      SpreadsheetApp.setActiveSheet(dbSheet);
+      break;
+    }
+  }
+}
+
+// =========================================================
 // END OF CARHAWK ULTIMATE QUANTUM CRM SYSTEM
 // =========================================================
