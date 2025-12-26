@@ -576,3 +576,368 @@ function writeToLocalCRMSheet(analysis, crmResults) {
     new Date()
   ]);
 }
+
+// ============================================================================
+// EMAIL CAMPAIGN GENERATION
+// ============================================================================
+
+/**
+ * Generate email campaign for hot leads (menu function)
+ */
+function generateEmailCampaign() {
+  const ui = SpreadsheetApp.getUi();
+  const sheet = getSheet(SHEETS.MASTER);
+
+  if (!sheet) {
+    ui.alert('Master Database not found.');
+    return;
+  }
+
+  const data = sheet.getDataRange().getValues();
+  const emailLeads = [];
+
+  // Collect leads with email addresses
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const email = row[31]; // Seller Email column
+    const temperature = row[5];
+
+    if (email && (temperature === 'Hot' || temperature === 'Warm')) {
+      const dealData = normalizeFromRow(row);
+      const analysis = analyzeDeal(dealData);
+      if (analysis.verdict !== 'PASS') {
+        emailLeads.push(analysis);
+      }
+    }
+  }
+
+  if (emailLeads.length === 0) {
+    ui.alert('No leads with email addresses found.');
+    return;
+  }
+
+  // Show campaign options
+  const response = ui.prompt(
+    'Generate Email Campaign',
+    `Found ${emailLeads.length} leads with emails.\n\nEnter campaign name:`,
+    ui.ButtonSet.OK_CANCEL
+  );
+
+  if (response.getSelectedButton() !== ui.Button.OK) return;
+
+  const campaignName = response.getResponseText().trim() || `Campaign_${new Date().toISOString().split('T')[0]}`;
+
+  try {
+    // Create campaign sheet
+    const campaignSheet = getOrCreateSheet(`Email_${campaignName}`);
+
+    // Set headers
+    campaignSheet.getRange(1, 1, 1, 10).setValues([[
+      'Email', 'Name', 'Vehicle', 'Verdict', 'Strategy',
+      'MAO', 'Profit', 'Subject', 'Body', 'Generated'
+    ]]);
+
+    // Generate emails for each lead
+    for (const analysis of emailLeads) {
+      const emailContent = generateEmailContent(analysis);
+
+      campaignSheet.appendRow([
+        analysis.sellerEmail,
+        analysis.sellerName || 'Seller',
+        analysis.vehicle,
+        analysis.verdict,
+        analysis.strategy,
+        analysis.mao,
+        analysis.profitDollars,
+        emailContent.subject,
+        emailContent.body,
+        new Date()
+      ]);
+    }
+
+    // Format sheet
+    campaignSheet.setFrozenRows(1);
+    campaignSheet.autoResizeColumns(1, 10);
+
+    ui.alert(
+      'Campaign Generated',
+      `Created campaign "${campaignName}" with ${emailLeads.length} emails.\n\nSheet: Email_${campaignName}`,
+      ui.ButtonSet.OK
+    );
+
+    logSystem('Email Campaign', `Generated ${emailLeads.length} emails for ${campaignName}`);
+
+  } catch (error) {
+    ui.alert('Campaign Error', error.toString(), ui.ButtonSet.OK);
+    logSystem('Email Campaign Error', error.toString());
+  }
+}
+
+/**
+ * Generate email content for a lead
+ */
+function generateEmailContent(analysis) {
+  const strategy = analysis.strategy || 'QUICK_FLIP';
+  const verdict = analysis.verdict || 'SOLID DEAL';
+  const firstName = extractFirstName(analysis.sellerName) || 'there';
+
+  // Subject lines by verdict
+  const subjects = {
+    'HOT DEAL': `Quick Question About Your ${analysis.year} ${analysis.make}`,
+    'SOLID DEAL': `Interested in Your ${analysis.make} ${analysis.model}`,
+    'PASS': `Question About Your Vehicle Listing`
+  };
+
+  // Body templates by strategy
+  const bodies = {
+    'QUICK_FLIP': `Hi ${firstName},
+
+I came across your ${analysis.vehicle} listing and I'm very interested. I'm a local buyer who can move quickly and pay cash.
+
+Would you be available for a quick call to discuss? I'm flexible on timing and can work around your schedule.
+
+Best regards`,
+
+    'REPAIR_RESELL': `Hi ${firstName},
+
+I noticed your ${analysis.vehicle} for sale. I specialize in vehicles that need some TLC and I'm interested in taking a look.
+
+I understand the condition and I'm prepared to make a fair cash offer. Would you have some time to chat this week?
+
+Thanks`,
+
+    'PART_OUT': `Hi ${firstName},
+
+I'm reaching out about your ${analysis.vehicle}. I work with vehicles in various conditions and I'm interested in discussing a potential purchase.
+
+I can be flexible and make the process easy for you. When would be a good time to connect?
+
+Best`,
+
+    'HOLD_SEASONAL': `Hi ${firstName},
+
+Your ${analysis.vehicle} caught my attention. I'm building my inventory and this looks like a great addition.
+
+I'm a serious buyer with cash ready. Would you be open to a conversation about the vehicle?
+
+Thanks for your time`
+  };
+
+  return {
+    subject: subjects[verdict] || subjects['SOLID DEAL'],
+    body: bodies[strategy] || bodies['QUICK_FLIP']
+  };
+}
+
+// ============================================================================
+// CRM STATUS SYNC
+// ============================================================================
+
+/**
+ * Sync CRM status back to Master sheet (menu function)
+ */
+function syncCRMStatus() {
+  const ui = SpreadsheetApp.getUi();
+  const masterSheet = getSheet(SHEETS.MASTER);
+  const crmSheet = getSheet(SHEETS.CRM);
+
+  if (!masterSheet) {
+    ui.alert('Master Database not found.');
+    return;
+  }
+
+  if (!crmSheet) {
+    ui.alert('CRM sheet not found. Export leads first.');
+    return;
+  }
+
+  const confirm = ui.alert(
+    'Sync CRM Status',
+    'This will:\n\n' +
+    '1. Check CompanyHub for deal status updates\n' +
+    '2. Update Master sheet with current CRM status\n' +
+    '3. Log any changes\n\nContinue?',
+    ui.ButtonSet.YES_NO
+  );
+
+  if (confirm !== ui.Button.YES) return;
+
+  try {
+    const lock = LockService.getScriptLock();
+    if (!lock.tryLock(LOCK_CONFIG.CRM_SYNC_LOCK_TIMEOUT_MS)) {
+      ui.alert('CRM sync already in progress. Try again later.');
+      return;
+    }
+
+    let updated = 0;
+    let errors = 0;
+
+    // Get CRM data
+    const crmData = crmSheet.getDataRange().getValues();
+
+    // Build map of carHawkId -> row in CRM sheet
+    const crmMap = new Map();
+    for (let i = 1; i < crmData.length; i++) {
+      const carHawkId = crmData[i][2]; // CarHawk ID column
+      if (carHawkId) {
+        crmMap.set(carHawkId, i + 1);
+      }
+    }
+
+    // Get Master data
+    const masterData = masterSheet.getDataRange().getValues();
+
+    // Check each synced deal
+    for (let i = 1; i < masterData.length; i++) {
+      const dealId = masterData[i][0];
+
+      if (crmMap.has(dealId)) {
+        try {
+          // Fetch status from CompanyHub
+          const status = fetchCompanyHubDealStatus(dealId);
+
+          if (status) {
+            // Update CRM Status column (column 35, index 34)
+            masterSheet.getRange(i + 1, 35).setValue(status.stage || 'Unknown');
+
+            // Update Last CRM Sync column (column 36, index 35)
+            masterSheet.getRange(i + 1, 36).setValue(new Date());
+
+            updated++;
+          }
+        } catch (error) {
+          errors++;
+          logSystem('CRM Sync Error', `Deal ${dealId}: ${error.toString()}`);
+        }
+
+        // Rate limiting
+        Utilities.sleep(200);
+      }
+    }
+
+    lock.releaseLock();
+
+    ui.alert(
+      'Sync Complete',
+      `Updated: ${updated} deals\nErrors: ${errors}`,
+      ui.ButtonSet.OK
+    );
+
+    logSystem('CRM Status Sync', `Updated ${updated} deals, ${errors} errors`);
+
+  } catch (error) {
+    ui.alert('Sync Error', error.toString(), ui.ButtonSet.OK);
+    logSystem('CRM Status Sync Error', error.toString());
+  }
+}
+
+/**
+ * Fetch deal status from CompanyHub
+ */
+function fetchCompanyHubDealStatus(carHawkId) {
+  const apiKey = getApiKey('COMPANYHUB');
+  if (!apiKey) {
+    return null;
+  }
+
+  try {
+    const url = `${API_CONFIG.COMPANYHUB.BASE_URL}/deals?customFields.carHawkId=${encodeURIComponent(carHawkId)}`;
+
+    const response = UrlFetchApp.fetch(url, {
+      method: 'get',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Accept': 'application/json'
+      },
+      muteHttpExceptions: true
+    });
+
+    const code = response.getResponseCode();
+    if (code >= 200 && code < 300) {
+      const data = JSON.parse(response.getContentText());
+      if (data && data.deals && data.deals.length > 0) {
+        return {
+          stage: data.deals[0].stage,
+          status: data.deals[0].status,
+          lastUpdated: data.deals[0].updatedAt
+        };
+      }
+    }
+  } catch (error) {
+    logSystem('CompanyHub Fetch Error', error.toString());
+  }
+
+  return null;
+}
+
+/**
+ * Show CRM sync log (menu function)
+ */
+function showCRMSyncLog() {
+  const ui = SpreadsheetApp.getUi();
+  const logSheet = getSheet(SHEETS.CRM_LOG);
+
+  if (!logSheet) {
+    ui.alert('No CRM sync logs found.');
+    return;
+  }
+
+  const data = logSheet.getDataRange().getValues();
+
+  // Get last 20 entries
+  const recentLogs = data.slice(-20).reverse();
+
+  let message = 'Recent CRM Sync Activity:\n\n';
+
+  for (const log of recentLogs) {
+    const timestamp = log[0] ? new Date(log[0]).toLocaleString() : 'N/A';
+    const system = log[1] || '';
+    const action = log[2] || '';
+    const status = log[3] || '';
+
+    message += `${timestamp}\n${system}: ${action} - ${status}\n\n`;
+  }
+
+  // Show in sidebar for better formatting
+  const html = HtmlService.createHtmlOutput(
+    `<html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 16px; }
+          h2 { color: #1a73e8; }
+          .log-entry {
+            background: #f8f9fa;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 4px;
+            border-left: 3px solid #1a73e8;
+          }
+          .timestamp { color: #5f6368; font-size: 12px; }
+          .status-success { color: #34a853; }
+          .status-failed { color: #ea4335; }
+        </style>
+      </head>
+      <body>
+        <h2>CRM Sync Log</h2>
+        ${recentLogs.map(log => {
+          const timestamp = log[0] ? new Date(log[0]).toLocaleString() : 'N/A';
+          const system = log[1] || '';
+          const action = log[2] || '';
+          const status = log[3] || '';
+          const statusClass = status === 'SUCCESS' ? 'status-success' : 'status-failed';
+          return `
+            <div class="log-entry">
+              <div class="timestamp">${timestamp}</div>
+              <strong>${system}</strong>: ${action}
+              <span class="${statusClass}">${status}</span>
+            </div>
+          `;
+        }).join('')}
+      </body>
+    </html>`
+  )
+    .setTitle('CRM Sync Log')
+    .setWidth(400);
+
+  ui.showSidebar(html);
+}
