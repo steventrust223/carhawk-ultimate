@@ -284,10 +284,12 @@ function buildMasterRow(id, data, platform) {
 
 /**
  * Analyze newly imported deals
+ * Auto-routes to CRM if ENABLE_AUTO_CRM_ROUTING feature flag is true
  */
 function analyzeImportedDeals(startRow, endRow) {
   try {
-    analyzeDealsWithLock(startRow, endRow);
+    // Use analyzeDealsWithAutoRoute which includes optional CRM auto-routing
+    analyzeDealsWithAutoRoute(startRow, endRow);
   } catch (error) {
     logSystem('Post-Import Analysis', `Error analyzing rows ${startRow}-${endRow}: ${error.toString()}`);
   }

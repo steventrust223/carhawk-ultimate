@@ -348,6 +348,7 @@ function calculateNegotiationAnchors(mao, strategy) {
 
 /**
  * Analyze multiple deals with concurrency protection
+ * Optionally auto-routes to CRM if ENABLE_AUTO_CRM_ROUTING is true
  */
 function analyzeDealsWithLock(startRow, endRow) {
   const lock = LockService.getScriptLock();
@@ -374,11 +375,13 @@ function analyzeDealsWithLock(startRow, endRow) {
         // Update sheet with analysis results
         updateSheetWithAnalysis(sheet, rowNum, analysis);
 
+        // Include full analysis object for auto-routing
         results.push({
           rowNum: rowNum,
           id: analysis.id,
           success: true,
-          verdict: analysis.verdict
+          verdict: analysis.verdict,
+          analysis: analysis  // Full analysis for CRM routing
         });
 
       } catch (error) {
@@ -402,6 +405,27 @@ function analyzeDealsWithLock(startRow, endRow) {
   } finally {
     lock.releaseLock();
   }
+}
+
+/**
+ * Analyze deals and optionally auto-route to CRM
+ * This is the main entry point that includes auto-routing
+ */
+function analyzeDealsWithAutoRoute(startRow, endRow) {
+  // Run analysis
+  const results = analyzeDealsWithLock(startRow, endRow);
+
+  // Auto-route if feature flag is enabled
+  if (FEATURE_FLAGS.ENABLE_AUTO_CRM_ROUTING) {
+    try {
+      const routingResult = autoRouteDealsToCRM(results);
+      logSystem('Auto-Route After Analysis', 'Completed', routingResult);
+    } catch (error) {
+      logSystem('Auto-Route Error', error.toString());
+    }
+  }
+
+  return results;
 }
 
 /**

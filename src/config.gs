@@ -355,7 +355,11 @@ const FEATURE_FLAGS = {
   ENABLE_SMS_INTEGRATION: true,
   ENABLE_COMPANYHUB_INTEGRATION: true,
   USE_REAL_DISTANCE_API: true,
-  ENABLE_KNOWLEDGE_BASE: true
+  ENABLE_KNOWLEDGE_BASE: true,
+  // Auto-routing after import analysis (default OFF)
+  ENABLE_AUTO_CRM_ROUTING: false,
+  // Send SMS to SOLID deals automatically (only applies if ENABLE_AUTO_CRM_ROUTING=true)
+  ENABLE_AUTO_SOLID_SMS: false
 };
 
 // ============================================================================

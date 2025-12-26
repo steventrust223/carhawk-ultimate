@@ -941,3 +941,240 @@ function showCRMSyncLog() {
 
   ui.showSidebar(html);
 }
+
+// ============================================================================
+// AUTO-ROUTING AFTER IMPORT ANALYSIS (Feature-Flagged)
+// ============================================================================
+
+/**
+ * Check if a deal has already been exported to CRM (idempotency check)
+ * @param {string} carHawkId - The CarHawk deal ID
+ * @returns {Object} - { exported: boolean, smsitSent: boolean, companyhubSynced: boolean }
+ */
+function hasBeenExportedToCRM(carHawkId) {
+  const result = {
+    exported: false,
+    smsitSent: false,
+    companyhubSynced: false,
+    crmRowNum: null
+  };
+
+  const crmSheet = getSheet(SHEETS.CRM);
+  if (!crmSheet) return result;
+
+  const data = crmSheet.getDataRange().getValues();
+
+  // Column 2 (index 2) is CarHawk ID in the CRM sheet
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][2] === carHawkId) {
+      result.exported = true;
+      result.crmRowNum = i + 1;
+      result.smsitSent = data[i][11] === 'Sent';
+      result.companyhubSynced = data[i][12] === 'Synced';
+      break;
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Auto-route deals to CRM after import analysis
+ * Called automatically when ENABLE_AUTO_CRM_ROUTING is true
+ * @param {Array} analysisResults - Array of analysis results from analyzeDealsWithLock
+ */
+function autoRouteDealsToCRM(analysisResults) {
+  // Check if auto-routing is enabled
+  if (!FEATURE_FLAGS.ENABLE_AUTO_CRM_ROUTING) {
+    return { skipped: true, reason: 'ENABLE_AUTO_CRM_ROUTING is false' };
+  }
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(LOCK_CONFIG.CRM_SYNC_LOCK_TIMEOUT_MS)) {
+    logCrmAutoRoute('SKIP', null, 'Could not acquire lock');
+    return { skipped: true, reason: 'Lock unavailable' };
+  }
+
+  try {
+    const stats = {
+      total: analysisResults.length,
+      hotRouted: 0,
+      solidRouted: 0,
+      passSkipped: 0,
+      alreadyExported: 0,
+      errors: 0
+    };
+
+    const sheet = getSheet(SHEETS.MASTER);
+    if (!sheet) {
+      throw new Error('Master sheet not found');
+    }
+
+    for (const result of analysisResults) {
+      if (!result.success || !result.analysis) continue;
+
+      const analysis = result.analysis;
+      const verdict = analysis.verdict || 'PASS';
+
+      try {
+        // Skip PASS deals - never auto-route
+        if (verdict === 'PASS') {
+          stats.passSkipped++;
+          logCrmAutoRoute('SKIP_PASS', analysis.id, 'Verdict is PASS');
+          continue;
+        }
+
+        // Idempotency check
+        const exportStatus = hasBeenExportedToCRM(analysis.id);
+        if (exportStatus.exported) {
+          // Check if we need to retry any failed exports
+          const needsRetry = (verdict === 'HOT DEAL' && !exportStatus.smsitSent && analysis.sellerPhone) ||
+                            !exportStatus.companyhubSynced;
+
+          if (!needsRetry) {
+            stats.alreadyExported++;
+            logCrmAutoRoute('SKIP_DUPLICATE', analysis.id, 'Already exported to CRM');
+            continue;
+          }
+        }
+
+        // Route based on verdict
+        if (verdict === 'HOT DEAL') {
+          const routeResult = autoRouteHotDeal(analysis, exportStatus);
+          if (routeResult.success) {
+            stats.hotRouted++;
+            logCrmAutoRoute('ROUTED_HOT', analysis.id, 'Auto-routed to CompanyHub + SMS-iT', routeResult);
+          } else {
+            stats.errors++;
+            logCrmAutoRoute('ERROR_HOT', analysis.id, routeResult.error);
+          }
+
+        } else if (verdict === 'SOLID DEAL') {
+          const routeResult = autoRouteSolidDeal(analysis, exportStatus);
+          if (routeResult.success) {
+            stats.solidRouted++;
+            logCrmAutoRoute('ROUTED_SOLID', analysis.id, 'Auto-routed to CompanyHub (nurture queue)', routeResult);
+          } else {
+            stats.errors++;
+            logCrmAutoRoute('ERROR_SOLID', analysis.id, routeResult.error);
+          }
+        }
+
+        // Rate limiting between deals
+        Utilities.sleep(300);
+
+      } catch (error) {
+        stats.errors++;
+        logCrmAutoRoute('ERROR', analysis?.id || 'unknown', error.toString());
+      }
+    }
+
+    // Log summary to System Health
+    logSystem('Auto CRM Routing', `Completed: ${stats.hotRouted} HOT, ${stats.solidRouted} SOLID routed`, stats);
+
+    return {
+      skipped: false,
+      stats: stats
+    };
+
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Auto-route HOT deal: CompanyHub + SMS-iT
+ */
+function autoRouteHotDeal(analysis, exportStatus) {
+  const results = {
+    success: true,
+    companyhub: null,
+    smsit: null,
+    error: null
+  };
+
+  try {
+    // Route to CompanyHub if not already synced
+    if (!exportStatus.companyhubSynced && FEATURE_FLAGS.ENABLE_COMPANYHUB_INTEGRATION) {
+      const routing = CRM_ROUTING.HOT_DEAL;
+      results.companyhub = syncToCompanyHub(analysis, routing);
+    }
+
+    // Send SMS if not already sent and has phone
+    if (!exportStatus.smsitSent && analysis.sellerPhone && FEATURE_FLAGS.ENABLE_SMS_INTEGRATION) {
+      const routing = CRM_ROUTING.HOT_DEAL;
+      results.smsit = sendToSMSIT(analysis, routing);
+    }
+
+    // Write to local CRM sheet
+    writeToLocalCRMSheet(analysis, results);
+
+    return results;
+
+  } catch (error) {
+    results.success = false;
+    results.error = error.toString();
+    return results;
+  }
+}
+
+/**
+ * Auto-route SOLID deal: CompanyHub only (no SMS unless ENABLE_AUTO_SOLID_SMS)
+ */
+function autoRouteSolidDeal(analysis, exportStatus) {
+  const results = {
+    success: true,
+    companyhub: null,
+    smsit: null,
+    error: null
+  };
+
+  try {
+    // Route to CompanyHub if not already synced
+    if (!exportStatus.companyhubSynced && FEATURE_FLAGS.ENABLE_COMPANYHUB_INTEGRATION) {
+      const routing = CRM_ROUTING.SOLID_DEAL;
+      results.companyhub = syncToCompanyHub(analysis, routing);
+    }
+
+    // Only send SMS to SOLID deals if explicitly enabled
+    if (FEATURE_FLAGS.ENABLE_AUTO_SOLID_SMS &&
+        !exportStatus.smsitSent &&
+        analysis.sellerPhone &&
+        FEATURE_FLAGS.ENABLE_SMS_INTEGRATION) {
+      const routing = CRM_ROUTING.SOLID_DEAL;
+      results.smsit = sendToSMSIT(analysis, routing);
+    }
+
+    // Write to local CRM sheet
+    writeToLocalCRMSheet(analysis, results);
+
+    return results;
+
+  } catch (error) {
+    results.success = false;
+    results.error = error.toString();
+    return results;
+  }
+}
+
+/**
+ * Log auto-routing action to CRM_SYNC_LOG
+ */
+function logCrmAutoRoute(action, dealId, message, details = {}) {
+  const logSheet = getOrCreateSheet(SHEETS.CRM_LOG);
+
+  // Ensure headers exist
+  if (logSheet.getLastRow() === 0) {
+    logSheet.appendRow([
+      'Timestamp', 'Action', 'Deal ID', 'Message', 'Details'
+    ]);
+  }
+
+  logSheet.appendRow([
+    new Date(),
+    `AUTO_ROUTE:${action}`,
+    dealId || '',
+    message || '',
+    JSON.stringify(details)
+  ]);
+}
