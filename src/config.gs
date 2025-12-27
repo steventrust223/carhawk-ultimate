@@ -360,7 +360,10 @@ const FEATURE_FLAGS = {
   ENABLE_AUTO_CRM_ROUTING: false,
 
   // Send SMS to SOLID deals automatically (only if ENABLE_AUTO_CRM_ROUTING=true)
-  ENABLE_AUTO_SOLID_SMS: false
+  ENABLE_AUTO_SOLID_SMS: false,
+
+  // Optional logging behavior (keep)
+  LOG_PASSES_TO_CRM: false
 };
 
 // ============================================================================
