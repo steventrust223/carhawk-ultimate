@@ -948,15 +948,20 @@ function showCRMSyncLog() {
 
 /**
  * Check if a deal has already been exported to CRM (idempotency check)
+ * Tracks: carHawkId, verdict, companyhub_status, smsit_status, routed_at
  * @param {string} carHawkId - The CarHawk deal ID
- * @returns {Object} - { exported: boolean, smsitSent: boolean, companyhubSynced: boolean }
+ * @param {string} currentVerdict - Current verdict to detect verdict changes
+ * @returns {Object} - Full export status including verdict change detection
  */
-function hasBeenExportedToCRM(carHawkId) {
+function hasBeenExportedToCRM(carHawkId, currentVerdict) {
   const result = {
     exported: false,
     smsitSent: false,
     companyhubSynced: false,
-    crmRowNum: null
+    crmRowNum: null,
+    previousVerdict: null,
+    routedAt: null,
+    verdictChanged: false
   };
 
   const crmSheet = getSheet(SHEETS.CRM);
@@ -964,13 +969,23 @@ function hasBeenExportedToCRM(carHawkId) {
 
   const data = crmSheet.getDataRange().getValues();
 
-  // Column 2 (index 2) is CarHawk ID in the CRM sheet
+  // CRM Sheet columns:
+  // 0: CRM ID, 1: Timestamp, 2: CarHawk ID, 3: Vehicle, 4: Seller Name
+  // 5: Phone, 6: Email, 7: Verdict, 8: Strategy, 9: MAO, 10: Profit
+  // 11: SMS Status, 12: CompanyHub Status, 13: Message Preview, 14: Last Updated
   for (let i = 1; i < data.length; i++) {
     if (data[i][2] === carHawkId) {
       result.exported = true;
       result.crmRowNum = i + 1;
       result.smsitSent = data[i][11] === 'Sent';
       result.companyhubSynced = data[i][12] === 'Synced';
+      result.previousVerdict = data[i][7];
+      result.routedAt = data[i][14];
+
+      // Detect verdict upgrade (PASS→SOLID, SOLID→HOT, PASS→HOT)
+      if (currentVerdict && result.previousVerdict && currentVerdict !== result.previousVerdict) {
+        result.verdictChanged = true;
+      }
       break;
     }
   }
@@ -1024,17 +1039,29 @@ function autoRouteDealsToCRM(analysisResults) {
           continue;
         }
 
-        // Idempotency check
-        const exportStatus = hasBeenExportedToCRM(analysis.id);
+        // Idempotency check with verdict change detection
+        const exportStatus = hasBeenExportedToCRM(analysis.id, verdict);
+
         if (exportStatus.exported) {
-          // Check if we need to retry any failed exports
-          const needsRetry = (verdict === 'HOT DEAL' && !exportStatus.smsitSent && analysis.sellerPhone) ||
-                            !exportStatus.companyhubSynced;
+          // Allow re-route if verdict upgraded (e.g., SOLID→HOT)
+          const verdictUpgraded = exportStatus.verdictChanged &&
+            isVerdictUpgrade(exportStatus.previousVerdict, verdict);
+
+          // Check if we need to retry any failed exports OR verdict upgraded
+          const needsRetry = verdictUpgraded ||
+            (verdict === 'HOT DEAL' && !exportStatus.smsitSent && analysis.sellerPhone) ||
+            !exportStatus.companyhubSynced;
 
           if (!needsRetry) {
             stats.alreadyExported++;
-            logCrmAutoRoute('SKIP_DUPLICATE', analysis.id, 'Already exported to CRM');
+            logCrmAutoRoute('SKIP_DUPLICATE', analysis.id,
+              `Already exported (verdict: ${exportStatus.previousVerdict}, SMS: ${exportStatus.smsitSent}, CH: ${exportStatus.companyhubSynced})`);
             continue;
+          }
+
+          if (verdictUpgraded) {
+            logCrmAutoRoute('VERDICT_UPGRADE', analysis.id,
+              `${exportStatus.previousVerdict} → ${verdict}, re-routing`);
           }
         }
 
@@ -1177,4 +1204,21 @@ function logCrmAutoRoute(action, dealId, message, details = {}) {
     message || '',
     JSON.stringify(details)
   ]);
+}
+
+/**
+ * Check if verdict change is an upgrade (warrants re-routing)
+ * Upgrade hierarchy: PASS < SOLID DEAL < HOT DEAL
+ */
+function isVerdictUpgrade(previousVerdict, currentVerdict) {
+  const verdictRank = {
+    'PASS': 0,
+    'SOLID DEAL': 1,
+    'HOT DEAL': 2
+  };
+
+  const prevRank = verdictRank[previousVerdict] ?? 0;
+  const currRank = verdictRank[currentVerdict] ?? 0;
+
+  return currRank > prevRank;
 }
