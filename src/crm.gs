@@ -958,10 +958,10 @@ function hasBeenExportedToCRM(carHawkId, currentVerdict) {
     exported: false,
     smsitSent: false,
     companyhubSynced: false,
-    crmRowNum: null,
     previousVerdict: null,
+    verdictChanged: false,
     routedAt: null,
-    verdictChanged: false
+    crmRowNum: null
   };
 
   const crmSheet = getSheet(SHEETS.CRM);
@@ -982,9 +982,10 @@ function hasBeenExportedToCRM(carHawkId, currentVerdict) {
       result.previousVerdict = data[i][7];
       result.routedAt = data[i][14];
 
-      // Detect verdict upgrade (PASS→SOLID, SOLID→HOT, PASS→HOT)
-      if (currentVerdict && result.previousVerdict && currentVerdict !== result.previousVerdict) {
-        result.verdictChanged = true;
+      // verdictChanged = true ONLY if current verdict is an UPGRADE
+      // Upgrade hierarchy: PASS < SOLID DEAL < HOT DEAL
+      if (currentVerdict && result.previousVerdict) {
+        result.verdictChanged = isVerdictUpgrade(result.previousVerdict, currentVerdict);
       }
       break;
     }
@@ -1031,59 +1032,100 @@ function autoRouteDealsToCRM(analysisResults) {
       const analysis = result.analysis;
       const verdict = analysis.verdict || 'PASS';
 
+      // Build logging context
+      const logContext = {
+        carHawkId: analysis.id,
+        verdict: verdict,
+        previousVerdict: null,
+        verdictChanged: false,
+        smsitSent: false,
+        companyhubSynced: false,
+        notes: ''
+      };
+
       try {
         // Skip PASS deals - never auto-route
         if (verdict === 'PASS') {
           stats.passSkipped++;
-          logCrmAutoRoute('SKIP_PASS', analysis.id, 'Verdict is PASS');
+          logContext.notes = 'Verdict is PASS - never auto-route';
+          logCrmAutoRoute('SKIP_PASS', logContext);
           continue;
         }
 
         // Idempotency check with verdict change detection
         const exportStatus = hasBeenExportedToCRM(analysis.id, verdict);
 
+        // Update log context with export status
+        logContext.previousVerdict = exportStatus.previousVerdict;
+        logContext.verdictChanged = exportStatus.verdictChanged;
+        logContext.smsitSent = exportStatus.smsitSent;
+        logContext.companyhubSynced = exportStatus.companyhubSynced;
+
         if (exportStatus.exported) {
-          // Allow re-route if verdict upgraded (e.g., SOLID→HOT)
-          const verdictUpgraded = exportStatus.verdictChanged &&
-            isVerdictUpgrade(exportStatus.previousVerdict, verdict);
+          // Determine what action to take
+          const needsRetrySms = verdict === 'HOT DEAL' && !exportStatus.smsitSent && analysis.sellerPhone;
+          const needsRetryCompanyHub = !exportStatus.companyhubSynced;
 
-          // Check if we need to retry any failed exports OR verdict upgraded
-          const needsRetry = verdictUpgraded ||
-            (verdict === 'HOT DEAL' && !exportStatus.smsitSent && analysis.sellerPhone) ||
-            !exportStatus.companyhubSynced;
-
-          if (!needsRetry) {
-            stats.alreadyExported++;
-            logCrmAutoRoute('SKIP_DUPLICATE', analysis.id,
-              `Already exported (verdict: ${exportStatus.previousVerdict}, SMS: ${exportStatus.smsitSent}, CH: ${exportStatus.companyhubSynced})`);
+          // If verdict upgraded -> re-route fully
+          if (exportStatus.verdictChanged) {
+            logContext.notes = `Verdict upgraded: ${exportStatus.previousVerdict} → ${verdict}`;
+            // Continue to routing below
+          }
+          // If only SMS retry needed
+          else if (needsRetrySms && !needsRetryCompanyHub) {
+            const smsResult = retrySmsOnly(analysis);
+            logContext.notes = smsResult.success ? 'SMS retry successful' : `SMS retry failed: ${smsResult.error}`;
+            logCrmAutoRoute('RETRIED_SMS', logContext);
+            if (smsResult.success) stats.hotRouted++;
+            else stats.errors++;
             continue;
           }
-
-          if (verdictUpgraded) {
-            logCrmAutoRoute('VERDICT_UPGRADE', analysis.id,
-              `${exportStatus.previousVerdict} → ${verdict}, re-routing`);
+          // If only CompanyHub retry needed
+          else if (needsRetryCompanyHub && !needsRetrySms) {
+            const chResult = retryCompanyHubOnly(analysis);
+            logContext.notes = chResult.success ? 'CompanyHub retry successful' : `CompanyHub retry failed: ${chResult.error}`;
+            logCrmAutoRoute('RETRIED_COMPANYHUB', logContext);
+            if (chResult.success) stats.solidRouted++;
+            else stats.errors++;
+            continue;
+          }
+          // If both need retry
+          else if (needsRetrySms && needsRetryCompanyHub) {
+            logContext.notes = 'Retry both SMS and CompanyHub';
+            // Continue to full routing below
+          }
+          // Nothing needs retry - skip
+          else {
+            stats.alreadyExported++;
+            logContext.notes = 'Already fully exported, no retry needed';
+            logCrmAutoRoute('SKIP_DUPLICATE', logContext);
+            continue;
           }
         }
 
-        // Route based on verdict
+        // Route based on verdict (new export or re-route on upgrade)
         if (verdict === 'HOT DEAL') {
           const routeResult = autoRouteHotDeal(analysis, exportStatus);
           if (routeResult.success) {
             stats.hotRouted++;
-            logCrmAutoRoute('ROUTED_HOT', analysis.id, 'Auto-routed to CompanyHub + SMS-iT', routeResult);
+            logContext.notes = 'Routed to CompanyHub + SMS-iT';
+            logCrmAutoRoute('ROUTED', logContext);
           } else {
             stats.errors++;
-            logCrmAutoRoute('ERROR_HOT', analysis.id, routeResult.error);
+            logContext.notes = `Error: ${routeResult.error}`;
+            logCrmAutoRoute('ERROR', logContext);
           }
 
         } else if (verdict === 'SOLID DEAL') {
           const routeResult = autoRouteSolidDeal(analysis, exportStatus);
           if (routeResult.success) {
             stats.solidRouted++;
-            logCrmAutoRoute('ROUTED_SOLID', analysis.id, 'Auto-routed to CompanyHub (nurture queue)', routeResult);
+            logContext.notes = 'Routed to CompanyHub (nurture queue)';
+            logCrmAutoRoute('ROUTED', logContext);
           } else {
             stats.errors++;
-            logCrmAutoRoute('ERROR_SOLID', analysis.id, routeResult.error);
+            logContext.notes = `Error: ${routeResult.error}`;
+            logCrmAutoRoute('ERROR', logContext);
           }
         }
 
@@ -1092,7 +1134,8 @@ function autoRouteDealsToCRM(analysisResults) {
 
       } catch (error) {
         stats.errors++;
-        logCrmAutoRoute('ERROR', analysis?.id || 'unknown', error.toString());
+        logContext.notes = `Exception: ${error.toString()}`;
+        logCrmAutoRoute('ERROR', logContext);
       }
     }
 
@@ -1185,24 +1228,139 @@ function autoRouteSolidDeal(analysis, exportStatus) {
 }
 
 /**
- * Log auto-routing action to CRM_SYNC_LOG
+ * Retry SMS only (for HOT deals where CompanyHub already synced)
  */
-function logCrmAutoRoute(action, dealId, message, details = {}) {
+function retrySmsOnly(analysis) {
+  const result = { success: true, error: null };
+
+  try {
+    if (!FEATURE_FLAGS.ENABLE_SMS_INTEGRATION) {
+      result.success = false;
+      result.error = 'SMS integration disabled';
+      return result;
+    }
+
+    const routing = CRM_ROUTING.HOT_DEAL;
+    const smsResult = sendToSMSIT(analysis, routing);
+
+    if (smsResult && smsResult.success) {
+      // Update CRM sheet SMS status
+      updateCrmSheetSmsStatus(analysis.id, 'Sent');
+    } else {
+      result.success = false;
+      result.error = smsResult?.error || 'SMS send failed';
+    }
+
+    return result;
+
+  } catch (error) {
+    result.success = false;
+    result.error = error.toString();
+    return result;
+  }
+}
+
+/**
+ * Retry CompanyHub only (for deals where SMS already sent or not applicable)
+ */
+function retryCompanyHubOnly(analysis) {
+  const result = { success: true, error: null };
+
+  try {
+    if (!FEATURE_FLAGS.ENABLE_COMPANYHUB_INTEGRATION) {
+      result.success = false;
+      result.error = 'CompanyHub integration disabled';
+      return result;
+    }
+
+    const verdict = analysis.verdict || 'SOLID DEAL';
+    const routing = verdict === 'HOT DEAL' ? CRM_ROUTING.HOT_DEAL : CRM_ROUTING.SOLID_DEAL;
+    const chResult = syncToCompanyHub(analysis, routing);
+
+    if (chResult && chResult.success) {
+      // Update CRM sheet CompanyHub status
+      updateCrmSheetCompanyHubStatus(analysis.id, 'Synced');
+    } else {
+      result.success = false;
+      result.error = chResult?.error || 'CompanyHub sync failed';
+    }
+
+    return result;
+
+  } catch (error) {
+    result.success = false;
+    result.error = error.toString();
+    return result;
+  }
+}
+
+/**
+ * Update SMS status in CRM sheet for a specific deal
+ */
+function updateCrmSheetSmsStatus(carHawkId, status) {
+  const crmSheet = getSheet(SHEETS.CRM);
+  if (!crmSheet) return;
+
+  const data = crmSheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][2] === carHawkId) {
+      crmSheet.getRange(i + 1, 12).setValue(status); // Column 12 = SMS Status
+      crmSheet.getRange(i + 1, 15).setValue(new Date()); // Column 15 = Last Updated
+      break;
+    }
+  }
+}
+
+/**
+ * Update CompanyHub status in CRM sheet for a specific deal
+ */
+function updateCrmSheetCompanyHubStatus(carHawkId, status) {
+  const crmSheet = getSheet(SHEETS.CRM);
+  if (!crmSheet) return;
+
+  const data = crmSheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][2] === carHawkId) {
+      crmSheet.getRange(i + 1, 13).setValue(status); // Column 13 = CompanyHub Status
+      crmSheet.getRange(i + 1, 15).setValue(new Date()); // Column 15 = Last Updated
+      break;
+    }
+  }
+}
+
+/**
+ * Log auto-routing action to CRM_SYNC_LOG with full decision context
+ * @param {string} actionTaken - ROUTED | RETRIED_SMS | RETRIED_COMPANYHUB | SKIP_DUPLICATE | SKIP_PASS | ERROR
+ * @param {Object} context - Full routing context
+ */
+function logCrmAutoRoute(actionTaken, context) {
   const logSheet = getOrCreateSheet(SHEETS.CRM_LOG);
 
   // Ensure headers exist
   if (logSheet.getLastRow() === 0) {
     logSheet.appendRow([
-      'Timestamp', 'Action', 'Deal ID', 'Message', 'Details'
+      'Timestamp',
+      'CarHawk ID',
+      'Verdict',
+      'Previous Verdict',
+      'Verdict Changed',
+      'SMS Sent',
+      'CompanyHub Synced',
+      'Action Taken',
+      'Notes'
     ]);
   }
 
   logSheet.appendRow([
     new Date(),
-    `AUTO_ROUTE:${action}`,
-    dealId || '',
-    message || '',
-    JSON.stringify(details)
+    context.carHawkId || '',
+    context.verdict || '',
+    context.previousVerdict || '',
+    context.verdictChanged ? 'TRUE' : 'FALSE',
+    context.smsitSent ? 'TRUE' : 'FALSE',
+    context.companyhubSynced ? 'TRUE' : 'FALSE',
+    actionTaken,
+    context.notes || ''
   ]);
 }
 
