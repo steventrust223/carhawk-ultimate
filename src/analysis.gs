@@ -412,6 +412,8 @@ function analyzeDealsWithLock(startRow, endRow) {
  * This is the main entry point that includes auto-routing
  */
 function analyzeDealsWithAutoRoute(startRow, endRow) {
+  validateConfigIntegrity();  // Fail-fast config check
+
   // Run analysis
   const results = analyzeDealsWithLock(startRow, endRow);
 

@@ -3,6 +3,55 @@
 // Smoke Tests and Schema Audit (Callable from Menu)
 // ============================================================================
 
+// ============================================================================
+// CONFIG INTEGRITY VALIDATOR (Fail-Fast Guardrail)
+// ============================================================================
+
+const REQUIRED_FEATURE_FLAGS = [
+  'ENABLE_AI_NOTES',
+  'ENABLE_SMS_INTEGRATION',
+  'ENABLE_COMPANYHUB_INTEGRATION',
+  'USE_REAL_DISTANCE_API',
+  'ENABLE_KNOWLEDGE_BASE',
+  'ENABLE_AUTO_CRM_ROUTING',
+  'ENABLE_AUTO_SOLID_SMS',
+  'LOG_PASSES_TO_CRM'
+];
+
+/**
+ * Validate FEATURE_FLAGS integrity - call at startup to fail fast
+ * @throws {Error} if any required key is missing or not boolean
+ */
+function validateConfigIntegrity() {
+  const missing = [];
+  const notBoolean = [];
+
+  for (const key of REQUIRED_FEATURE_FLAGS) {
+    if (!(key in FEATURE_FLAGS)) {
+      missing.push(key);
+    } else if (typeof FEATURE_FLAGS[key] !== 'boolean') {
+      notBoolean.push(`${key} (got ${typeof FEATURE_FLAGS[key]})`);
+    }
+  }
+
+  if (missing.length > 0 || notBoolean.length > 0) {
+    const errors = [];
+    if (missing.length > 0) {
+      errors.push(`Missing keys: ${missing.join(', ')}`);
+    }
+    if (notBoolean.length > 0) {
+      errors.push(`Non-boolean values: ${notBoolean.join(', ')}`);
+    }
+    throw new Error(`FEATURE_FLAGS integrity check failed: ${errors.join('; ')}`);
+  }
+
+  return true;
+}
+
+// ============================================================================
+// SMOKE TESTS
+// ============================================================================
+
 /**
  * Run comprehensive smoke tests
  * Tests all core computations and integrations

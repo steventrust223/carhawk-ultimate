@@ -7,6 +7,7 @@
  * onOpen trigger - creates custom menu
  */
 function onOpen() {
+  validateConfigIntegrity();  // Fail-fast config check
   createCarHawkMenu();
 }
 
@@ -75,6 +76,7 @@ function createCarHawkMenu() {
  * Setup automated triggers
  */
 function setupTriggers() {
+  validateConfigIntegrity();  // Fail-fast config check
   const ui = SpreadsheetApp.getUi();
 
   const confirm = ui.alert(
