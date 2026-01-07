@@ -151,24 +151,27 @@ function initializeSystem(config) {
   try {
     // Create all sheets
     createAllSheets();
-    
+
     // Set up headers
     setupAllHeaders();
-    
+
+    // Set up data validation and parameters
+    setupParameters();
+
     // Configure system settings
     initializeConfig(config);
-    
+
     // Create custom menu
     createCustomMenu();
-    
+
     // Set up triggers
     setupTriggers();
-    
+
     // Initial formatting
     applySystemFormatting();
-    
+
     log('System Setup', 'CarHawk 2.0 initialized successfully');
-    
+
     return {success: true, message: 'CarHawk 2.0 setup complete!'};
   } catch (error) {
     log('Setup Error', error.toString());
@@ -594,12 +597,153 @@ function setupConfigHeaders() {
 function setupLogHeaders() {
   const sheet = getSheet(SHEETS.LOGS);
   const headers = ['Timestamp', 'Action', 'Details', 'User'];
-  
+
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   sheet.getRange(1, 1, 1, headers.length)
     .setBackground('#424242')
     .setFontColor('#ffffff')
     .setFontWeight('bold');
+}
+
+// ==========================================
+// FILE: data-validation.gs - Setup Data Validation & Dropdowns
+// ==========================================
+
+function setupParameters() {
+  setupDataValidation();
+}
+
+function setupDataValidation() {
+  try {
+    // Setup validation for Master Database
+    setupMasterDataValidation();
+
+    // Setup validation for Leads Tracker
+    setupLeadsDataValidation();
+
+    // Setup validation for other sheets
+    setupCalculatorDataValidation();
+    setupScoringDataValidation();
+
+    log('Data Validation', 'All data validation rules applied successfully');
+  } catch (error) {
+    log('Data Validation Error', error.toString());
+    throw error;
+  }
+}
+
+function setupMasterDataValidation() {
+  const sheet = getSheet(SHEETS.MASTER);
+
+  // Status dropdown (column 4)
+  const statusRule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(['New', 'Reviewing', 'Contacted', 'Negotiating', 'Inspecting', 'Closed Won', 'Closed Lost', 'On Hold', 'Archived'], true)
+    .setAllowInvalid(false)
+    .build();
+  sheet.getRange(2, 4, 1000).setDataValidation(statusRule);
+
+  // Lead Temp dropdown (column 6)
+  const leadTempRule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(['Hot', 'Warm', 'Cold'], true)
+    .setAllowInvalid(false)
+    .build();
+  sheet.getRange(2, 6, 1000).setDataValidation(leadTempRule);
+
+  // Condition dropdown (column 13)
+  const conditionRule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(['Excellent', 'Very Good', 'Good', 'Fair', 'Poor', 'Parts Only'], true)
+    .setAllowInvalid(false)
+    .build();
+  sheet.getRange(2, 13, 1000).setDataValidation(conditionRule);
+
+  // Title Status dropdown (column 14)
+  const titleRule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(['Clean', 'Salvage', 'Rebuilt', 'Lemon', 'Flood', 'Missing', 'Unknown'], true)
+    .setAllowInvalid(false)
+    .build();
+  sheet.getRange(2, 14, 1000).setDataValidation(titleRule);
+
+  // Verdict dropdown (column 28)
+  const verdictRule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(['STRONG BUY', 'BUY', 'CONSIDER', 'PASS', 'HARD PASS', 'NEEDS REVIEW'], true)
+    .setAllowInvalid(false)
+    .build();
+  sheet.getRange(2, 28, 1000).setDataValidation(verdictRule);
+
+  // Flip Strategy dropdown (column 29)
+  const strategyRule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(['Quick Flip', 'Value Add', 'Premium Restoration', 'Parts Out', 'Wholesale'], true)
+    .setAllowInvalid(false)
+    .build();
+  sheet.getRange(2, 29, 1000).setDataValidation(strategyRule);
+}
+
+function setupLeadsDataValidation() {
+  const sheet = getSheet(SHEETS.LEADS);
+
+  // Status dropdown (column 3)
+  const statusRule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(['New', 'Contacted', 'Qualified', 'Nurture', 'Dead', 'Won'], true)
+    .setAllowInvalid(false)
+    .build();
+  sheet.getRange(2, 3, 1000).setDataValidation(statusRule);
+
+  // Priority dropdown (column 4)
+  const priorityRule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(['Critical', 'High', 'Medium', 'Low'], true)
+    .setAllowInvalid(false)
+    .build();
+  sheet.getRange(2, 4, 1000).setDataValidation(priorityRule);
+
+  // Platform dropdown (column 6)
+  const platformRule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(['Facebook Marketplace', 'Craigslist', 'OfferUp', 'eBay Motors', 'Autotrader', 'Direct', 'Other'], true)
+    .setAllowInvalid(false)
+    .build();
+  sheet.getRange(2, 6, 1000).setDataValidation(platformRule);
+
+  // Best Time dropdown (column 20)
+  const timeRule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(['Morning', 'Afternoon', 'Evening', 'Weekends', 'Anytime'], true)
+    .setAllowInvalid(false)
+    .build();
+  sheet.getRange(2, 20, 1000).setDataValidation(timeRule);
+}
+
+function setupCalculatorDataValidation() {
+  const sheet = getSheet(SHEETS.CALCULATOR);
+
+  // Risk Score dropdown (column 23)
+  const riskRule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(['Low', 'Moderate', 'High', 'Very High'], true)
+    .setAllowInvalid(false)
+    .build();
+  sheet.getRange(2, 23, 1000).setDataValidation(riskRule);
+
+  // Confidence Level dropdown (column 24)
+  const confidenceRule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(['Very High', 'High', 'Medium', 'Low'], true)
+    .setAllowInvalid(false)
+    .build();
+  sheet.getRange(2, 24, 1000).setDataValidation(confidenceRule);
+}
+
+function setupScoringDataValidation() {
+  const sheet = getSheet(SHEETS.SCORING);
+
+  // Priority Level dropdown (column 22)
+  const priorityRule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(['Urgent', 'High', 'Medium', 'Low'], true)
+    .setAllowInvalid(false)
+    .build();
+  sheet.getRange(2, 22, 1000).setDataValidation(priorityRule);
+
+  // Action Required dropdown (column 23)
+  const actionRule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(['Contact Immediately', 'Schedule Call', 'Send Offer', 'Monitor', 'Research More', 'Pass'], true)
+    .setAllowInvalid(false)
+    .build();
+  sheet.getRange(2, 23, 1000).setDataValidation(actionRule);
 }
 
 // ==========================================
