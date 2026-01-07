@@ -418,16 +418,40 @@ function setupMasterHeaders() {
     'Days Listed', 'Seller Name', 'Seller Phone', 'Seller Email',
     'AI Notes', 'Manual Notes', 'Last Updated', 'Assigned To'
   ];
-  
+
+  // Set headers
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-  sheet.getRange(1, 1, 1, headers.length)
+
+  // Style header row
+  const headerRange = sheet.getRange(1, 1, 1, headers.length);
+  headerRange
     .setBackground('#1a73e8')
     .setFontColor('#ffffff')
     .setFontWeight('bold')
-    .setHorizontalAlignment('center');
-  
+    .setFontSize(11)
+    .setHorizontalAlignment('center')
+    .setVerticalAlignment('middle')
+    .setWrap(true);
+
+  // Set header row height
+  sheet.setRowHeight(1, 40);
+
+  // Freeze headers and key columns
   sheet.setFrozenRows(1);
   sheet.setFrozenColumns(4);
+
+  // Set column widths for better UX
+  sheet.setColumnWidth(1, 80);   // ID
+  sheet.setColumnWidth(2, 120);  // Date Added
+  sheet.setColumnWidth(3, 120);  // Source
+  sheet.setColumnWidth(4, 120);  // Status
+  sheet.setColumnWidth(5, 100);  // Lead Score
+  sheet.setColumnWidth(6, 100);  // Lead Temp
+  sheet.setColumnWidth(7, 60);   // Year
+  sheet.setColumnWidth(8, 100);  // Make
+  sheet.setColumnWidth(9, 120);  // Model
+  sheet.setColumnWidth(27, 130); // Verdict
+  sheet.setColumnWidth(28, 150); // Flip Strategy
 }
 
 function setupLeadsHeaders() {
@@ -440,14 +464,36 @@ function setupLeadsHeaders() {
     'Last Contact', 'Next Action', 'Action Date', 'Notes', 'Tags',
     'Assigned To', 'Hot Flag', 'Follow-up Required'
   ];
-  
+
+  // Set headers
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-  sheet.getRange(1, 1, 1, headers.length)
+
+  // Style header row
+  const headerRange = sheet.getRange(1, 1, 1, headers.length);
+  headerRange
     .setBackground('#34a853')
     .setFontColor('#ffffff')
-    .setFontWeight('bold');
-  
+    .setFontWeight('bold')
+    .setFontSize(11)
+    .setHorizontalAlignment('center')
+    .setVerticalAlignment('middle')
+    .setWrap(true);
+
+  // Set header row height
+  sheet.setRowHeight(1, 40);
+
+  // Freeze headers and key columns
   sheet.setFrozenRows(1);
+  sheet.setFrozenColumns(3);
+
+  // Set column widths
+  sheet.setColumnWidth(1, 90);   // Lead ID
+  sheet.setColumnWidth(3, 120);  // Status
+  sheet.setColumnWidth(4, 100);  // Priority
+  sheet.setColumnWidth(7, 200);  // Vehicle
+  sheet.setColumnWidth(17, 150); // Contact Name
+  sheet.setColumnWidth(18, 130); // Phone
+  sheet.setColumnWidth(23, 130); // Next Action
 }
 
 function setupCalculatorHeaders() {
@@ -460,12 +506,34 @@ function setupCalculatorHeaders() {
     'Profit Margin', 'ROI', 'Cash on Cash', 'Break Even Price',
     'Risk Score', 'Confidence Level'
   ];
-  
+
+  // Set headers
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-  sheet.getRange(1, 1, 1, headers.length)
+
+  // Style header row
+  const headerRange = sheet.getRange(1, 1, 1, headers.length);
+  headerRange
     .setBackground('#fbbc04')
     .setFontColor('#000000')
-    .setFontWeight('bold');
+    .setFontWeight('bold')
+    .setFontSize(11)
+    .setHorizontalAlignment('center')
+    .setVerticalAlignment('middle')
+    .setWrap(true);
+
+  // Set header row height
+  sheet.setRowHeight(1, 40);
+
+  // Freeze headers
+  sheet.setFrozenRows(1);
+  sheet.setFrozenColumns(2);
+
+  // Set column widths
+  sheet.setColumnWidth(1, 90);   // Deal ID
+  sheet.setColumnWidth(2, 180);  // Vehicle
+  sheet.setColumnWidth(18, 120); // Net Profit
+  sheet.setColumnWidth(19, 120); // Profit Margin
+  sheet.setColumnWidth(20, 100); // ROI
 }
 
 function setupVerdictHeaders() {
@@ -477,12 +545,33 @@ function setupVerdictHeaders() {
     'Repair Complexity', 'Time to Profit', 'Recommended Actions',
     'Red Flags', 'Green Flags', 'AI Reasoning', 'Override', 'Final Decision'
   ];
-  
+
+  // Set headers
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-  sheet.getRange(1, 1, 1, headers.length)
+
+  // Style header row
+  const headerRange = sheet.getRange(1, 1, 1, headers.length);
+  headerRange
     .setBackground('#ea4335')
     .setFontColor('#ffffff')
-    .setFontWeight('bold');
+    .setFontWeight('bold')
+    .setFontSize(11)
+    .setHorizontalAlignment('center')
+    .setVerticalAlignment('middle')
+    .setWrap(true);
+
+  // Set header row height
+  sheet.setRowHeight(1, 40);
+
+  // Freeze headers
+  sheet.setFrozenRows(1);
+  sheet.setFrozenColumns(3);
+
+  // Set column widths
+  sheet.setColumnWidth(1, 100);  // Analysis ID
+  sheet.setColumnWidth(3, 180);  // Vehicle
+  sheet.setColumnWidth(5, 130);  // AI Verdict
+  sheet.setColumnWidth(21, 250); // AI Reasoning
 }
 
 function setupScoringHeaders() {
@@ -495,12 +584,27 @@ function setupScoringHeaders() {
     'Capital Risk', 'Time Risk', 'Total Risk Score', 'Opportunity Rating',
     'Priority Level', 'Action Required'
   ];
-  
+
+  // Set headers
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-  sheet.getRange(1, 1, 1, headers.length)
+
+  // Style header row
+  const headerRange = sheet.getRange(1, 1, 1, headers.length);
+  headerRange
     .setBackground('#673ab7')
     .setFontColor('#ffffff')
-    .setFontWeight('bold');
+    .setFontWeight('bold')
+    .setFontSize(11)
+    .setHorizontalAlignment('center')
+    .setVerticalAlignment('middle')
+    .setWrap(true);
+
+  // Set header row height
+  sheet.setRowHeight(1, 40);
+
+  // Freeze headers
+  sheet.setFrozenRows(1);
+  sheet.setFrozenColumns(2);
 }
 
 function setupCRMHeaders() {
@@ -511,12 +615,33 @@ function setupCRMHeaders() {
     'Tags', 'Custom Message', 'SMS Template', 'Email Template',
     'CompanyHub ID', 'SMS-iT ID', 'Last Sync', 'Sync Status', 'Notes'
   ];
-  
+
+  // Set headers
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-  sheet.getRange(1, 1, 1, headers.length)
+
+  // Style header row
+  const headerRange = sheet.getRange(1, 1, 1, headers.length);
+  headerRange
     .setBackground('#ff6d00')
     .setFontColor('#ffffff')
-    .setFontWeight('bold');
+    .setFontWeight('bold')
+    .setFontSize(11)
+    .setHorizontalAlignment('center')
+    .setVerticalAlignment('middle')
+    .setWrap(true);
+
+  // Set header row height
+  sheet.setRowHeight(1, 40);
+
+  // Freeze headers
+  sheet.setFrozenRows(1);
+  sheet.setFrozenColumns(3);
+
+  // Set column widths
+  sheet.setColumnWidth(5, 180);  // Vehicle
+  sheet.setColumnWidth(6, 150);  // Contact Name
+  sheet.setColumnWidth(7, 130);  // Phone
+  sheet.setColumnWidth(14, 200); // Custom Message
 }
 
 function setupPartsHeaders() {
@@ -528,24 +653,56 @@ function setupPartsHeaders() {
     'Total Cost', 'Labor Hours', 'Labor Cost', 'Priority', 'Notes',
     'Ordered', 'Order Date', 'Expected Arrival'
   ];
-  
+
+  // Set headers
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-  sheet.getRange(1, 1, 1, headers.length)
+
+  // Style header row
+  const headerRange = sheet.getRange(1, 1, 1, headers.length);
+  headerRange
     .setBackground('#795548')
     .setFontColor('#ffffff')
-    .setFontWeight('bold');
+    .setFontWeight('bold')
+    .setFontSize(11)
+    .setHorizontalAlignment('center')
+    .setVerticalAlignment('middle')
+    .setWrap(true);
+
+  // Set header row height
+  sheet.setRowHeight(1, 40);
+
+  // Freeze headers
+  sheet.setFrozenRows(1);
+  sheet.setFrozenColumns(2);
 }
 
 function setupDashboardHeaders() {
   const sheet = getSheet(SHEETS.DASHBOARD);
   // Dashboard is primarily charts and summary cards, minimal headers
   const headers = ['Metric', 'Value', 'Change', 'Trend', 'Target', 'Status'];
-  
+
+  // Set headers
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-  sheet.getRange(1, 1, 1, headers.length)
+
+  // Style header row
+  const headerRange = sheet.getRange(1, 1, 1, headers.length);
+  headerRange
     .setBackground('#009688')
     .setFontColor('#ffffff')
-    .setFontWeight('bold');
+    .setFontWeight('bold')
+    .setFontSize(11)
+    .setHorizontalAlignment('center')
+    .setVerticalAlignment('middle');
+
+  // Set header row height
+  sheet.setRowHeight(1, 40);
+
+  // Freeze headers
+  sheet.setFrozenRows(1);
+
+  // Set column widths
+  sheet.setColumnWidth(1, 200);  // Metric
+  sheet.setColumnWidth(2, 120);  // Value
 }
 
 function setupReportingHeaders() {
@@ -556,12 +713,26 @@ function setupReportingHeaders() {
     'Avg ROI', 'Best Deal', 'Worst Deal', 'Fastest Flip', 'Slowest Flip',
     'By Source', 'By Make', 'By Location', 'By Strategy'
   ];
-  
+
+  // Set headers
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-  sheet.getRange(1, 1, 1, headers.length)
+
+  // Style header row
+  const headerRange = sheet.getRange(1, 1, 1, headers.length);
+  headerRange
     .setBackground('#607d8b')
     .setFontColor('#ffffff')
-    .setFontWeight('bold');
+    .setFontWeight('bold')
+    .setFontSize(11)
+    .setHorizontalAlignment('center')
+    .setVerticalAlignment('middle')
+    .setWrap(true);
+
+  // Set header row height
+  sheet.setRowHeight(1, 40);
+
+  // Freeze headers
+  sheet.setFrozenRows(1);
 }
 
 function setupStagingHeaders() {
@@ -572,37 +743,91 @@ function setupStagingHeaders() {
     'Extracted Year', 'Extracted Make', 'Extracted Model', 'Condition Guess',
     'Import Status', 'Master ID', 'Duplicate Flag', 'Auto-Tagged'
   ];
-  
+
   [SHEETS.STAGING_FB, SHEETS.STAGING_CL, SHEETS.STAGING_OU, SHEETS.STAGING_EBAY].forEach(sheetName => {
     const sheet = getSheet(sheetName);
+
+    // Set headers
     sheet.getRange(1, 1, 1, stagingHeaders.length).setValues([stagingHeaders]);
-    sheet.getRange(1, 1, 1, stagingHeaders.length)
+
+    // Style header row
+    const headerRange = sheet.getRange(1, 1, 1, stagingHeaders.length);
+    headerRange
       .setBackground('#666666')
       .setFontColor('#ffffff')
-      .setFontWeight('bold');
+      .setFontWeight('bold')
+      .setFontSize(11)
+      .setHorizontalAlignment('center')
+      .setVerticalAlignment('middle')
+      .setWrap(true);
+
+    // Set header row height
+    sheet.setRowHeight(1, 40);
+
+    // Freeze headers
+    sheet.setFrozenRows(1);
+
+    // Set column widths
+    sheet.setColumnWidth(4, 250);  // Title
+    sheet.setColumnWidth(7, 300);  // Description
   });
 }
 
 function setupConfigHeaders() {
   const sheet = getSheet(SHEETS.CONFIG);
   const headers = ['Setting Key', 'Value', 'Last Updated', 'Description'];
-  
+
+  // Set headers
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-  sheet.getRange(1, 1, 1, headers.length)
+
+  // Style header row
+  const headerRange = sheet.getRange(1, 1, 1, headers.length);
+  headerRange
     .setBackground('#9e9e9e')
     .setFontColor('#ffffff')
-    .setFontWeight('bold');
+    .setFontWeight('bold')
+    .setFontSize(11)
+    .setHorizontalAlignment('center')
+    .setVerticalAlignment('middle');
+
+  // Set header row height
+  sheet.setRowHeight(1, 40);
+
+  // Freeze headers
+  sheet.setFrozenRows(1);
+
+  // Set column widths
+  sheet.setColumnWidth(1, 200);  // Setting Key
+  sheet.setColumnWidth(4, 300);  // Description
 }
 
 function setupLogHeaders() {
   const sheet = getSheet(SHEETS.LOGS);
   const headers = ['Timestamp', 'Action', 'Details', 'User'];
 
+  // Set headers
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-  sheet.getRange(1, 1, 1, headers.length)
+
+  // Style header row
+  const headerRange = sheet.getRange(1, 1, 1, headers.length);
+  headerRange
     .setBackground('#424242')
     .setFontColor('#ffffff')
-    .setFontWeight('bold');
+    .setFontWeight('bold')
+    .setFontSize(11)
+    .setHorizontalAlignment('center')
+    .setVerticalAlignment('middle');
+
+  // Set header row height
+  sheet.setRowHeight(1, 40);
+
+  // Freeze headers
+  sheet.setFrozenRows(1);
+
+  // Set column widths
+  sheet.setColumnWidth(1, 150);  // Timestamp
+  sheet.setColumnWidth(2, 150);  // Action
+  sheet.setColumnWidth(3, 400);  // Details
 }
 
 // ==========================================
@@ -2546,41 +2771,121 @@ function setupTriggers() {
 
 function applySystemFormatting() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  
+
   // Format each sheet
   Object.entries(SHEETS).forEach(([key, sheetName]) => {
     const sheet = getSheet(sheetName);
-    
-    // Auto-resize columns
-    if (sheet.getLastColumn() > 0) {
-      sheet.autoResizeColumns(1, sheet.getLastColumn());
-    }
-    
-    // Apply alternating row colors
-    if (sheet.getLastRow() > 1) {
-      sheet.setRowHeightsForced(2, sheet.getLastRow() - 1, 25);
-      
-      // Add banding
-      const range = sheet.getRange(1, 1, sheet.getLastRow(), sheet.getLastColumn());
-      range.applyRowBanding(SpreadsheetApp.BandingTheme.LIGHT_GREY);
+
+    if (sheet.getLastColumn() > 0 && sheet.getLastRow() > 0) {
+      // Get the full data range
+      const lastRow = Math.max(sheet.getLastRow(), 100); // Ensure at least 100 rows formatted
+      const lastCol = sheet.getLastColumn();
+      const dataRange = sheet.getRange(2, 1, lastRow - 1, lastCol);
+
+      // Set consistent row heights for data rows
+      sheet.setRowHeights(2, lastRow - 1, 30);
+
+      // Apply professional banding (alternating row colors)
+      const bandingTheme = SpreadsheetApp.newBanding()
+        .setFirstRowColor('#ffffff')
+        .setSecondRowColor('#f8f9fa')
+        .setHeaderRowColor(SHEET_COLORS[key])
+        .setFooterRowColor(null)
+        .setRange(sheet.getRange(1, 1, lastRow, lastCol))
+        .build();
+
+      // Add borders for better readability
+      dataRange.setBorder(
+        false, false, false, false, true, true,
+        '#e0e0e0', SpreadsheetApp.BorderStyle.SOLID
+      );
+
+      // Format text alignment
+      dataRange.setVerticalAlignment('middle');
+
+      // Set font
+      sheet.getRange(1, 1, lastRow, lastCol).setFontFamily('Google Sans');
     }
   });
-  
+
   // Special formatting for Master sheet
   const masterSheet = getSheet(SHEETS.MASTER);
   if (masterSheet.getLastRow() > 1) {
-    // Conditional formatting for profit margin
-    const profitRange = masterSheet.getRange('X2:X');
+    // Conditional formatting for Lead Temp (column 6)
+    const tempRange = masterSheet.getRange('F2:F1000');
+    const tempRules = [
+      SpreadsheetApp.newConditionalFormatRule()
+        .whenTextEqualTo('Hot')
+        .setBackground('#ff6d00')
+        .setFontColor('#ffffff')
+        .setBold(true)
+        .setRanges([tempRange])
+        .build(),
+      SpreadsheetApp.newConditionalFormatRule()
+        .whenTextEqualTo('Warm')
+        .setBackground('#fbbc04')
+        .setFontColor('#000000')
+        .setRanges([tempRange])
+        .build(),
+      SpreadsheetApp.newConditionalFormatRule()
+        .whenTextEqualTo('Cold')
+        .setBackground('#9e9e9e')
+        .setFontColor('#ffffff')
+        .setRanges([tempRange])
+        .build()
+    ];
+
+    // Conditional formatting for Verdict (column 28)
+    const verdictRange = masterSheet.getRange('AB2:AB1000');
+    const verdictRules = [
+      SpreadsheetApp.newConditionalFormatRule()
+        .whenTextEqualTo('STRONG BUY')
+        .setBackground('#0f9d58')
+        .setFontColor('#ffffff')
+        .setBold(true)
+        .setRanges([verdictRange])
+        .build(),
+      SpreadsheetApp.newConditionalFormatRule()
+        .whenTextEqualTo('BUY')
+        .setBackground('#34a853')
+        .setFontColor('#ffffff')
+        .setRanges([verdictRange])
+        .build(),
+      SpreadsheetApp.newConditionalFormatRule()
+        .whenTextEqualTo('CONSIDER')
+        .setBackground('#fbbc04')
+        .setFontColor('#000000')
+        .setRanges([verdictRange])
+        .build(),
+      SpreadsheetApp.newConditionalFormatRule()
+        .whenTextEqualTo('PASS')
+        .setBackground('#ea4335')
+        .setFontColor('#ffffff')
+        .setRanges([verdictRange])
+        .build(),
+      SpreadsheetApp.newConditionalFormatRule()
+        .whenTextEqualTo('HARD PASS')
+        .setBackground('#a50e0e')
+        .setFontColor('#ffffff')
+        .setBold(true)
+        .setRanges([verdictRange])
+        .build()
+    ];
+
+    // Conditional formatting for Profit Margin % (column 24)
+    const profitRange = masterSheet.getRange('X2:X1000');
     const profitRules = [
       SpreadsheetApp.newConditionalFormatRule()
         .whenNumberGreaterThan(0.35)
         .setBackground('#34a853')
         .setFontColor('#ffffff')
+        .setBold(true)
         .setRanges([profitRange])
         .build(),
       SpreadsheetApp.newConditionalFormatRule()
         .whenNumberBetween(0.20, 0.35)
         .setBackground('#fbbc04')
+        .setFontColor('#000000')
         .setRanges([profitRange])
         .build(),
       SpreadsheetApp.newConditionalFormatRule()
@@ -2590,11 +2895,49 @@ function applySystemFormatting() {
         .setRanges([profitRange])
         .build()
     ];
-    
-    masterSheet.setConditionalFormatRules(profitRules);
+
+    // Apply all conditional formatting rules
+    const allRules = [...tempRules, ...verdictRules, ...profitRules];
+    masterSheet.setConditionalFormatRules(allRules);
   }
-  
-  log('Formatting', 'System formatting applied to all sheets');
+
+  // Special formatting for Leads Tracker
+  const leadsSheet = getSheet(SHEETS.LEADS);
+  if (leadsSheet.getLastRow() > 1) {
+    // Conditional formatting for Priority (column 4)
+    const priorityRange = leadsSheet.getRange('D2:D1000');
+    const priorityRules = [
+      SpreadsheetApp.newConditionalFormatRule()
+        .whenTextEqualTo('Critical')
+        .setBackground('#a50e0e')
+        .setFontColor('#ffffff')
+        .setBold(true)
+        .setRanges([priorityRange])
+        .build(),
+      SpreadsheetApp.newConditionalFormatRule()
+        .whenTextEqualTo('High')
+        .setBackground('#ea4335')
+        .setFontColor('#ffffff')
+        .setRanges([priorityRange])
+        .build(),
+      SpreadsheetApp.newConditionalFormatRule()
+        .whenTextEqualTo('Medium')
+        .setBackground('#fbbc04')
+        .setFontColor('#000000')
+        .setRanges([priorityRange])
+        .build(),
+      SpreadsheetApp.newConditionalFormatRule()
+        .whenTextEqualTo('Low')
+        .setBackground('#9e9e9e')
+        .setFontColor('#ffffff')
+        .setRanges([priorityRange])
+        .build()
+    ];
+
+    leadsSheet.setConditionalFormatRules(priorityRules);
+  }
+
+  log('Formatting', 'Professional system formatting applied to all sheets');
 }
 
 // ==========================================
