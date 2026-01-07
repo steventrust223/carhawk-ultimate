@@ -758,6 +758,9 @@ function createCustomMenu() {
   const ui = SpreadsheetApp.getUi();
   
   const menu = ui.createMenu('🚗 CarHawk 2.0')
+    // Setup & Initialization
+    .addItem('⚙️ Setup CarHawk System', 'setupCarHawk')
+    .addSeparator()
     // Data Management
     .addSubMenu(ui.createMenu('📊 Data Management')
       .addItem('📥 Import from Staging', 'importFromStaging')
@@ -809,6 +812,7 @@ function createCustomMenu() {
       .addItem('💵 Loan Calculator', 'showLoanCalculator')
       .addSeparator()
       .addItem('🎨 Format Sheets', 'applySystemFormatting')
+      .addItem('📋 Setup Data Validation', 'setupParameters')
       .addItem('🔧 System Settings', 'showSystemSettings'))
     
     .addSeparator()
