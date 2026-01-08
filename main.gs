@@ -190,7 +190,7 @@ function createAllSheets() {
     sheet.setTabColor(SHEET_COLORS[key]);
     
     // Apply protection to system sheets
-    if (['CONFIG', 'LOGS'].includes(sheetName)) {
+    if (['CONFIG', 'LOGS'].includes(key)) {
       const protection = sheet.protect();
       protection.setDescription('System Sheet - Edit with caution');
       protection.setWarningOnly(true);
