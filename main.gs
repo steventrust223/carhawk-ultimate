@@ -91,10 +91,53 @@ function formatPercent(value) {
 }
 
 function calculateDistance(zip1, zip2) {
-  // Mock distance calculation based on ZIP codes
-  // In production, use Maps API
-  const zipDiff = Math.abs(parseInt(zip1) - parseInt(zip2));
-  return Math.min(zipDiff * 0.1, 500); // Simplified calculation
+  // Use Google Maps API to calculate real distance between ZIP codes
+  try {
+    if (!zip1 || !zip2) return 0;
+
+    // Get coordinates for both ZIP codes using Geocoding API
+    const geocoder = Maps.newGeocoder();
+    const location1 = geocoder.geocode(zip1);
+    const location2 = geocoder.geocode(zip2);
+
+    // Check if both locations were found
+    if (location1.status !== 'OK' || location2.status !== 'OK') {
+      console.warn('Failed to geocode ZIP codes:', zip1, zip2);
+      return 0;
+    }
+
+    if (!location1.results || !location1.results[0] ||
+        !location2.results || !location2.results[0]) {
+      return 0;
+    }
+
+    // Extract coordinates
+    const lat1 = location1.results[0].geometry.location.lat;
+    const lng1 = location1.results[0].geometry.location.lng;
+    const lat2 = location2.results[0].geometry.location.lat;
+    const lng2 = location2.results[0].geometry.location.lng;
+
+    // Calculate distance using Haversine formula
+    const R = 3959; // Earth's radius in miles
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+              Math.sin(dLng/2) * Math.sin(dLng/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const distance = R * c;
+
+    return Math.round(distance);
+  } catch (error) {
+    console.error('Error calculating distance:', error);
+    // Fallback to simple calculation if API fails
+    const zipDiff = Math.abs(parseInt(zip1) - parseInt(zip2));
+    return Math.min(zipDiff * 0.1, 500);
+  }
+}
+
+function toRad(degrees) {
+  return degrees * Math.PI / 180;
 }
 
 function getLocationRisk(distance) {
