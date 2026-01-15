@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <?!= include('UI_Components'); ?>
+  <style>
+    /* QuantumHelp Specific Styles */
+    .help-container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .hero-section {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      border-radius: var(--border-radius);
+      padding: var(--space-xl);
+      text-align: center;
+      margin-bottom: var(--space-xl);
+    }
+
+    .hero-title {
+      font-size: 36px;
+      font-weight: 700;
+      margin-bottom: var(--space-md);
+    }
+
+    .hero-subtitle {
+      font-size: 18px;
+      opacity: 0.9;
+    }
+
+    .quick-start {
+      background: white;
+      border-radius: var(--border-radius);
+      padding: var(--space-xl);
+      box-shadow: var(--shadow);
+      margin-bottom: var(--space-lg);
+    }
+
+    .section-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--gray-900);
+      margin-bottom: var(--space-lg);
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+
+    .step-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-lg);
+    }
+
+    .step-item {
+      display: flex;
+      gap: var(--space-lg);
+      align-items: flex-start;
+    }
+
+    .step-number {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .step-content {
+      flex: 1;
+    }
+
+    .step-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--gray-900);
+      margin-bottom: var(--space-sm);
+    }
+
+    .step-description {
+      font-size: 14px;
+      color: var(--gray-600);
+      line-height: 1.6;
+    }
+
+    .help-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: var(--space-lg);
+      margin-bottom: var(--space-lg);
+    }
+
+    .help-card {
+      background: white;
+      border-radius: var(--border-radius);
+      padding: var(--space-lg);
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .help-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .help-icon {
+      font-size: 36px;
+      margin-bottom: var(--space-md);
+    }
+
+    .help-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--gray-900);
+      margin-bottom: var(--space-sm);
+    }
+
+    .help-text {
+      font-size: 13px;
+      color: var(--gray-600);
+      line-height: 1.6;
+    }
+
+    .faq-section {
+      background: white;
+      border-radius: var(--border-radius);
+      padding: var(--space-xl);
+      box-shadow: var(--shadow);
+    }
+
+    .faq-item {
+      padding: var(--space-lg) 0;
+      border-bottom: 1px solid var(--gray-100);
+    }
+
+    .faq-item:last-child {
+      border-bottom: none;
+    }
+
+    .faq-question {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--gray-900);
+      margin-bottom: var(--space-sm);
+    }
+
+    .faq-answer {
+      font-size: 14px;
+      color: var(--gray-600);
+      line-height: 1.6;
+    }
+
+    .support-box {
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+      border-radius: var(--border-radius);
+      padding: var(--space-xl);
+      text-align: center;
+      margin-top: var(--space-lg);
+    }
+
+    .support-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: var(--space-md);
+    }
+
+    .support-text {
+      color: var(--gray-600);
+      margin-bottom: var(--space-lg);
+    }
+
+    .keyboard-shortcut {
+      display: inline-block;
+      padding: 4px 8px;
+      background: var(--gray-100);
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--gray-700);
+    }
+  </style>
+</head>
+<body>
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-title">
+      ❓ Help & Documentation
+      <span class="version-badge">UI v1.0</span>
+    </div>
+  </div>
+
+  <div class="help-container">
+    <!-- Hero -->
+    <div class="hero-section">
+      <div class="hero-title">🚗⚛️ CarHawk Ultimate</div>
+      <div class="hero-subtitle">Quantum-class Vehicle Deal Analysis CRM</div>
+    </div>
+
+    <!-- Quick Start -->
+    <div class="quick-start">
+      <h2 class="section-title">🚀 Quick Start Guide</h2>
+
+      <div class="step-list">
+        <div class="step-item">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <div class="step-title">Initialize the System</div>
+            <div class="step-description">
+              Go to <strong>⚙️ CarHawk Ultimate → ⚛️ Quantum Operations → 🚀 Initialize System</strong>. This creates all necessary sheets and sets up the database structure.
+            </div>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <div class="step-title">Configure Integrations</div>
+            <div class="step-description">
+              Open <strong>🔌 Integration Manager</strong> and add your API keys for OpenAI, SMS-iT, CompanyHub, and Browse.ai. Test each connection to ensure they're working.
+            </div>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <div class="step-title">Import Your First Deals</div>
+            <div class="step-description">
+              Use <strong>🔄 Run Quantum Sync</strong> to import deals from Browse.ai, or manually add deals to the Master Import sheet. The system will automatically process and analyze them.
+            </div>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="step-number">4</div>
+          <div class="step-content">
+            <div class="step-title">Analyze & Take Action</div>
+            <div class="step-description">
+              Run <strong>🧠 Execute AI Analysis</strong> to score all deals. Hot deals will be flagged automatically. Export hot leads to SMS-iT or CompanyHub for follow-up.
+            </div>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="step-number">5</div>
+          <div class="step-content">
+            <div class="step-title">Monitor & Optimize</div>
+            <div class="step-description">
+              Use the <strong>📊 Quantum Dashboard</strong> to track performance. Review <strong>💰 Pipeline View</strong> to manage deals through your sales process.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feature Cards -->
+    <h2 class="section-title" style="color: white; margin-bottom: var(--space-lg);">📚 Feature Guides</h2>
+    <div class="help-grid">
+      <div class="help-card">
+        <div class="help-icon">🧠</div>
+        <div class="help-title">AI Deal Analysis</div>
+        <div class="help-text">
+          Learn how the AI scoring system evaluates deals based on profit margin, risk, market conditions, and more.
+        </div>
+      </div>
+
+      <div class="help-card">
+        <div class="help-icon">📱</div>
+        <div class="help-title">SMS Campaigns</div>
+        <div class="help-text">
+          Set up automated SMS campaigns for hot leads, warm leads, and cold leads with custom follow-up sequences.
+        </div>
+      </div>
+
+      <div class="help-card">
+        <div class="help-icon">🏢</div>
+        <div class="help-title">CRM Integration</div>
+        <div class="help-text">
+          Sync deals with CompanyHub to manage your entire sales pipeline in one place.
+        </div>
+      </div>
+
+      <div class="help-card">
+        <div class="help-icon">📊</div>
+        <div class="help-title">Reports & Analytics</div>
+        <div class="help-text">
+          Generate weekly and monthly reports to track your performance and identify trends.
+        </div>
+      </div>
+
+      <div class="help-card">
+        <div class="help-icon">🔍</div>
+        <div class="help-title">Market Intelligence</div>
+        <div class="help-text">
+          Use deep market scanning to identify underpriced vehicles and market opportunities.
+        </div>
+      </div>
+
+      <div class="help-card">
+        <div class="help-icon">⚙️</div>
+        <div class="help-title">Settings & Thresholds</div>
+        <div class="help-text">
+          Customize deal scoring thresholds, distance limits, and risk cutoffs to match your strategy.
+        </div>
+      </div>
+    </div>
+
+    <!-- FAQ -->
+    <div class="faq-section">
+      <h2 class="section-title">❓ Frequently Asked Questions</h2>
+
+      <div class="faq-item">
+        <div class="faq-question">How does the AI scoring work?</div>
+        <div class="faq-answer">
+          The AI analyzes multiple factors including asking price vs. market value, vehicle condition, seller motivation signals, location, mileage, and market demand. It assigns a 0-100 score where higher scores indicate better deals.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-question">What makes a deal "HOT"?</div>
+        <div class="faq-answer">
+          A deal is marked as HOT when the projected profit margin exceeds your threshold (default 50%), the risk score is acceptable, and the vehicle is within your target distance. You can adjust these thresholds in Settings.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-question">How do I import deals from Facebook Marketplace?</div>
+        <div class="faq-answer">
+          Set up a Browse.ai robot to scrape Facebook Marketplace listings, then configure the robot ID in Integration Manager. Run "Quantum Sync" to automatically import new listings.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-question">Can I customize the AI analysis prompts?</div>
+        <div class="faq-answer">
+          Yes! The AI prompts are stored in the Apps Script code. You can edit the <kbd class="keyboard-shortcut">analyzeQuantumDeal</kbd> function to customize how deals are analyzed.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-question">How do follow-up sequences work?</div>
+        <div class="faq-answer">
+          Create sequences in the Follow-Up Sequences manager with multiple steps (SMS, Email, Call). When you launch a sequence, contacts are automatically added to the appropriate campaigns with scheduled touchpoints.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-question">What should I do if imports aren't working?</div>
+        <div class="faq-answer">
+          First, check your Browse.ai integration in Integration Manager. Ensure your API key is valid and the robot ID is correct. Check the "Settings & Logs" sheet for error messages. If the issue persists, run System Diagnostics.
+        </div>
+      </div>
+    </div>
+
+    <!-- Support -->
+    <div class="support-box">
+      <div class="support-title">Need More Help?</div>
+      <div class="support-text">
+        Check the Knowledge Base for detailed SOPs and playbooks, or review the code documentation in the Apps Script editor.
+      </div>
+      <div style="display: flex; gap: var(--space-md); justify-content: center;">
+        <button class="btn btn-primary" onclick="openKnowledgeBase()">
+          📚 Knowledge Base
+        </button>
+        <button class="btn btn-secondary" onclick="openSettings()">
+          ⚙️ Settings
+        </button>
+      </div>
+    </div>
+
+    <!-- System Info -->
+    <div style="margin-top: var(--space-xl); padding: var(--space-lg); background: white; border-radius: var(--border-radius); text-align: center; font-size: 12px; color: var(--gray-500);">
+      <div><strong>CarHawk Ultimate Quantum 2.0.0</strong></div>
+      <div>© 2026 CarHawk CRM • Built on Google Apps Script</div>
+      <div style="margin-top: var(--space-sm);">
+        St. Louis, MO 63101 • Auto Deal Intelligence Platform
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ============================================================
+       QUANTUM HELP LOGIC
+       ============================================================ */
+
+    function openKnowledgeBase() {
+      showToast('Opening Knowledge Base...', 'info');
+      // In real implementation, this would call the server to open the KB
+    }
+
+    function openSettings() {
+      showToast('Opening Settings...', 'info');
+      // In real implementation, this would call the server to open settings
+    }
+
+    // ========================================
+    // INITIALIZATION
+    // ========================================
+
+    document.addEventListener('DOMContentLoaded', () => {
+      logDebug('Quantum Help initialized');
+    });
+  </script>
+</body>
+</html>

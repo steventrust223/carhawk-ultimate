@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <?!= include('UI_Components'); ?>
+  <style>
+    /* KnowledgeBase Specific Styles */
+    .kb-categories {
+      display: flex;
+      gap: var(--space-sm);
+      margin-bottom: var(--space-lg);
+      flex-wrap: wrap;
+    }
+
+    .kb-category-btn {
+      padding: 10px 20px;
+      border: 2px solid var(--gray-200);
+      background: white;
+      border-radius: var(--border-radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .kb-category-btn.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
+
+    .kb-category-btn:hover {
+      border-color: var(--primary);
+    }
+
+    .kb-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+    }
+
+    .kb-item {
+      background: white;
+      border-radius: var(--border-radius);
+      padding: var(--space-lg);
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .kb-item:hover {
+      transform: translateX(4px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .kb-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: var(--space-sm);
+    }
+
+    .kb-item-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--gray-900);
+      margin-bottom: var(--space-xs);
+    }
+
+    .kb-item-summary {
+      font-size: 14px;
+      color: var(--gray-600);
+      line-height: 1.6;
+    }
+
+    .kb-item-meta {
+      display: flex;
+      gap: var(--space-lg);
+      margin-top: var(--space-md);
+      padding-top: var(--space-md);
+      border-top: 1px solid var(--gray-100);
+      font-size: 12px;
+      color: var(--gray-500);
+    }
+  </style>
+</head>
+<body>
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-title">
+      📚 Knowledge Base
+      <span class="version-badge">UI v1.0</span>
+    </div>
+    <div>
+      <button class="btn btn-primary" onclick="refreshKB()">
+        🔄 Refresh
+      </button>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Search -->
+    <div class="card">
+      <input
+        type="text"
+        class="form-control"
+        id="kb-search"
+        placeholder="Search knowledge base..."
+        oninput="filterKB()"
+      >
+    </div>
+
+    <!-- Categories -->
+    <div class="kb-categories">
+      <button class="kb-category-btn active" data-category="all" onclick="selectCategory('all')">
+        All
+      </button>
+      <button class="kb-category-btn" data-category="sop" onclick="selectCategory('sop')">
+        📋 SOPs
+      </button>
+      <button class="kb-category-btn" data-category="guide" onclick="selectCategory('guide')">
+        📖 Guides
+      </button>
+      <button class="kb-category-btn" data-category="playbook" onclick="selectCategory('playbook')">
+        🎯 Playbooks
+      </button>
+      <button class="kb-category-btn" data-category="troubleshooting" onclick="selectCategory('troubleshooting')">
+        🔧 Troubleshooting
+      </button>
+    </div>
+
+    <!-- Knowledge Base List -->
+    <div class="kb-list" id="kb-list">
+      <!-- Items will be rendered here -->
+    </div>
+
+    <!-- Empty State -->
+    <div class="card hidden" id="empty-state">
+      <div style="text-align: center; padding: var(--space-xl); color: var(--gray-500);">
+        <div style="font-size: 48px; margin-bottom: var(--space-md);">📭</div>
+        <h3>No items found</h3>
+        <p>Try adjusting your search or filters.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ============================================================
+       KNOWLEDGE BASE LOGIC
+       ============================================================ */
+
+    let allItems = [];
+    let activeCategory = 'all';
+
+    // ========================================
+    // DATA CONTRACT (for server team)
+    // ========================================
+    /*
+      Expected data from UI_getKnowledgeBaseItems():
+      {
+        items: [
+          {
+            id: "KB-001",
+            title: "Deal Analysis SOP",
+            summary: "Standard operating procedure for analyzing vehicle deals",
+            category: "sop",
+            url: "https://docs.google.com/...",
+            lastUpdated: "2026-01-10",
+            views: 145
+          },
+          ...
+        ]
+      }
+    */
+
+    // ========================================
+    // REFRESH KB
+    // ========================================
+
+    async function refreshKB() {
+      try {
+        const data = await safeApi('UI_getKnowledgeBaseItems');
+        allItems = data.items || [];
+        filterKB();
+        showToast('Knowledge base refreshed', 'success');
+      } catch (error) {
+        loadPlaceholderKB();
+      }
+    }
+
+    function loadPlaceholderKB() {
+      allItems = [
+        {
+          id: "KB-001",
+          title: "Deal Analysis Standard Operating Procedure",
+          summary: "Complete SOP for analyzing vehicle deals including AI scoring, market analysis, and risk assessment procedures.",
+          category: "sop",
+          url: "#",
+          lastUpdated: "2026-01-10",
+          views: 145
+        },
+        {
+          id: "KB-002",
+          title: "SMS Campaign Best Practices",
+          summary: "Guidelines for creating effective SMS campaigns including messaging templates, timing strategies, and compliance requirements.",
+          category: "guide",
+          url: "#",
+          lastUpdated: "2026-01-08",
+          views: 89
+        },
+        {
+          id: "KB-003",
+          title: "Hot Lead Follow-Up Playbook",
+          summary: "Step-by-step playbook for following up with hot leads to maximize conversion rates. Includes scripts and timing recommendations.",
+          category: "playbook",
+          url: "#",
+          lastUpdated: "2026-01-05",
+          views: 203
+        },
+        {
+          id: "KB-004",
+          title: "Troubleshooting Import Errors",
+          summary: "Common import errors and their solutions, including data format issues, API timeouts, and duplicate handling.",
+          category: "troubleshooting",
+          url: "#",
+          lastUpdated: "2026-01-12",
+          views: 67
+        }
+      ];
+
+      filterKB();
+    }
+
+    // ========================================
+    // SELECT CATEGORY
+    // ========================================
+
+    function selectCategory(category) {
+      activeCategory = category;
+
+      // Update button states
+      document.querySelectorAll('.kb-category-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      event.target.classList.add('active');
+
+      filterKB();
+    }
+
+    // ========================================
+    // FILTER KB
+    // ========================================
+
+    function filterKB() {
+      const searchTerm = document.getElementById('kb-search').value.toLowerCase();
+
+      const filteredItems = allItems.filter(item => {
+        // Category filter
+        const matchesCategory = activeCategory === 'all' || item.category === activeCategory;
+
+        // Search filter
+        const matchesSearch = item.title.toLowerCase().includes(searchTerm) ||
+                             item.summary.toLowerCase().includes(searchTerm);
+
+        return matchesCategory && matchesSearch;
+      });
+
+      renderKB(filteredItems);
+    }
+
+    // ========================================
+    // RENDER KB
+    // ========================================
+
+    function renderKB(items) {
+      const list = document.getElementById('kb-list');
+      const emptyState = document.getElementById('empty-state');
+
+      if (items.length === 0) {
+        list.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+
+      const categoryIcons = {
+        sop: '📋',
+        guide: '📖',
+        playbook: '🎯',
+        troubleshooting: '🔧'
+      };
+
+      list.innerHTML = items.map(item => `
+        <div class="kb-item" onclick="openKBItem('${item.id}', '${item.url}')">
+          <div class="kb-item-header">
+            <div style="flex: 1;">
+              <div class="kb-item-title">
+                ${categoryIcons[item.category] || '📄'} ${escapeHtml(item.title)}
+              </div>
+              <div class="kb-item-summary">${escapeHtml(item.summary)}</div>
+            </div>
+          </div>
+
+          <div class="kb-item-meta">
+            <span>📅 Updated: ${item.lastUpdated}</span>
+            <span>👁️ ${item.views} views</span>
+            <span class="badge badge-gray">${item.category.toUpperCase()}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // ========================================
+    // OPEN KB ITEM
+    // ========================================
+
+    function openKBItem(id, url) {
+      if (url && url !== '#') {
+        window.open(url, '_blank');
+      } else {
+        showToast('Opening: ' + id, 'info');
+      }
+    }
+
+    // ========================================
+    // INITIALIZATION
+    // ========================================
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadPlaceholderKB();
+      logDebug('Knowledge Base initialized');
+    });
+  </script>
+</body>
+</html>

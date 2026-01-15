@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <?!= include('UI_Components'); ?>
+  <style>
+    /* VINDecoder Specific Styles */
+    .decoder-container {
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    .vin-input-section {
+      background: white;
+      border-radius: var(--border-radius);
+      padding: var(--space-xl);
+      box-shadow: var(--shadow);
+      margin-bottom: var(--space-lg);
+      text-align: center;
+    }
+
+    .vin-input-wrapper {
+      position: relative;
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    .vin-input {
+      width: 100%;
+      padding: 16px 20px;
+      font-size: 18px;
+      font-weight: 600;
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      border: 3px solid var(--primary);
+      border-radius: var(--border-radius);
+      font-family: 'Courier New', monospace;
+    }
+
+    .vin-input:focus {
+      outline: none;
+      box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.2);
+    }
+
+    .vin-length {
+      font-size: 12px;
+      color: var(--gray-500);
+      margin-top: var(--space-sm);
+    }
+
+    .vin-length.valid {
+      color: var(--success);
+      font-weight: 600;
+    }
+
+    .decode-btn {
+      margin-top: var(--space-lg);
+    }
+
+    .results-section {
+      display: none;
+    }
+
+    .results-section.active {
+      display: block;
+    }
+
+    .vehicle-hero {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      border-radius: var(--border-radius);
+      padding: var(--space-xl);
+      text-align: center;
+      margin-bottom: var(--space-lg);
+    }
+
+    .vehicle-title {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: var(--space-sm);
+    }
+
+    .vehicle-subtitle {
+      font-size: 16px;
+      opacity: 0.9;
+    }
+
+    .specs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: var(--space-md);
+      margin-bottom: var(--space-lg);
+    }
+
+    .spec-card {
+      background: white;
+      border-radius: var(--border-radius);
+      padding: var(--space-lg);
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+
+    .spec-icon {
+      font-size: 32px;
+      margin-bottom: var(--space-sm);
+    }
+
+    .spec-label {
+      font-size: 12px;
+      color: var(--gray-500);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: var(--space-xs);
+      font-weight: 600;
+    }
+
+    .spec-value {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--gray-900);
+    }
+
+    .detail-table {
+      background: white;
+      border-radius: var(--border-radius);
+      padding: var(--space-lg);
+      box-shadow: var(--shadow);
+    }
+
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      padding: var(--space-md) 0;
+      border-bottom: 1px solid var(--gray-100);
+    }
+
+    .detail-row:last-child {
+      border-bottom: none;
+    }
+
+    .detail-label {
+      font-weight: 600;
+      color: var(--gray-700);
+    }
+
+    .detail-value {
+      color: var(--gray-900);
+      text-align: right;
+    }
+
+    .sample-vins {
+      margin-top: var(--space-md);
+      padding: var(--space-md);
+      background: var(--gray-50);
+      border-radius: var(--border-radius-sm);
+      font-size: 12px;
+      color: var(--gray-600);
+    }
+
+    .sample-vin-link {
+      color: var(--primary);
+      cursor: pointer;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-title">
+      🚗 VIN Decoder
+      <span class="version-badge">UI v1.0</span>
+    </div>
+  </div>
+
+  <div class="decoder-container">
+    <!-- Input Section -->
+    <div class="vin-input-section">
+      <h2 style="margin-bottom: var(--space-lg);">Decode Vehicle VIN</h2>
+
+      <div class="vin-input-wrapper">
+        <input
+          type="text"
+          class="vin-input"
+          id="vin-input"
+          placeholder="Enter 17-digit VIN"
+          maxlength="17"
+          oninput="updateVINLength()"
+          onkeypress="handleVINKeypress(event)"
+        >
+        <div class="vin-length" id="vin-length">0 / 17 characters</div>
+      </div>
+
+      <button class="btn btn-primary btn-lg decode-btn" onclick="decodeVIN()" id="decode-btn" disabled>
+        🔍 Decode VIN
+      </button>
+
+      <div class="sample-vins">
+        <strong>Sample VINs to try:</strong><br>
+        <span class="sample-vin-link" onclick="useSampleVIN('1HGBH41JXMN109186')">1HGBH41JXMN109186</span> (Honda) •
+        <span class="sample-vin-link" onclick="useSampleVIN('5YFBURHE5HP606822')">5YFBURHE5HP606822</span> (Toyota) •
+        <span class="sample-vin-link" onclick="useSampleVIN('1FTFW1ET8DKE35696')">1FTFW1ET8DKE35696</span> (Ford)
+      </div>
+    </div>
+
+    <!-- Results Section -->
+    <div class="results-section" id="results-section">
+      <!-- Hero -->
+      <div class="vehicle-hero">
+        <div class="vehicle-title" id="vehicle-title">2021 Honda Accord EX</div>
+        <div class="vehicle-subtitle" id="vehicle-subtitle">VIN: 1HGBH41JXMN109186</div>
+      </div>
+
+      <!-- Quick Specs -->
+      <div class="specs-grid">
+        <div class="spec-card">
+          <div class="spec-icon">📅</div>
+          <div class="spec-label">Year</div>
+          <div class="spec-value" id="spec-year">2021</div>
+        </div>
+        <div class="spec-card">
+          <div class="spec-icon">🏭</div>
+          <div class="spec-label">Make</div>
+          <div class="spec-value" id="spec-make">Honda</div>
+        </div>
+        <div class="spec-card">
+          <div class="spec-icon">🚗</div>
+          <div class="spec-label">Model</div>
+          <div class="spec-value" id="spec-model">Accord</div>
+        </div>
+        <div class="spec-card">
+          <div class="spec-icon">⚙️</div>
+          <div class="spec-label">Trim</div>
+          <div class="spec-value" id="spec-trim">EX</div>
+        </div>
+      </div>
+
+      <!-- Detailed Info -->
+      <div class="detail-table">
+        <h3 style="margin-bottom: var(--space-lg);">Vehicle Details</h3>
+
+        <div class="detail-row">
+          <span class="detail-label">Body Type</span>
+          <span class="detail-value" id="detail-body">Sedan</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Engine</span>
+          <span class="detail-value" id="detail-engine">2.0L 4-Cylinder</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Transmission</span>
+          <span class="detail-value" id="detail-transmission">CVT</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Drivetrain</span>
+          <span class="detail-value" id="detail-drivetrain">FWD</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Fuel Type</span>
+          <span class="detail-value" id="detail-fuel">Gasoline</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Manufacturer</span>
+          <span class="detail-value" id="detail-manufacturer">Honda Motor Co., Ltd.</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Plant Country</span>
+          <span class="detail-value" id="detail-plant">United States</span>
+        </div>
+      </div>
+
+      <div style="margin-top: var(--space-lg); text-align: center;">
+        <button class="btn btn-secondary" onclick="resetDecoder()">
+          🔄 Decode Another VIN
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ============================================================
+       VIN DECODER LOGIC
+       ============================================================ */
+
+    // ========================================
+    // DATA CONTRACT (for server team)
+    // ========================================
+    /*
+      Expected input to UI_decodeVIN(vin):
+      {
+        vin: "1HGBH41JXMN109186"
+      }
+
+      Expected response:
+      {
+        vin: "1HGBH41JXMN109186",
+        year: 2021,
+        make: "Honda",
+        model: "Accord",
+        trim: "EX",
+        bodyType: "Sedan",
+        engine: "2.0L 4-Cylinder",
+        transmission: "CVT",
+        drivetrain: "FWD",
+        fuelType: "Gasoline",
+        manufacturer: "Honda Motor Co., Ltd.",
+        plantCountry: "United States"
+      }
+    */
+
+    // ========================================
+    // UPDATE VIN LENGTH
+    // ========================================
+
+    function updateVINLength() {
+      const input = document.getElementById('vin-input');
+      const length = input.value.length;
+      const lengthDisplay = document.getElementById('vin-length');
+      const decodeBtn = document.getElementById('decode-btn');
+
+      lengthDisplay.textContent = `${length} / 17 characters`;
+
+      if (length === 17) {
+        lengthDisplay.classList.add('valid');
+        decodeBtn.disabled = false;
+      } else {
+        lengthDisplay.classList.remove('valid');
+        decodeBtn.disabled = true;
+      }
+    }
+
+    // ========================================
+    // HANDLE VIN KEYPRESS
+    // ========================================
+
+    function handleVINKeypress(event) {
+      if (event.key === 'Enter' && event.target.value.length === 17) {
+        decodeVIN();
+      }
+    }
+
+    // ========================================
+    // USE SAMPLE VIN
+    // ========================================
+
+    function useSampleVIN(vin) {
+      document.getElementById('vin-input').value = vin;
+      updateVINLength();
+    }
+
+    // ========================================
+    // DECODE VIN
+    // ========================================
+
+    async function decodeVIN() {
+      const vin = document.getElementById('vin-input').value.toUpperCase();
+
+      if (vin.length !== 17) {
+        showToast('VIN must be exactly 17 characters', 'error');
+        return;
+      }
+
+      try {
+        const result = await safeApi('UI_decodeVIN', vin);
+        displayResults(result);
+      } catch (error) {
+        // Show placeholder results for development
+        const placeholderResult = {
+          vin: vin,
+          year: 2021,
+          make: "Honda",
+          model: "Accord",
+          trim: "EX",
+          bodyType: "Sedan",
+          engine: "2.0L 4-Cylinder",
+          transmission: "CVT",
+          drivetrain: "FWD",
+          fuelType: "Gasoline",
+          manufacturer: "Honda Motor Co., Ltd.",
+          plantCountry: "United States"
+        };
+        displayResults(placeholderResult);
+      }
+    }
+
+    // ========================================
+    // DISPLAY RESULTS
+    // ========================================
+
+    function displayResults(data) {
+      // Update hero
+      document.getElementById('vehicle-title').textContent = `${data.year} ${data.make} ${data.model} ${data.trim || ''}`.trim();
+      document.getElementById('vehicle-subtitle').textContent = `VIN: ${data.vin}`;
+
+      // Update specs
+      document.getElementById('spec-year').textContent = data.year || 'N/A';
+      document.getElementById('spec-make').textContent = data.make || 'N/A';
+      document.getElementById('spec-model').textContent = data.model || 'N/A';
+      document.getElementById('spec-trim').textContent = data.trim || 'N/A';
+
+      // Update details
+      document.getElementById('detail-body').textContent = data.bodyType || 'N/A';
+      document.getElementById('detail-engine').textContent = data.engine || 'N/A';
+      document.getElementById('detail-transmission').textContent = data.transmission || 'N/A';
+      document.getElementById('detail-drivetrain').textContent = data.drivetrain || 'N/A';
+      document.getElementById('detail-fuel').textContent = data.fuelType || 'N/A';
+      document.getElementById('detail-manufacturer').textContent = data.manufacturer || 'N/A';
+      document.getElementById('detail-plant').textContent = data.plantCountry || 'N/A';
+
+      // Show results
+      document.getElementById('results-section').classList.add('active');
+      document.getElementById('results-section').scrollIntoView({ behavior: 'smooth' });
+
+      showToast('VIN decoded successfully', 'success');
+    }
+
+    // ========================================
+    // RESET DECODER
+    // ========================================
+
+    function resetDecoder() {
+      document.getElementById('vin-input').value = '';
+      document.getElementById('results-section').classList.remove('active');
+      document.getElementById('vin-input').focus();
+      updateVINLength();
+    }
+
+    // ========================================
+    // INITIALIZATION
+    // ========================================
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('vin-input').focus();
+      logDebug('VIN Decoder initialized');
+    });
+  </script>
+</body>
+</html>

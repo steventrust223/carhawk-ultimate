@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <?!= include('UI_Components'); ?>
+  <style>
+    /* QuickActions Sidebar Specific Styles */
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 0;
+      margin: 0;
+    }
+
+    .sidebar-container {
+      background: white;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-header {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      padding: var(--space-lg);
+      text-align: center;
+    }
+
+    .sidebar-header h2 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .sidebar-header .version-badge {
+      margin-top: var(--space-sm);
+      display: inline-block;
+    }
+
+    .sidebar-body {
+      flex: 1;
+      padding: var(--space-lg);
+      overflow-y: auto;
+    }
+
+    .action-section {
+      margin-bottom: var(--space-xl);
+    }
+
+    .section-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--gray-500);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: var(--space-md);
+    }
+
+    .action-btn {
+      width: 100%;
+      margin-bottom: var(--space-sm);
+      justify-content: flex-start;
+      text-align: left;
+    }
+
+    .activity-log {
+      background: var(--gray-50);
+      border-radius: var(--border-radius-sm);
+      padding: var(--space-md);
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .activity-item {
+      padding: var(--space-sm);
+      border-left: 3px solid var(--gray-200);
+      padding-left: var(--space-md);
+      margin-bottom: var(--space-md);
+    }
+
+    .activity-item.success {
+      border-left-color: var(--success);
+    }
+
+    .activity-item.error {
+      border-left-color: var(--danger);
+    }
+
+    .activity-item.warning {
+      border-left-color: var(--warning);
+    }
+
+    .activity-time {
+      font-size: 11px;
+      color: var(--gray-500);
+    }
+
+    .activity-message {
+      font-size: 13px;
+      color: var(--gray-700);
+      margin-top: 4px;
+    }
+
+    .sidebar-footer {
+      padding: var(--space-lg);
+      border-top: 1px solid var(--gray-100);
+      background: var(--gray-50);
+    }
+  </style>
+</head>
+<body>
+  <div class="sidebar-container">
+    <!-- Header -->
+    <div class="sidebar-header">
+      <h2>⚡ Quick Actions</h2>
+      <span class="version-badge">UI v1.0</span>
+    </div>
+
+    <!-- Body -->
+    <div class="sidebar-body">
+      <!-- Import Actions -->
+      <div class="action-section">
+        <div class="section-title">Import & Sync</div>
+        <button class="btn btn-primary action-btn" onclick="runImport()">
+          📥 Run Import Pipeline
+        </button>
+        <button class="btn btn-secondary action-btn" onclick="syncCRM()">
+          🔄 Sync CRM Data
+        </button>
+        <button class="btn btn-secondary action-btn" onclick="runDeduplication()">
+          🧹 Cleanup Duplicates
+        </button>
+      </div>
+
+      <!-- Analysis Actions -->
+      <div class="action-section">
+        <div class="section-title">Analysis</div>
+        <button class="btn btn-success action-btn" onclick="runAIAnalysis()">
+          🧠 Run AI Analysis
+        </button>
+        <button class="btn btn-secondary action-btn" onclick="runDeepScan()">
+          🔍 Deep Market Scan
+        </button>
+        <button class="btn btn-secondary action-btn" onclick="updateVerdicts()">
+          ⚖️ Update Verdicts
+        </button>
+      </div>
+
+      <!-- Export Actions -->
+      <div class="action-section">
+        <div class="section-title">Export & Campaigns</div>
+        <button class="btn btn-warning action-btn" onclick="exportSMS()">
+          📱 SMS Export (Hot Deals)
+        </button>
+        <button class="btn btn-secondary action-btn" onclick="exportCRM()">
+          🏢 Export to CompanyHub
+        </button>
+        <button class="btn btn-secondary action-btn" onclick="generateCampaigns()">
+          📧 Generate Campaigns
+        </button>
+      </div>
+
+      <!-- Utility Actions -->
+      <div class="action-section">
+        <div class="section-title">Utilities</div>
+        <button class="btn btn-secondary action-btn" onclick="runDiagnostics()">
+          🔧 System Diagnostics
+        </button>
+        <button class="btn btn-secondary action-btn" onclick="generateReport()">
+          📊 Generate Report
+        </button>
+        <button class="btn btn-secondary action-btn" onclick="copyDebugInfo()">
+          📋 Copy Debug Info
+        </button>
+      </div>
+
+      <!-- Activity Log -->
+      <div class="action-section">
+        <div class="section-title">Recent Activity</div>
+        <div class="activity-log" id="activity-log">
+          <div class="activity-item">
+            <div class="activity-time">Just now</div>
+            <div class="activity-message">Quick Actions initialized</div>
+          </div>
+        </div>
+        <button class="btn btn-sm btn-outline" style="margin-top: var(--space-sm); width: 100%;" onclick="clearActivity()">
+          Clear Log
+        </button>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="sidebar-footer">
+      <div style="font-size: 11px; color: var(--gray-500); text-align: center;">
+        CarHawk Ultimate Quantum 2.0
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ============================================================
+       QUICK ACTIONS LOGIC
+       ============================================================ */
+
+    // ========================================
+    // ACTIVITY LOG
+    // ========================================
+
+    function addActivity(message, type = 'info') {
+      const log = document.getElementById('activity-log');
+      const time = new Date().toLocaleTimeString();
+
+      const item = document.createElement('div');
+      item.className = `activity-item ${type}`;
+      item.innerHTML = `
+        <div class="activity-time">${time}</div>
+        <div class="activity-message">${escapeHtml(message)}</div>
+      `;
+
+      log.insertBefore(item, log.firstChild);
+
+      // Keep only last 10 items
+      while (log.children.length > 10) {
+        log.removeChild(log.lastChild);
+      }
+    }
+
+    function clearActivity() {
+      document.getElementById('activity-log').innerHTML = '';
+      addActivity('Activity log cleared');
+    }
+
+    // ========================================
+    // IMPORT ACTIONS
+    // ========================================
+
+    async function runImport() {
+      addActivity('Starting import pipeline...', 'info');
+
+      try {
+        const result = await safeApi('runImportPipeline');
+        addActivity(`Import complete: ${result.imported || 0} items imported`, 'success');
+        showToast('Import pipeline completed', 'success');
+      } catch (error) {
+        addActivity('Import failed - function not wired yet', 'warning');
+      }
+    }
+
+    async function syncCRM() {
+      addActivity('Syncing CRM data...', 'info');
+
+      try {
+        const result = await safeApi('syncQuantumCRM');
+        addActivity(`CRM sync complete: ${result.synced || 0} records`, 'success');
+        showToast('CRM sync completed', 'success');
+      } catch (error) {
+        addActivity('CRM sync failed - function not wired yet', 'warning');
+      }
+    }
+
+    async function runDeduplication() {
+      addActivity('Running deduplication...', 'info');
+
+      try {
+        const result = await safeApi('runDeduplication');
+        addActivity(`Deduplication complete: ${result.removed || 0} duplicates removed`, 'success');
+        showToast('Deduplication completed', 'success');
+      } catch (error) {
+        addActivity('Deduplication failed - function not wired yet', 'warning');
+      }
+    }
+
+    // ========================================
+    // ANALYSIS ACTIONS
+    // ========================================
+
+    async function runAIAnalysis() {
+      addActivity('Running AI analysis batch...', 'info');
+
+      try {
+        const result = await safeApi('executeQuantumAIBatch');
+        addActivity(`AI analysis complete: ${result.analyzed || 0} deals analyzed`, 'success');
+        showToast('AI analysis completed', 'success');
+      } catch (error) {
+        addActivity('AI analysis failed - function not wired yet', 'warning');
+      }
+    }
+
+    async function runDeepScan() {
+      addActivity('Starting deep market scan...', 'info');
+
+      try {
+        const result = await safeApi('runDeepMarketScan');
+        addActivity(`Deep scan complete: ${result.scanned || 0} markets scanned`, 'success');
+        showToast('Deep market scan completed', 'success');
+      } catch (error) {
+        addActivity('Deep scan failed - function not wired yet', 'warning');
+      }
+    }
+
+    async function updateVerdicts() {
+      addActivity('Updating deal verdicts...', 'info');
+
+      try {
+        const result = await safeApi('updateAllVerdicts');
+        addActivity(`Verdicts updated: ${result.updated || 0} deals`, 'success');
+        showToast('Verdicts updated', 'success');
+      } catch (error) {
+        addActivity('Verdict update failed - function not wired yet', 'warning');
+      }
+    }
+
+    // ========================================
+    // EXPORT ACTIONS
+    // ========================================
+
+    async function exportSMS() {
+      addActivity('Exporting hot deals to SMS-iT...', 'info');
+
+      try {
+        const result = await safeApi('exportQuantumSMS');
+        addActivity(`SMS export complete: ${result.exported || 0} contacts`, 'success');
+        showToast('SMS export completed', 'success');
+      } catch (error) {
+        addActivity('SMS export failed - function not wired yet', 'warning');
+      }
+    }
+
+    async function exportCRM() {
+      addActivity('Exporting to CompanyHub...', 'info');
+
+      try {
+        const result = await safeApi('exportQuantumCRM');
+        addActivity(`CRM export complete: ${result.exported || 0} deals`, 'success');
+        showToast('CRM export completed', 'success');
+      } catch (error) {
+        addActivity('CRM export failed - function not wired yet', 'warning');
+      }
+    }
+
+    async function generateCampaigns() {
+      addActivity('Generating campaigns...', 'info');
+
+      try {
+        const result = await safeApi('generateQuantumCampaigns');
+        addActivity(`Campaigns generated: ${result.campaigns || 0} campaigns`, 'success');
+        showToast('Campaigns generated', 'success');
+      } catch (error) {
+        addActivity('Campaign generation failed - function not wired yet', 'warning');
+      }
+    }
+
+    // ========================================
+    // UTILITY ACTIONS
+    // ========================================
+
+    async function runDiagnostics() {
+      addActivity('Running system diagnostics...', 'info');
+
+      try {
+        const result = await safeApi('runSystemDiagnostics');
+        addActivity(`Diagnostics complete: ${result.status || 'OK'}`, 'success');
+        showToast('Diagnostics completed', 'success');
+      } catch (error) {
+        addActivity('Diagnostics failed - function not wired yet', 'warning');
+      }
+    }
+
+    async function generateReport() {
+      addActivity('Generating report...', 'info');
+
+      try {
+        const result = await safeApi('generateQuantumWeekly');
+        addActivity('Weekly report generated', 'success');
+        showToast('Report generated', 'success');
+      } catch (error) {
+        addActivity('Report generation failed - function not wired yet', 'warning');
+      }
+    }
+
+    // ========================================
+    // INITIALIZATION
+    // ========================================
+
+    document.addEventListener('DOMContentLoaded', () => {
+      addActivity('Quick Actions ready');
+      logDebug('Quick Actions initialized');
+    });
+  </script>
+</body>
+</html>

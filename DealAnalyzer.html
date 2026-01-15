@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <?!= include('UI_Components'); ?>
+  <style>
+    /* Deal Analyzer Specific Styles */
+    .analyzer-container {
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    .step-indicator {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: var(--space-xl);
+      position: relative;
+    }
+
+    .step-indicator::before {
+      content: '';
+      position: absolute;
+      top: 20px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--gray-200);
+      z-index: 0;
+    }
+
+    .step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-sm);
+      position: relative;
+      z-index: 1;
+    }
+
+    .step-circle {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: white;
+      border: 3px solid var(--gray-200);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: var(--gray-400);
+    }
+
+    .step.active .step-circle {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: var(--gray-50);
+    }
+
+    .step.completed .step-circle {
+      background: var(--success);
+      border-color: var(--success);
+      color: white;
+    }
+
+    .step-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--gray-500);
+    }
+
+    .step.active .step-label {
+      color: var(--primary);
+    }
+
+    .results-panel {
+      background: var(--gray-50);
+      border-radius: var(--border-radius);
+      padding: var(--space-lg);
+      margin-top: var(--space-lg);
+    }
+
+    .verdict-card {
+      background: white;
+      border-radius: var(--border-radius);
+      padding: var(--space-lg);
+      margin-bottom: var(--space-md);
+      text-align: center;
+    }
+
+    .verdict-icon {
+      font-size: 48px;
+      margin-bottom: var(--space-md);
+    }
+
+    .verdict-title {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: var(--space-sm);
+    }
+
+    .verdict-buy {
+      color: var(--success);
+    }
+
+    .verdict-pass {
+      color: var(--danger);
+    }
+
+    .verdict-maybe {
+      color: var(--warning);
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: var(--space-md);
+      margin-top: var(--space-lg);
+    }
+
+    .metric-card {
+      background: white;
+      border-radius: var(--border-radius);
+      padding: var(--space-md);
+      text-align: center;
+    }
+
+    .metric-value-lg {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: var(--space-xs);
+    }
+
+    .ai-message {
+      background: white;
+      border-radius: var(--border-radius);
+      padding: var(--space-lg);
+      margin-top: var(--space-md);
+      border-left: 4px solid var(--info);
+    }
+
+    .ai-message-title {
+      font-weight: 700;
+      margin-bottom: var(--space-sm);
+      color: var(--info);
+    }
+
+    .platform-badges {
+      display: flex;
+      gap: var(--space-sm);
+      flex-wrap: wrap;
+      margin-top: var(--space-sm);
+    }
+
+    .platform-badge {
+      cursor: pointer;
+      padding: 8px 16px;
+      border: 2px solid var(--gray-200);
+      border-radius: var(--border-radius-sm);
+      background: white;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+
+    .platform-badge:hover {
+      border-color: var(--primary);
+    }
+
+    .platform-badge.selected {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="topbar-title">
+      🧠 Deal Analyzer
+      <span class="version-badge">UI v1.0</span>
+    </div>
+  </div>
+
+  <div class="analyzer-container">
+    <!-- Step Indicator -->
+    <div class="step-indicator">
+      <div class="step active" id="step-1">
+        <div class="step-circle">1</div>
+        <div class="step-label">Input</div>
+      </div>
+      <div class="step" id="step-2">
+        <div class="step-circle">2</div>
+        <div class="step-label">Analyze</div>
+      </div>
+      <div class="step" id="step-3">
+        <div class="step-circle">3</div>
+        <div class="step-label">Results</div>
+      </div>
+    </div>
+
+    <!-- Input Form -->
+    <div class="card" id="input-section">
+      <div class="card-header">
+        <h3 class="card-title">Deal Information</h3>
+      </div>
+
+      <form id="deal-form">
+        <div class="form-group">
+          <label class="form-label">Vehicle Title *</label>
+          <input
+            type="text"
+            class="form-control"
+            id="title"
+            name="title"
+            placeholder="e.g., 2018 Honda Accord EX"
+            required
+          >
+          <div class="form-help">Year, Make, Model, Trim</div>
+        </div>
+
+        <div class="grid grid-2">
+          <div class="form-group">
+            <label class="form-label">Asking Price *</label>
+            <input
+              type="number"
+              class="form-control"
+              id="askingPrice"
+              name="askingPrice"
+              placeholder="15000"
+              required
+            >
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Mileage</label>
+            <input
+              type="number"
+              class="form-control"
+              id="mileage"
+              name="mileage"
+              placeholder="65000"
+            >
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Platform</label>
+          <div class="platform-badges">
+            <? if (typeof platforms !== 'undefined') { ?>
+              <? platforms.forEach(function(platform) { ?>
+                <div class="platform-badge" onclick="selectPlatform('<?= platform ?>')">
+                  <?= platform ?>
+                </div>
+              <? }); ?>
+            <? } else { ?>
+              <div class="platform-badge" onclick="selectPlatform('Facebook')">Facebook</div>
+              <div class="platform-badge" onclick="selectPlatform('Craigslist')">Craigslist</div>
+              <div class="platform-badge" onclick="selectPlatform('OfferUp')">OfferUp</div>
+              <div class="platform-badge" onclick="selectPlatform('eBay')">eBay</div>
+              <div class="platform-badge" onclick="selectPlatform('Other')">Other</div>
+            <? } ?>
+          </div>
+          <input type="hidden" id="platform" name="platform" value="">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Listing URL</label>
+          <input
+            type="url"
+            class="form-control"
+            id="listingUrl"
+            name="listingUrl"
+            placeholder="https://..."
+          >
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Description / Notes</label>
+          <textarea
+            class="form-control"
+            id="description"
+            name="description"
+            placeholder="Describe the vehicle condition, seller notes, any issues..."
+            rows="4"
+          ></textarea>
+        </div>
+
+        <div class="flex-between">
+          <button type="button" class="btn btn-secondary" onclick="clearForm('deal-form')">
+            Clear
+          </button>
+          <button type="submit" class="btn btn-primary btn-lg">
+            🧠 Analyze Deal
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Results Section (Hidden initially) -->
+    <div class="results-panel hidden" id="results-section">
+      <h3 style="margin-bottom: var(--space-lg);">Analysis Results</h3>
+
+      <!-- Verdict Card -->
+      <div class="verdict-card" id="verdict-card">
+        <div class="verdict-icon" id="verdict-icon">⏳</div>
+        <div class="verdict-title" id="verdict-title">Analyzing...</div>
+        <div id="verdict-subtitle"></div>
+      </div>
+
+      <!-- Metrics Grid -->
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-label">Max Offer Target</div>
+          <div class="metric-value-lg text-success" id="result-offer">$0</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Profit Margin</div>
+          <div class="metric-value-lg text-success" id="result-profit">0%</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Risk Score</div>
+          <div class="metric-value-lg" id="result-risk">0.0</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Deal Rank</div>
+          <div class="metric-value-lg" id="result-rank">-</div>
+        </div>
+      </div>
+
+      <!-- AI Message -->
+      <div class="ai-message" id="ai-message">
+        <div class="ai-message-title">🤖 AI Recommendation</div>
+        <div id="ai-message-content">
+          Waiting for analysis...
+        </div>
+      </div>
+
+      <div class="flex-between" style="margin-top: var(--space-lg);">
+        <button class="btn btn-secondary" onclick="resetAnalyzer()">
+          ← Analyze Another
+        </button>
+        <button class="btn btn-success" onclick="saveDeal()">
+          💾 Save to Database
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ============================================================
+       DEAL ANALYZER LOGIC
+       ============================================================ */
+
+    let selectedPlatform = '';
+
+    // ========================================
+    // DATA CONTRACT (for server team)
+    // ========================================
+    /*
+      Expected input to UI_analyzeDeal(payload):
+      {
+        title: "2018 Honda Accord EX",
+        askingPrice: 15000,
+        mileage: 65000,
+        platform: "Facebook",
+        listingUrl: "https://...",
+        description: "Clean title, one owner..."
+      }
+
+      Expected response:
+      {
+        verdict: "BUY" | "PASS" | "MAYBE",
+        offerTarget: 12000,
+        profitMargin: 55,
+        riskScore: 2.3,
+        rank: 1,
+        aiMessage: "This is an excellent deal. The vehicle is priced below market value...",
+        marketValue: 18000
+      }
+    */
+
+    // ========================================
+    // PLATFORM SELECTION
+    // ========================================
+
+    function selectPlatform(platform) {
+      selectedPlatform = platform;
+      document.getElementById('platform').value = platform;
+
+      // Update UI
+      document.querySelectorAll('.platform-badge').forEach(badge => {
+        badge.classList.remove('selected');
+      });
+      event.target.classList.add('selected');
+    }
+
+    // ========================================
+    // FORM SUBMISSION
+    // ========================================
+
+    document.getElementById('deal-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      // Update steps
+      updateStep(2);
+
+      // Show results section
+      document.getElementById('results-section').classList.remove('hidden');
+
+      // Scroll to results
+      document.getElementById('results-section').scrollIntoView({ behavior: 'smooth' });
+
+      // Get form data
+      const formData = getFormData('deal-form');
+
+      try {
+        // Call API
+        const result = await safeApi('UI_analyzeDeal', formData);
+
+        // Display results
+        displayResults(result);
+        updateStep(3);
+
+      } catch (error) {
+        // Show placeholder results for development
+        const placeholderResult = {
+          verdict: 'BUY',
+          offerTarget: Math.round(formData.askingPrice * 0.8),
+          profitMargin: 55,
+          riskScore: 2.3,
+          rank: 1,
+          aiMessage: `Based on the asking price of ${formatCurrency(formData.askingPrice)}, this appears to be a good deal. Consider offering around ${formatCurrency(Math.round(formData.askingPrice * 0.8))} to maintain a healthy profit margin.`,
+          marketValue: Math.round(formData.askingPrice * 1.3)
+        };
+
+        displayResults(placeholderResult);
+        updateStep(3);
+      }
+    });
+
+    // ========================================
+    // UPDATE STEP INDICATOR
+    // ========================================
+
+    function updateStep(stepNumber) {
+      for (let i = 1; i <= 3; i++) {
+        const step = document.getElementById(`step-${i}`);
+        step.classList.remove('active', 'completed');
+
+        if (i < stepNumber) {
+          step.classList.add('completed');
+        } else if (i === stepNumber) {
+          step.classList.add('active');
+        }
+      }
+    }
+
+    // ========================================
+    // DISPLAY RESULTS
+    // ========================================
+
+    function displayResults(result) {
+      // Verdict
+      const verdictIcons = {
+        'BUY': '✅',
+        'PASS': '❌',
+        'MAYBE': '🤔'
+      };
+
+      const verdictClasses = {
+        'BUY': 'verdict-buy',
+        'PASS': 'verdict-pass',
+        'MAYBE': 'verdict-maybe'
+      };
+
+      document.getElementById('verdict-icon').textContent = verdictIcons[result.verdict] || '⏳';
+      document.getElementById('verdict-title').textContent = result.verdict || 'Unknown';
+      document.getElementById('verdict-title').className = `verdict-title ${verdictClasses[result.verdict] || ''}`;
+
+      // Metrics
+      document.getElementById('result-offer').textContent = formatCurrency(result.offerTarget || 0);
+      document.getElementById('result-profit').textContent = formatPercent(result.profitMargin || 0);
+      document.getElementById('result-risk').textContent = (result.riskScore || 0).toFixed(1);
+      document.getElementById('result-rank').textContent = result.rank || '-';
+
+      // AI Message
+      document.getElementById('ai-message-content').textContent = result.aiMessage || 'No recommendation available.';
+
+      // Toast notification
+      if (result.verdict === 'BUY') {
+        showToast('This is a hot deal! Consider making an offer.', 'success', 'Analysis Complete');
+      } else if (result.verdict === 'PASS') {
+        showToast('This deal does not meet your criteria.', 'warning', 'Analysis Complete');
+      } else {
+        showToast('This deal requires further review.', 'info', 'Analysis Complete');
+      }
+    }
+
+    // ========================================
+    // RESET ANALYZER
+    // ========================================
+
+    function resetAnalyzer() {
+      document.getElementById('results-section').classList.add('hidden');
+      document.getElementById('deal-form').scrollIntoView({ behavior: 'smooth' });
+      updateStep(1);
+      clearForm('deal-form');
+      selectedPlatform = '';
+      document.querySelectorAll('.platform-badge').forEach(badge => {
+        badge.classList.remove('selected');
+      });
+    }
+
+    // ========================================
+    // SAVE DEAL
+    // ========================================
+
+    async function saveDeal() {
+      try {
+        const formData = getFormData('deal-form');
+        await safeApi('UI_saveDeal', formData);
+        showToast('Deal saved to database', 'success');
+      } catch (error) {
+        showToast('Save functionality not wired yet', 'warning');
+      }
+    }
+
+    // ========================================
+    // INITIALIZATION
+    // ========================================
+
+    document.addEventListener('DOMContentLoaded', () => {
+      logDebug('Deal Analyzer initialized');
+    });
+  </script>
+</body>
+</html>

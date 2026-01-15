@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <?!= include('UI_Components'); ?>
+  <style>
+    /* FollowUpSequences Specific Styles */
+    .sequences-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: var(--space-lg);
+      margin-bottom: var(--space-lg);
+    }
+
+    .sequence-card {
+      background: white;
+      border-radius: var(--border-radius);
+      padding: var(--space-lg);
+      box-shadow: var(--shadow);
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    .sequence-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .sequence-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: var(--space-md);
+    }
+
+    .sequence-name {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--gray-900);
+      margin-bottom: var(--space-xs);
+    }
+
+    .sequence-type {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .sequence-stats {
+      display: flex;
+      gap: var(--space-lg);
+      margin-top: var(--space-md);
+      padding-top: var(--space-md);
+      border-top: 1px solid var(--gray-100);
+      font-size: 13px;
+    }
+
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .stat-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--gray-500);
+    }
+
+    .steps-preview {
+      margin-top: var(--space-md);
+      padding: var(--space-md);
+      background: var(--gray-50);
+      border-radius: var(--border-radius-sm);
+      font-size: 12px;
+      color: var(--gray-600);
+    }
+
+    .sequence-actions {
+      margin-top: var(--space-md);
+      display: flex;
+      gap: var(--space-sm);
+    }
+
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9998;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: var(--border-radius);
+      padding: var(--space-xl);
+      max-width: 600px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--space-lg);
+    }
+
+    .modal-title {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .close-btn {
+      font-size: 24px;
+      cursor: pointer;
+      color: var(--gray-400);
+      background: none;
+      border: none;
+      padding: 0;
+      width: 32px;
+      height: 32px;
+    }
+
+    .close-btn:hover {
+      color: var(--gray-600);
+    }
+
+    .step-editor {
+      margin-top: var(--space-md);
+    }
+
+    .step-item {
+      background: var(--gray-50);
+      border-radius: var(--border-radius-sm);
+      padding: var(--space-md);
+      margin-bottom: var(--space-md);
+      border-left: 3px solid var(--primary);
+    }
+
+    .step-number {
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: var(--space-sm);
+    }
+  </style>
+</head>
+<body>
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-title">
+      🔄 Follow-Up Sequences
+      <span class="version-badge">UI v1.0</span>
+    </div>
+    <div>
+      <button class="btn btn-primary" onclick="createNewSequence()">
+        ➕ New Sequence
+      </button>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Sequences Grid -->
+    <div class="sequences-grid" id="sequences-grid">
+      <!-- Placeholder sequences -->
+    </div>
+
+    <!-- Empty State -->
+    <div class="card hidden" id="empty-state">
+      <div style="text-align: center; padding: var(--space-xl);">
+        <div style="font-size: 48px; margin-bottom: var(--space-md);">📭</div>
+        <h3>No sequences yet</h3>
+        <p style="color: var(--gray-600);">Create your first follow-up sequence to automate lead nurturing.</p>
+        <button class="btn btn-primary" style="margin-top: var(--space-lg);" onclick="createNewSequence()">
+          ➕ Create Sequence
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create/Edit Modal -->
+  <div class="modal" id="sequence-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-title">Create Follow-Up Sequence</h3>
+        <button class="close-btn" onclick="closeModal()">×</button>
+      </div>
+
+      <form id="sequence-form">
+        <div class="form-group">
+          <label class="form-label">Sequence Name *</label>
+          <input
+            type="text"
+            class="form-control"
+            id="sequence-name"
+            placeholder="e.g., Hot Lead Follow-Up"
+            required
+          >
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Type</label>
+          <select class="form-control" id="sequence-type">
+            <option value="HOT">HOT - Immediate follow-up</option>
+            <option value="WARM">WARM - Regular follow-up</option>
+            <option value="COLD">COLD - Long-term nurture</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <textarea
+            class="form-control"
+            id="sequence-description"
+            placeholder="Describe when to use this sequence..."
+            rows="3"
+          ></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Steps (JSON Format)</label>
+          <textarea
+            class="form-control"
+            id="sequence-steps"
+            placeholder='[{"day": 0, "action": "SMS", "template": "Initial contact"}, ...]'
+            rows="8"
+            style="font-family: monospace; font-size: 12px;"
+          ></textarea>
+          <div class="form-help">
+            Format: [{"day": 0, "action": "SMS|Email|Call", "template": "Message template"}]
+          </div>
+        </div>
+
+        <div class="flex-between" style="margin-top: var(--space-lg);">
+          <button type="button" class="btn btn-secondary" onclick="closeModal()">
+            Cancel
+          </button>
+          <button type="submit" class="btn btn-primary">
+            💾 Save Sequence
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    /* ============================================================
+       FOLLOW-UP SEQUENCES LOGIC
+       ============================================================ */
+
+    let sequences = [];
+    let editingSequenceId = null;
+
+    // ========================================
+    // DATA CONTRACT (for server team)
+    // ========================================
+    /*
+      Expected data from UI_getFollowUpSequences():
+      {
+        sequences: [
+          {
+            sequenceId: "SEQ-001",
+            name: "Hot Lead Follow-Up",
+            type: "HOT",
+            description: "Immediate follow-up for hot leads",
+            steps: [
+              {day: 0, action: "SMS", template: "Hi {name}, saw your {vehicle}..."},
+              {day: 1, action: "Call", template: "Follow-up call script"},
+              {day: 3, action: "Email", template: "Check-in email"}
+            ],
+            activeContacts: 12,
+            completedContacts: 45,
+            conversionRate: 34.5
+          },
+          ...
+        ]
+      }
+
+      Save: UI_saveFollowUpSequence(payload)
+      Delete: UI_deleteFollowUpSequence(sequenceId)
+      Launch: UI_launchSequence(sequenceId, contactIds)
+    */
+
+    // ========================================
+    // LOAD SEQUENCES
+    // ========================================
+
+    async function loadSequences() {
+      try {
+        const data = await safeApi('UI_getFollowUpSequences');
+        sequences = data.sequences || [];
+        renderSequences();
+      } catch (error) {
+        loadPlaceholderSequences();
+      }
+    }
+
+    function loadPlaceholderSequences() {
+      sequences = [
+        {
+          sequenceId: "SEQ-001",
+          name: "Hot Lead Follow-Up",
+          type: "HOT",
+          description: "Immediate follow-up for hot leads",
+          steps: [
+            {day: 0, action: "SMS", template: "Hi {name}, I'm interested in your {vehicle}..."},
+            {day: 1, action: "Call", template: "Follow-up call"},
+            {day: 3, action: "Email", template: "Final check-in"}
+          ],
+          activeContacts: 12,
+          completedContacts: 45,
+          conversionRate: 34.5
+        },
+        {
+          sequenceId: "SEQ-002",
+          name: "Warm Lead Nurture",
+          type: "WARM",
+          description: "Regular follow-up for warm leads",
+          steps: [
+            {day: 0, action: "Email", template: "Introduction email"},
+            {day: 3, action: "SMS", template: "Quick check-in"},
+            {day: 7, action: "Call", template: "Follow-up call"}
+          ],
+          activeContacts: 23,
+          completedContacts: 67,
+          conversionRate: 28.3
+        }
+      ];
+
+      renderSequences();
+    }
+
+    // ========================================
+    // RENDER SEQUENCES
+    // ========================================
+
+    function renderSequences() {
+      const grid = document.getElementById('sequences-grid');
+      const emptyState = document.getElementById('empty-state');
+
+      if (sequences.length === 0) {
+        grid.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+
+      grid.innerHTML = sequences.map(seq => `
+        <div class="sequence-card" onclick="editSequence('${seq.sequenceId}')">
+          <div class="sequence-header">
+            <div>
+              <div class="sequence-name">${escapeHtml(seq.name)}</div>
+              <div class="sequence-type">
+                <span class="badge badge-${seq.type === 'HOT' ? 'danger' : seq.type === 'WARM' ? 'warning' : 'info'}">
+                  ${seq.type}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div style="font-size: 13px; color: var(--gray-600); margin-bottom: var(--space-md);">
+            ${escapeHtml(seq.description || '')}
+          </div>
+
+          <div class="steps-preview">
+            📋 ${seq.steps.length} steps • ${seq.steps.map(s => s.action).join(' → ')}
+          </div>
+
+          <div class="sequence-stats">
+            <div class="stat-item">
+              <div class="stat-value">${seq.activeContacts}</div>
+              <div class="stat-label">Active</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">${seq.completedContacts}</div>
+              <div class="stat-label">Completed</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">${seq.conversionRate.toFixed(1)}%</div>
+              <div class="stat-label">Conv. Rate</div>
+            </div>
+          </div>
+
+          <div class="sequence-actions">
+            <button class="btn btn-sm btn-success" onclick="event.stopPropagation(); launchSequence('${seq.sequenceId}')">
+              🚀 Launch
+            </button>
+            <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); editSequence('${seq.sequenceId}')">
+              ✏️ Edit
+            </button>
+            <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteSequence('${seq.sequenceId}')">
+              🗑️
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // ========================================
+    // CREATE NEW SEQUENCE
+    // ========================================
+
+    function createNewSequence() {
+      editingSequenceId = null;
+      document.getElementById('modal-title').textContent = 'Create Follow-Up Sequence';
+      document.getElementById('sequence-form').reset();
+      document.getElementById('sequence-steps').value = JSON.stringify([
+        {day: 0, action: "SMS", template: "Initial contact"},
+        {day: 1, action: "Call", template: "Follow-up call"},
+        {day: 3, action: "Email", template: "Check-in email"}
+      ], null, 2);
+      openModal();
+    }
+
+    // ========================================
+    // EDIT SEQUENCE
+    // ========================================
+
+    function editSequence(sequenceId) {
+      const sequence = sequences.find(s => s.sequenceId === sequenceId);
+      if (!sequence) return;
+
+      editingSequenceId = sequenceId;
+      document.getElementById('modal-title').textContent = 'Edit Follow-Up Sequence';
+      document.getElementById('sequence-name').value = sequence.name;
+      document.getElementById('sequence-type').value = sequence.type;
+      document.getElementById('sequence-description').value = sequence.description || '';
+      document.getElementById('sequence-steps').value = JSON.stringify(sequence.steps, null, 2);
+
+      openModal();
+    }
+
+    // ========================================
+    // SAVE SEQUENCE
+    // ========================================
+
+    document.getElementById('sequence-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const formData = {
+        sequenceId: editingSequenceId,
+        name: document.getElementById('sequence-name').value,
+        type: document.getElementById('sequence-type').value,
+        description: document.getElementById('sequence-description').value,
+        steps: JSON.parse(document.getElementById('sequence-steps').value)
+      };
+
+      try {
+        await safeApi('UI_saveFollowUpSequence', formData);
+        showToast('Sequence saved', 'success');
+        closeModal();
+        loadSequences();
+      } catch (error) {
+        showToast('Save functionality not wired yet', 'warning');
+        closeModal();
+      }
+    });
+
+    // ========================================
+    // DELETE SEQUENCE
+    // ========================================
+
+    async function deleteSequence(sequenceId) {
+      if (!confirm('Are you sure you want to delete this sequence?')) return;
+
+      try {
+        await safeApi('UI_deleteFollowUpSequence', sequenceId);
+        showToast('Sequence deleted', 'success');
+        loadSequences();
+      } catch (error) {
+        showToast('Delete functionality not wired yet', 'warning');
+      }
+    }
+
+    // ========================================
+    // LAUNCH SEQUENCE
+    // ========================================
+
+    async function launchSequence(sequenceId) {
+      try {
+        await safeApi('UI_launchSequence', sequenceId);
+        showToast('Sequence launched', 'success');
+      } catch (error) {
+        showToast('Launch functionality not wired yet', 'warning');
+      }
+    }
+
+    // ========================================
+    // MODAL CONTROLS
+    // ========================================
+
+    function openModal() {
+      document.getElementById('sequence-modal').classList.add('active');
+    }
+
+    function closeModal() {
+      document.getElementById('sequence-modal').classList.remove('active');
+    }
+
+    // ========================================
+    // INITIALIZATION
+    // ========================================
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadPlaceholderSequences();
+      logDebug('Follow-Up Sequences initialized');
+    });
+  </script>
+</body>
+</html>

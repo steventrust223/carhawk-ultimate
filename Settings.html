@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <?!= include('UI_Components'); ?>
+  <style>
+    /* Settings Specific Styles */
+    .settings-container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .settings-section {
+      background: white;
+      border-radius: var(--border-radius);
+      padding: var(--space-lg);
+      box-shadow: var(--shadow);
+      margin-bottom: var(--space-lg);
+    }
+
+    .settings-section-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--gray-900);
+      margin-bottom: var(--space-lg);
+      padding-bottom: var(--space-md);
+      border-bottom: 2px solid var(--gray-100);
+    }
+
+    .setting-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: var(--space-md) 0;
+      border-bottom: 1px solid var(--gray-100);
+    }
+
+    .setting-item:last-child {
+      border-bottom: none;
+    }
+
+    .setting-info {
+      flex: 1;
+      margin-right: var(--space-lg);
+    }
+
+    .setting-label {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--gray-900);
+      margin-bottom: var(--space-xs);
+    }
+
+    .setting-description {
+      font-size: 12px;
+      color: var(--gray-600);
+    }
+
+    .setting-control {
+      flex-shrink: 0;
+    }
+
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 26px;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: var(--gray-300);
+      transition: .4s;
+      border-radius: 26px;
+    }
+
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 20px;
+      width: 20px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+
+    input:checked + .toggle-slider {
+      background-color: var(--success);
+    }
+
+    input:checked + .toggle-slider:before {
+      transform: translateX(24px);
+    }
+
+    .save-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: white;
+      padding: var(--space-lg);
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+      display: none;
+      justify-content: center;
+      gap: var(--space-md);
+      z-index: 1000;
+    }
+
+    .save-bar.active {
+      display: flex;
+    }
+  </style>
+</head>
+<body>
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-title">
+      ⚙️ Settings
+      <span class="version-badge">UI v1.0</span>
+    </div>
+  </div>
+
+  <div class="settings-container">
+    <!-- Deal Scoring Settings -->
+    <div class="settings-section">
+      <h3 class="settings-section-title">Deal Scoring Thresholds</h3>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-label">Hot Deal Profit Threshold</div>
+          <div class="setting-description">Minimum profit margin to mark a deal as "HOT"</div>
+        </div>
+        <div class="setting-control">
+          <input
+            type="number"
+            class="form-control"
+            style="width: 100px;"
+            id="hotProfitThreshold"
+            value="50"
+            onchange="markUnsaved()"
+          >
+          <span style="margin-left: 8px;">%</span>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-label">Maximum Distance</div>
+          <div class="setting-description">Maximum distance for deal consideration</div>
+        </div>
+        <div class="setting-control">
+          <input
+            type="number"
+            class="form-control"
+            style="width: 100px;"
+            id="maxDistance"
+            value="50"
+            onchange="markUnsaved()"
+          >
+          <span style="margin-left: 8px;">miles</span>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-label">Risk Score Cutoff</div>
+          <div class="setting-description">Maximum acceptable risk score</div>
+        </div>
+        <div class="setting-control">
+          <input
+            type="number"
+            class="form-control"
+            style="width: 100px;"
+            id="riskCutoff"
+            value="7"
+            step="0.1"
+            onchange="markUnsaved()"
+          >
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-label">Minimum Deal Value</div>
+          <div class="setting-description">Minimum asking price to consider</div>
+        </div>
+        <div class="setting-control">
+          <span style="margin-right: 8px;">$</span>
+          <input
+            type="number"
+            class="form-control"
+            style="width: 120px;"
+            id="minDealValue"
+            value="5000"
+            onchange="markUnsaved()"
+          >
+        </div>
+      </div>
+    </div>
+
+    <!-- Feature Flags -->
+    <div class="settings-section">
+      <h3 class="settings-section-title">Features</h3>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-label">Enable AI Analysis</div>
+          <div class="setting-description">Use OpenAI for deal analysis and recommendations</div>
+        </div>
+        <div class="setting-control">
+          <label class="toggle-switch">
+            <input type="checkbox" id="enableAI" checked onchange="markUnsaved()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-label">Enable SMS Integration</div>
+          <div class="setting-description">SMS-iT export and messaging features</div>
+        </div>
+        <div class="setting-control">
+          <label class="toggle-switch">
+            <input type="checkbox" id="enableSMS" checked onchange="markUnsaved()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-label">Enable CRM Integration</div>
+          <div class="setting-description">CompanyHub CRM sync and export</div>
+        </div>
+        <div class="setting-control">
+          <label class="toggle-switch">
+            <input type="checkbox" id="enableCRM" checked onchange="markUnsaved()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-label">Auto-Import</div>
+          <div class="setting-description">Automatically import deals from Browse.ai</div>
+        </div>
+        <div class="setting-control">
+          <label class="toggle-switch">
+            <input type="checkbox" id="autoImport" onchange="markUnsaved()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-label">Real-Time Mode</div>
+          <div class="setting-description">Instant analysis as new deals arrive</div>
+        </div>
+        <div class="setting-control">
+          <label class="toggle-switch">
+            <input type="checkbox" id="realtimeMode" onchange="markUnsaved()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notification Settings -->
+    <div class="settings-section">
+      <h3 class="settings-section-title">Notifications</h3>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-label">Hot Deal Alerts</div>
+          <div class="setting-description">Email notifications for hot deals</div>
+        </div>
+        <div class="setting-control">
+          <label class="toggle-switch">
+            <input type="checkbox" id="hotDealAlerts" checked onchange="markUnsaved()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-label">Weekly Reports</div>
+          <div class="setting-description">Automated weekly performance reports</div>
+        </div>
+        <div class="setting-control">
+          <label class="toggle-switch">
+            <input type="checkbox" id="weeklyReports" checked onchange="markUnsaved()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-label">Alert Email</div>
+          <div class="setting-description">Email address for notifications</div>
+        </div>
+        <div class="setting-control">
+          <input
+            type="email"
+            class="form-control"
+            style="width: 250px;"
+            id="alertEmail"
+            placeholder="your@email.com"
+            onchange="markUnsaved()"
+          >
+        </div>
+      </div>
+    </div>
+
+    <!-- System Settings -->
+    <div class="settings-section">
+      <h3 class="settings-section-title">System</h3>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-label">Home Location</div>
+          <div class="setting-description">Your business ZIP code for distance calculations</div>
+        </div>
+        <div class="setting-control">
+          <input
+            type="text"
+            class="form-control"
+            style="width: 100px;"
+            id="homeZip"
+            value="63101"
+            onchange="markUnsaved()"
+          >
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-label">Business Name</div>
+          <div class="setting-description">Your business name for exports</div>
+        </div>
+        <div class="setting-control">
+          <input
+            type="text"
+            class="form-control"
+            style="width: 200px;"
+            id="businessName"
+            placeholder="CarHawk Auto"
+            onchange="markUnsaved()"
+          >
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Save Bar -->
+  <div class="save-bar" id="save-bar">
+    <button class="btn btn-secondary" onclick="cancelChanges()">Cancel</button>
+    <button class="btn btn-success btn-lg" onclick="saveSettings()">💾 Save Settings</button>
+  </div>
+
+  <script>
+    /* ============================================================
+       SETTINGS LOGIC
+       ============================================================ */
+
+    let hasUnsavedChanges = false;
+
+    // ========================================
+    // DATA CONTRACT (for server team)
+    // ========================================
+    /*
+      Load: UI_getSettings()
+      Save: UI_saveSettings(payload)
+
+      Expected data structure:
+      {
+        thresholds: {
+          hotProfitThreshold: 50,
+          maxDistance: 50,
+          riskCutoff: 7,
+          minDealValue: 5000
+        },
+        features: {
+          enableAI: true,
+          enableSMS: true,
+          enableCRM: true,
+          autoImport: false,
+          realtimeMode: false
+        },
+        notifications: {
+          hotDealAlerts: true,
+          weeklyReports: true,
+          alertEmail: "your@email.com"
+        },
+        system: {
+          homeZip: "63101",
+          businessName: "CarHawk Auto"
+        }
+      }
+    */
+
+    // ========================================
+    // LOAD SETTINGS
+    // ========================================
+
+    async function loadSettings() {
+      try {
+        const settings = await safeApi('UI_getSettings');
+        applySettings(settings);
+      } catch (error) {
+        // Settings already have default values
+        logDebug('Using default settings');
+      }
+    }
+
+    function applySettings(settings) {
+      if (!settings) return;
+
+      // Thresholds
+      if (settings.thresholds) {
+        if (settings.thresholds.hotProfitThreshold) document.getElementById('hotProfitThreshold').value = settings.thresholds.hotProfitThreshold;
+        if (settings.thresholds.maxDistance) document.getElementById('maxDistance').value = settings.thresholds.maxDistance;
+        if (settings.thresholds.riskCutoff) document.getElementById('riskCutoff').value = settings.thresholds.riskCutoff;
+        if (settings.thresholds.minDealValue) document.getElementById('minDealValue').value = settings.thresholds.minDealValue;
+      }
+
+      // Features
+      if (settings.features) {
+        if (settings.features.enableAI !== undefined) document.getElementById('enableAI').checked = settings.features.enableAI;
+        if (settings.features.enableSMS !== undefined) document.getElementById('enableSMS').checked = settings.features.enableSMS;
+        if (settings.features.enableCRM !== undefined) document.getElementById('enableCRM').checked = settings.features.enableCRM;
+        if (settings.features.autoImport !== undefined) document.getElementById('autoImport').checked = settings.features.autoImport;
+        if (settings.features.realtimeMode !== undefined) document.getElementById('realtimeMode').checked = settings.features.realtimeMode;
+      }
+
+      // Notifications
+      if (settings.notifications) {
+        if (settings.notifications.hotDealAlerts !== undefined) document.getElementById('hotDealAlerts').checked = settings.notifications.hotDealAlerts;
+        if (settings.notifications.weeklyReports !== undefined) document.getElementById('weeklyReports').checked = settings.notifications.weeklyReports;
+        if (settings.notifications.alertEmail) document.getElementById('alertEmail').value = settings.notifications.alertEmail;
+      }
+
+      // System
+      if (settings.system) {
+        if (settings.system.homeZip) document.getElementById('homeZip').value = settings.system.homeZip;
+        if (settings.system.businessName) document.getElementById('businessName').value = settings.system.businessName;
+      }
+
+      hasUnsavedChanges = false;
+      hideSaveBar();
+    }
+
+    // ========================================
+    // MARK UNSAVED
+    // ========================================
+
+    function markUnsaved() {
+      hasUnsavedChanges = true;
+      showSaveBar();
+    }
+
+    function showSaveBar() {
+      document.getElementById('save-bar').classList.add('active');
+    }
+
+    function hideSaveBar() {
+      document.getElementById('save-bar').classList.remove('active');
+    }
+
+    // ========================================
+    // SAVE SETTINGS
+    // ========================================
+
+    async function saveSettings() {
+      const settings = {
+        thresholds: {
+          hotProfitThreshold: parseFloat(document.getElementById('hotProfitThreshold').value),
+          maxDistance: parseFloat(document.getElementById('maxDistance').value),
+          riskCutoff: parseFloat(document.getElementById('riskCutoff').value),
+          minDealValue: parseFloat(document.getElementById('minDealValue').value)
+        },
+        features: {
+          enableAI: document.getElementById('enableAI').checked,
+          enableSMS: document.getElementById('enableSMS').checked,
+          enableCRM: document.getElementById('enableCRM').checked,
+          autoImport: document.getElementById('autoImport').checked,
+          realtimeMode: document.getElementById('realtimeMode').checked
+        },
+        notifications: {
+          hotDealAlerts: document.getElementById('hotDealAlerts').checked,
+          weeklyReports: document.getElementById('weeklyReports').checked,
+          alertEmail: document.getElementById('alertEmail').value
+        },
+        system: {
+          homeZip: document.getElementById('homeZip').value,
+          businessName: document.getElementById('businessName').value
+        }
+      };
+
+      try {
+        await safeApi('UI_saveSettings', settings);
+        showToast('Settings saved successfully', 'success');
+        hasUnsavedChanges = false;
+        hideSaveBar();
+      } catch (error) {
+        showToast('Save functionality not wired yet', 'warning');
+      }
+    }
+
+    // ========================================
+    // CANCEL CHANGES
+    // ========================================
+
+    function cancelChanges() {
+      if (hasUnsavedChanges) {
+        if (confirm('Discard unsaved changes?')) {
+          loadSettings();
+          hasUnsavedChanges = false;
+          hideSaveBar();
+        }
+      }
+    }
+
+    // ========================================
+    // INITIALIZATION
+    // ========================================
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadSettings();
+      logDebug('Settings initialized');
+    });
+
+    // Warn before leaving with unsaved changes
+    window.addEventListener('beforeunload', (e) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    });
+  </script>
+</body>
+</html>

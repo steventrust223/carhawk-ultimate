@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <?!= include('UI_Components'); ?>
+  <style>
+    /* Pipeline View Specific Styles */
+    .pipeline-container {
+      overflow-x: auto;
+      padding-bottom: var(--space-lg);
+    }
+
+    .pipeline-board {
+      display: flex;
+      gap: var(--space-lg);
+      min-width: max-content;
+    }
+
+    .pipeline-column {
+      min-width: 300px;
+      max-width: 350px;
+      flex-shrink: 0;
+    }
+
+    .column-header {
+      background: white;
+      border-radius: var(--border-radius);
+      padding: var(--space-md);
+      margin-bottom: var(--space-md);
+      box-shadow: var(--shadow);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .column-title {
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+
+    .column-count {
+      background: var(--gray-100);
+      color: var(--gray-700);
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .column-total {
+      font-size: 12px;
+      color: var(--gray-600);
+      font-weight: 600;
+    }
+
+    .column-body {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+      min-height: 400px;
+      background: rgba(255,255,255,0.3);
+      border-radius: var(--border-radius);
+      padding: var(--space-md);
+    }
+
+    .deal-card-mini {
+      background: white;
+      border-radius: var(--border-radius-sm);
+      padding: var(--space-md);
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border-left: 3px solid var(--gray-300);
+    }
+
+    .deal-card-mini:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .deal-card-mini.hot {
+      border-left-color: var(--danger);
+    }
+
+    .deal-header-mini {
+      margin-bottom: var(--space-sm);
+    }
+
+    .deal-title-mini {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--gray-900);
+      margin-bottom: var(--space-xs);
+    }
+
+    .deal-subtitle-mini {
+      font-size: 12px;
+      color: var(--gray-600);
+    }
+
+    .deal-value {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--success);
+      margin: var(--space-sm) 0;
+    }
+
+    .deal-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--gray-500);
+      margin-top: var(--space-sm);
+      padding-top: var(--space-sm);
+      border-top: 1px solid var(--gray-100);
+    }
+
+    /* Column-specific colors */
+    .column-new .column-title { color: var(--info); }
+    .column-contacted .column-title { color: var(--primary); }
+    .column-negotiating .column-title { color: var(--warning); }
+    .column-won .column-title { color: var(--success); }
+    .column-lost .column-title { color: var(--danger); }
+
+    .stats-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: var(--space-md);
+      margin-bottom: var(--space-lg);
+    }
+
+    .summary-card {
+      background: white;
+      border-radius: var(--border-radius);
+      padding: var(--space-lg);
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+
+    .summary-value {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: var(--space-xs);
+    }
+
+    .summary-label {
+      font-size: 12px;
+      color: var(--gray-600);
+      font-weight: 600;
+    }
+
+    .empty-column {
+      text-align: center;
+      padding: var(--space-lg);
+      color: var(--gray-400);
+      font-size: 13px;
+    }
+
+    /* Future drag-drop hint */
+    .drag-hint {
+      font-size: 11px;
+      color: var(--gray-400);
+      text-align: center;
+      margin-top: var(--space-md);
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-title">
+      💰 Pipeline View
+      <span class="version-badge">UI v1.0</span>
+    </div>
+    <div>
+      <button class="btn btn-primary" onclick="refreshPipeline()">
+        🔄 Refresh Pipeline
+      </button>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Stats Summary -->
+    <div class="stats-summary">
+      <div class="summary-card">
+        <div class="summary-value" style="color: var(--primary);" id="total-deals">0</div>
+        <div class="summary-label">Total Deals in Pipeline</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-value" style="color: var(--success);" id="total-value">$0</div>
+        <div class="summary-label">Total Pipeline Value</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-value" style="color: var(--success);" id="won-count">0</div>
+        <div class="summary-label">Won This Month</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-value" style="color: var(--info);" id="conversion-rate">0%</div>
+        <div class="summary-label">Conversion Rate</div>
+      </div>
+    </div>
+
+    <!-- Pipeline Board -->
+    <div class="pipeline-container">
+      <div class="pipeline-board" id="pipeline-board">
+        <!-- New -->
+        <div class="pipeline-column column-new">
+          <div class="column-header">
+            <div class="column-title">
+              📥 New
+              <span class="column-count" id="count-new">0</span>
+            </div>
+            <div class="column-total" id="total-new">$0</div>
+          </div>
+          <div class="column-body" id="column-new">
+            <div class="empty-column">No new deals</div>
+          </div>
+        </div>
+
+        <!-- Contacted -->
+        <div class="pipeline-column column-contacted">
+          <div class="column-header">
+            <div class="column-title">
+              📞 Contacted
+              <span class="column-count" id="count-contacted">0</span>
+            </div>
+            <div class="column-total" id="total-contacted">$0</div>
+          </div>
+          <div class="column-body" id="column-contacted">
+            <div class="empty-column">No contacted deals</div>
+          </div>
+        </div>
+
+        <!-- Negotiating -->
+        <div class="pipeline-column column-negotiating">
+          <div class="column-header">
+            <div class="column-title">
+              💬 Negotiating
+              <span class="column-count" id="count-negotiating">0</span>
+            </div>
+            <div class="column-total" id="total-negotiating">$0</div>
+          </div>
+          <div class="column-body" id="column-negotiating">
+            <div class="empty-column">No deals in negotiation</div>
+          </div>
+        </div>
+
+        <!-- Won -->
+        <div class="pipeline-column column-won">
+          <div class="column-header">
+            <div class="column-title">
+              ✅ Won
+              <span class="column-count" id="count-won">0</span>
+            </div>
+            <div class="column-total" id="total-won">$0</div>
+          </div>
+          <div class="column-body" id="column-won">
+            <div class="empty-column">No won deals</div>
+          </div>
+        </div>
+
+        <!-- Lost -->
+        <div class="pipeline-column column-lost">
+          <div class="column-header">
+            <div class="column-title">
+              ❌ Lost
+              <span class="column-count" id="count-lost">0</span>
+            </div>
+            <div class="column-total" id="total-lost">$0</div>
+          </div>
+          <div class="column-body" id="column-lost">
+            <div class="empty-column">No lost deals</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="drag-hint">
+      💡 Drag & drop coming in Phase 3 - click deals to move between stages
+    </div>
+  </div>
+
+  <script>
+    /* ============================================================
+       PIPELINE VIEW LOGIC
+       ============================================================ */
+
+    let pipelineData = {};
+
+    // ========================================
+    // DATA CONTRACT (for server team)
+    // ========================================
+    /*
+      Expected data from UI_getPipelineData():
+      {
+        new: [
+          {
+            dealId: "D-001",
+            title: "2018 Honda Accord EX",
+            seller: "John Smith",
+            value: 15000,
+            profit: 4500,
+            hot: true,
+            daysInStage: 1,
+            lastUpdate: "2026-01-15T10:30:00Z"
+          },
+          ...
+        ],
+        contacted: [...],
+        negotiating: [...],
+        won: [...],
+        lost: [...],
+        stats: {
+          totalDeals: 45,
+          totalValue: 675000,
+          wonThisMonth: 12,
+          conversionRate: 34.5
+        }
+      }
+    */
+
+    // ========================================
+    // REFRESH PIPELINE
+    // ========================================
+
+    async function refreshPipeline() {
+      try {
+        logDebug('Loading pipeline data');
+
+        const data = await safeApi('UI_getPipelineData');
+
+        pipelineData = data;
+        renderPipeline(data);
+        updateGlobalStats(data.stats || {});
+
+        showToast('Pipeline refreshed', 'success');
+      } catch (error) {
+        // Load placeholder data for development
+        loadPlaceholderPipeline();
+      }
+    }
+
+    // ========================================
+    // PLACEHOLDER DATA
+    // ========================================
+
+    function loadPlaceholderPipeline() {
+      pipelineData = {
+        new: [
+          {
+            dealId: "D-001",
+            title: "2018 Honda Accord EX",
+            seller: "John Smith",
+            value: 15000,
+            profit: 4500,
+            hot: true,
+            daysInStage: 1,
+            lastUpdate: new Date().toISOString()
+          },
+          {
+            dealId: "D-002",
+            title: "2019 Toyota Camry SE",
+            seller: "Sarah Johnson",
+            value: 17500,
+            profit: 5200,
+            hot: false,
+            daysInStage: 2,
+            lastUpdate: new Date().toISOString()
+          }
+        ],
+        contacted: [
+          {
+            dealId: "D-003",
+            title: "2020 Ford F-150 XLT",
+            seller: "Mike Davis",
+            value: 22000,
+            profit: 6800,
+            hot: true,
+            daysInStage: 3,
+            lastUpdate: new Date().toISOString()
+          }
+        ],
+        negotiating: [
+          {
+            dealId: "D-004",
+            title: "2017 Chevy Silverado",
+            seller: "Tom Wilson",
+            value: 18500,
+            profit: 5500,
+            hot: false,
+            daysInStage: 5,
+            lastUpdate: new Date().toISOString()
+          }
+        ],
+        won: [
+          {
+            dealId: "D-005",
+            title: "2019 Nissan Altima S",
+            seller: "Lisa Brown",
+            value: 14000,
+            profit: 4200,
+            hot: false,
+            daysInStage: 7,
+            lastUpdate: new Date().toISOString()
+          }
+        ],
+        lost: [
+          {
+            dealId: "D-006",
+            title: "2016 Honda CR-V",
+            seller: "Robert Lee",
+            value: 13000,
+            profit: 0,
+            hot: false,
+            daysInStage: 4,
+            lastUpdate: new Date().toISOString()
+          }
+        ],
+        stats: {
+          totalDeals: 45,
+          totalValue: 675000,
+          wonThisMonth: 12,
+          conversionRate: 34.5
+        }
+      };
+
+      renderPipeline(pipelineData);
+      updateGlobalStats(pipelineData.stats);
+    }
+
+    // ========================================
+    // UPDATE GLOBAL STATS
+    // ========================================
+
+    function updateGlobalStats(stats) {
+      document.getElementById('total-deals').textContent = stats.totalDeals || 0;
+      document.getElementById('total-value').textContent = formatCurrency(stats.totalValue || 0);
+      document.getElementById('won-count').textContent = stats.wonThisMonth || 0;
+      document.getElementById('conversion-rate').textContent = (stats.conversionRate || 0).toFixed(1) + '%';
+    }
+
+    // ========================================
+    // RENDER PIPELINE
+    // ========================================
+
+    function renderPipeline(data) {
+      const stages = ['new', 'contacted', 'negotiating', 'won', 'lost'];
+
+      stages.forEach(stage => {
+        const deals = data[stage] || [];
+        renderColumn(stage, deals);
+      });
+    }
+
+    function renderColumn(stage, deals) {
+      const columnBody = document.getElementById(`column-${stage}`);
+      const count = document.getElementById(`count-${stage}`);
+      const total = document.getElementById(`total-${stage}`);
+
+      // Update counts
+      count.textContent = deals.length;
+      const totalValue = deals.reduce((sum, deal) => sum + (deal.value || 0), 0);
+      total.textContent = formatCurrency(totalValue);
+
+      // Render cards
+      if (deals.length === 0) {
+        columnBody.innerHTML = `<div class="empty-column">No ${stage} deals</div>`;
+        return;
+      }
+
+      columnBody.innerHTML = deals.map(deal => `
+        <div class="deal-card-mini ${deal.hot ? 'hot' : ''}" onclick="viewDeal('${deal.dealId}')">
+          <div class="deal-header-mini">
+            <div class="deal-title-mini">${escapeHtml(deal.title)}</div>
+            <div class="deal-subtitle-mini">${escapeHtml(deal.seller)}</div>
+          </div>
+
+          <div class="deal-value">${formatCurrency(deal.value)}</div>
+
+          ${deal.profit > 0 ? `
+            <div style="font-size: 12px; color: var(--success); font-weight: 600;">
+              💰 Profit: ${formatCurrency(deal.profit)}
+            </div>
+          ` : ''}
+
+          <div class="deal-meta">
+            <span>${deal.daysInStage}d in stage</span>
+            ${deal.hot ? '<span class="badge badge-danger">🔥 HOT</span>' : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // ========================================
+    // VIEW DEAL
+    // ========================================
+
+    function viewDeal(dealId) {
+      showToast(`Viewing deal: ${dealId}`, 'info');
+      // Future: Open deal detail dialog or move to next stage
+    }
+
+    // ========================================
+    // INITIALIZATION
+    // ========================================
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadPlaceholderPipeline();
+      logDebug('Pipeline View initialized');
+    });
+  </script>
+</body>
+</html>

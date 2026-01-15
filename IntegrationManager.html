@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <?!= include('UI_Components'); ?>
+  <style>
+    /* IntegrationManager Specific Styles */
+    .integrations-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: var(--space-lg);
+    }
+
+    .integration-card {
+      background: white;
+      border-radius: var(--border-radius);
+      padding: var(--space-lg);
+      box-shadow: var(--shadow);
+      border-left: 4px solid var(--gray-300);
+    }
+
+    .integration-card.connected {
+      border-left-color: var(--success);
+    }
+
+    .integration-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: var(--space-md);
+    }
+
+    .integration-icon {
+      font-size: 36px;
+      margin-bottom: var(--space-sm);
+    }
+
+    .integration-name {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--gray-900);
+      margin-bottom: var(--space-xs);
+    }
+
+    .integration-description {
+      font-size: 13px;
+      color: var(--gray-600);
+      line-height: 1.6;
+      margin-bottom: var(--space-md);
+    }
+
+    .integration-status {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-xs);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .integration-status.connected {
+      background: var(--success);
+      color: white;
+    }
+
+    .integration-status.disconnected {
+      background: var(--gray-200);
+      color: var(--gray-700);
+    }
+
+    .integration-form {
+      margin-top: var(--space-md);
+      padding-top: var(--space-md);
+      border-top: 1px solid var(--gray-100);
+    }
+
+    .integration-actions {
+      margin-top: var(--space-md);
+      display: flex;
+      gap: var(--space-sm);
+    }
+
+    .config-field {
+      margin-bottom: var(--space-md);
+    }
+
+    .config-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--gray-700);
+      margin-bottom: var(--space-xs);
+    }
+
+    .config-input {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--border-radius-sm);
+      font-size: 13px;
+    }
+
+    .test-result {
+      margin-top: var(--space-md);
+      padding: var(--space-md);
+      border-radius: var(--border-radius-sm);
+      font-size: 13px;
+      display: none;
+    }
+
+    .test-result.success {
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--success);
+      border: 1px solid var(--success);
+      display: block;
+    }
+
+    .test-result.error {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--danger);
+      border: 1px solid var(--danger);
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-title">
+      🔌 Integration Manager
+      <span class="version-badge">UI v1.0</span>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Integrations Grid -->
+    <div class="integrations-grid">
+      <!-- OpenAI -->
+      <div class="integration-card" id="integration-openai">
+        <div class="integration-header">
+          <div>
+            <div class="integration-icon">🤖</div>
+            <div class="integration-name">OpenAI</div>
+          </div>
+          <span class="integration-status disconnected" id="status-openai">
+            ⚫ Disconnected
+          </span>
+        </div>
+
+        <div class="integration-description">
+          AI-powered deal analysis and recommendations using GPT models.
+        </div>
+
+        <div class="integration-form">
+          <div class="config-field">
+            <div class="config-label">API Key</div>
+            <input
+              type="password"
+              class="config-input"
+              id="openai-api-key"
+              placeholder="sk-..."
+            >
+          </div>
+
+          <div class="config-field">
+            <div class="config-label">Model</div>
+            <select class="config-input" id="openai-model">
+              <option value="gpt-4">GPT-4</option>
+              <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+            </select>
+          </div>
+
+          <div class="test-result" id="test-result-openai"></div>
+
+          <div class="integration-actions">
+            <button class="btn btn-sm btn-primary" onclick="testIntegration('openai')">
+              🧪 Test Connection
+            </button>
+            <button class="btn btn-sm btn-success" onclick="saveIntegration('openai')">
+              💾 Save
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SMS-iT -->
+      <div class="integration-card" id="integration-smsit">
+        <div class="integration-header">
+          <div>
+            <div class="integration-icon">📱</div>
+            <div class="integration-name">SMS-iT</div>
+          </div>
+          <span class="integration-status disconnected" id="status-smsit">
+            ⚫ Disconnected
+          </span>
+        </div>
+
+        <div class="integration-description">
+          SMS marketing platform for automated messaging campaigns.
+        </div>
+
+        <div class="integration-form">
+          <div class="config-field">
+            <div class="config-label">API Key</div>
+            <input
+              type="password"
+              class="config-input"
+              id="smsit-api-key"
+              placeholder="Your SMS-iT API key"
+            >
+          </div>
+
+          <div class="config-field">
+            <div class="config-label">API Endpoint</div>
+            <input
+              type="url"
+              class="config-input"
+              id="smsit-endpoint"
+              placeholder="https://api.sms-it.com/..."
+            >
+          </div>
+
+          <div class="test-result" id="test-result-smsit"></div>
+
+          <div class="integration-actions">
+            <button class="btn btn-sm btn-primary" onclick="testIntegration('smsit')">
+              🧪 Test Connection
+            </button>
+            <button class="btn btn-sm btn-success" onclick="saveIntegration('smsit')">
+              💾 Save
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CompanyHub -->
+      <div class="integration-card" id="integration-companyhub">
+        <div class="integration-header">
+          <div>
+            <div class="integration-icon">🏢</div>
+            <div class="integration-name">CompanyHub</div>
+          </div>
+          <span class="integration-status disconnected" id="status-companyhub">
+            ⚫ Disconnected
+          </span>
+        </div>
+
+        <div class="integration-description">
+          CRM platform for managing deals, contacts, and sales pipeline.
+        </div>
+
+        <div class="integration-form">
+          <div class="config-field">
+            <div class="config-label">API Key</div>
+            <input
+              type="password"
+              class="config-input"
+              id="companyhub-api-key"
+              placeholder="Your CompanyHub API key"
+            >
+          </div>
+
+          <div class="config-field">
+            <div class="config-label">Account ID</div>
+            <input
+              type="text"
+              class="config-input"
+              id="companyhub-account-id"
+              placeholder="Your account ID"
+            >
+          </div>
+
+          <div class="test-result" id="test-result-companyhub"></div>
+
+          <div class="integration-actions">
+            <button class="btn btn-sm btn-primary" onclick="testIntegration('companyhub')">
+              🧪 Test Connection
+            </button>
+            <button class="btn btn-sm btn-success" onclick="saveIntegration('companyhub')">
+              💾 Save
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Browse.ai -->
+      <div class="integration-card" id="integration-browseai">
+        <div class="integration-header">
+          <div>
+            <div class="integration-icon">🔍</div>
+            <div class="integration-name">Browse.ai</div>
+          </div>
+          <span class="integration-status disconnected" id="status-browseai">
+            ⚫ Disconnected
+          </span>
+        </div>
+
+        <div class="integration-description">
+          Web scraping automation for importing deals from marketplaces.
+        </div>
+
+        <div class="integration-form">
+          <div class="config-field">
+            <div class="config-label">API Key</div>
+            <input
+              type="password"
+              class="config-input"
+              id="browseai-api-key"
+              placeholder="Your Browse.ai API key"
+            >
+          </div>
+
+          <div class="config-field">
+            <div class="config-label">Robot ID</div>
+            <input
+              type="text"
+              class="config-input"
+              id="browseai-robot-id"
+              placeholder="Robot ID for marketplace scraping"
+            >
+          </div>
+
+          <div class="test-result" id="test-result-browseai"></div>
+
+          <div class="integration-actions">
+            <button class="btn btn-sm btn-primary" onclick="testIntegration('browseai')">
+              🧪 Test Connection
+            </button>
+            <button class="btn btn-sm btn-success" onclick="saveIntegration('browseai')">
+              💾 Save
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Google Maps API -->
+      <div class="integration-card" id="integration-googlemaps">
+        <div class="integration-header">
+          <div>
+            <div class="integration-icon">🗺️</div>
+            <div class="integration-name">Google Maps</div>
+          </div>
+          <span class="integration-status disconnected" id="status-googlemaps">
+            ⚫ Disconnected
+          </span>
+        </div>
+
+        <div class="integration-description">
+          Geocoding and distance calculation for location-based analysis.
+        </div>
+
+        <div class="integration-form">
+          <div class="config-field">
+            <div class="config-label">API Key</div>
+            <input
+              type="password"
+              class="config-input"
+              id="googlemaps-api-key"
+              placeholder="Your Google Maps API key"
+            >
+          </div>
+
+          <div class="test-result" id="test-result-googlemaps"></div>
+
+          <div class="integration-actions">
+            <button class="btn btn-sm btn-primary" onclick="testIntegration('googlemaps')">
+              🧪 Test Connection
+            </button>
+            <button class="btn btn-sm btn-success" onclick="saveIntegration('googlemaps')">
+              💾 Save
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ============================================================
+       INTEGRATION MANAGER LOGIC
+       ============================================================ */
+
+    // ========================================
+    // DATA CONTRACT (for server team)
+    // ========================================
+    /*
+      Load: UI_getIntegrations()
+      Save: UI_saveIntegrations(payload)
+      Test: UI_testIntegration(name, config)
+
+      Expected data:
+      {
+        openai: { apiKey: "sk-...", model: "gpt-4", connected: true },
+        smsit: { apiKey: "...", endpoint: "...", connected: false },
+        ...
+      }
+    */
+
+    // ========================================
+    // LOAD INTEGRATIONS
+    // ========================================
+
+    async function loadIntegrations() {
+      try {
+        const integrations = await safeApi('UI_getIntegrations');
+        applyIntegrations(integrations);
+      } catch (error) {
+        logDebug('No saved integrations found');
+      }
+    }
+
+    function applyIntegrations(integrations) {
+      if (!integrations) return;
+
+      Object.keys(integrations).forEach(name => {
+        const config = integrations[name];
+
+        // Update status
+        if (config.connected) {
+          updateStatus(name, true);
+        }
+
+        // Load config (simplified - would need proper field mapping)
+        // This is a placeholder - real implementation would map fields properly
+      });
+    }
+
+    // ========================================
+    // TEST INTEGRATION
+    // ========================================
+
+    async function testIntegration(name) {
+      const config = getIntegrationConfig(name);
+      const resultDiv = document.getElementById(`test-result-${name}`);
+
+      resultDiv.className = 'test-result';
+      resultDiv.textContent = 'Testing connection...';
+      resultDiv.style.display = 'block';
+
+      try {
+        const result = await safeApi('UI_testIntegration', name, config);
+
+        if (result && result.success) {
+          resultDiv.className = 'test-result success';
+          resultDiv.textContent = '✓ Connection successful!';
+          updateStatus(name, true);
+        } else {
+          resultDiv.className = 'test-result error';
+          resultDiv.textContent = '✕ Connection failed: ' + (result?.error || 'Unknown error');
+          updateStatus(name, false);
+        }
+      } catch (error) {
+        resultDiv.className = 'test-result error';
+        resultDiv.textContent = '✕ Test functionality not wired yet';
+      }
+
+      // Hide after 5 seconds
+      setTimeout(() => {
+        resultDiv.style.display = 'none';
+      }, 5000);
+    }
+
+    // ========================================
+    // SAVE INTEGRATION
+    // ========================================
+
+    async function saveIntegration(name) {
+      const config = getIntegrationConfig(name);
+
+      try {
+        await safeApi('UI_saveIntegrations', { [name]: config });
+        showToast(`${name} configuration saved`, 'success');
+      } catch (error) {
+        showToast('Save functionality not wired yet', 'warning');
+      }
+    }
+
+    // ========================================
+    // GET INTEGRATION CONFIG
+    // ========================================
+
+    function getIntegrationConfig(name) {
+      const configs = {
+        openai: {
+          apiKey: document.getElementById('openai-api-key').value,
+          model: document.getElementById('openai-model').value
+        },
+        smsit: {
+          apiKey: document.getElementById('smsit-api-key').value,
+          endpoint: document.getElementById('smsit-endpoint').value
+        },
+        companyhub: {
+          apiKey: document.getElementById('companyhub-api-key').value,
+          accountId: document.getElementById('companyhub-account-id').value
+        },
+        browseai: {
+          apiKey: document.getElementById('browseai-api-key').value,
+          robotId: document.getElementById('browseai-robot-id').value
+        },
+        googlemaps: {
+          apiKey: document.getElementById('googlemaps-api-key').value
+        }
+      };
+
+      return configs[name] || {};
+    }
+
+    // ========================================
+    // UPDATE STATUS
+    // ========================================
+
+    function updateStatus(name, connected) {
+      const statusElement = document.getElementById(`status-${name}`);
+      const cardElement = document.getElementById(`integration-${name}`);
+
+      if (connected) {
+        statusElement.className = 'integration-status connected';
+        statusElement.innerHTML = '✓ Connected';
+        cardElement.classList.add('connected');
+      } else {
+        statusElement.className = 'integration-status disconnected';
+        statusElement.innerHTML = '⚫ Disconnected';
+        cardElement.classList.remove('connected');
+      }
+    }
+
+    // ========================================
+    // INITIALIZATION
+    // ========================================
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadIntegrations();
+      logDebug('Integration Manager initialized');
+    });
+  </script>
+</body>
+</html>

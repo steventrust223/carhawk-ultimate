@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <?!= include('UI_Components'); ?>
+  <style>
+    /* Deal Calculator Sidebar Specific Styles */
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 0;
+      margin: 0;
+    }
+
+    .sidebar-container {
+      background: white;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-header {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      padding: var(--space-lg);
+      text-align: center;
+    }
+
+    .sidebar-header h2 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .sidebar-body {
+      flex: 1;
+      padding: var(--space-lg);
+      overflow-y: auto;
+    }
+
+    .calc-section {
+      margin-bottom: var(--space-xl);
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--gray-700);
+      margin-bottom: var(--space-md);
+      padding-bottom: var(--space-sm);
+      border-bottom: 2px solid var(--gray-100);
+    }
+
+    .result-box {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      border-radius: var(--border-radius);
+      padding: var(--space-lg);
+      text-align: center;
+      margin: var(--space-lg) 0;
+    }
+
+    .result-label {
+      font-size: 12px;
+      font-weight: 600;
+      opacity: 0.9;
+      margin-bottom: var(--space-xs);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .result-value {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: var(--space-sm);
+    }
+
+    .result-subtext {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+
+    .breakdown-item {
+      display: flex;
+      justify-content: space-between;
+      padding: var(--space-sm) 0;
+      border-bottom: 1px solid var(--gray-100);
+    }
+
+    .breakdown-item:last-child {
+      border-bottom: none;
+      font-weight: 700;
+      font-size: 16px;
+      padding-top: var(--space-md);
+      margin-top: var(--space-sm);
+      border-top: 2px solid var(--gray-200);
+    }
+
+    .breakdown-label {
+      color: var(--gray-600);
+    }
+
+    .breakdown-value {
+      color: var(--gray-900);
+      font-weight: 600;
+    }
+
+    .slider-container {
+      margin: var(--space-md) 0;
+    }
+
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: var(--space-sm);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--gray-700);
+    }
+
+    .slider-value {
+      color: var(--primary);
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 6px;
+      border-radius: 5px;
+      background: var(--gray-200);
+      outline: none;
+      -webkit-appearance: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--primary);
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--primary);
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+
+    .tip-box {
+      background: var(--gray-50);
+      border-left: 4px solid var(--info);
+      padding: var(--space-md);
+      border-radius: var(--border-radius-sm);
+      font-size: 13px;
+      color: var(--gray-700);
+      margin-top: var(--space-lg);
+    }
+
+    .tip-title {
+      font-weight: 700;
+      color: var(--info);
+      margin-bottom: var(--space-xs);
+    }
+  </style>
+</head>
+<body>
+  <div class="sidebar-container">
+    <!-- Header -->
+    <div class="sidebar-header">
+      <h2>💰 Deal Calculator Pro</h2>
+      <span class="version-badge">UI v1.0</span>
+    </div>
+
+    <!-- Body -->
+    <div class="sidebar-body">
+      <!-- Input Section -->
+      <div class="calc-section">
+        <div class="section-title">Deal Inputs</div>
+
+        <div class="form-group">
+          <label class="form-label">Expected Resale Value</label>
+          <input
+            type="number"
+            class="form-control"
+            id="resaleValue"
+            value="20000"
+            oninput="calculate()"
+          >
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Asking Price</label>
+          <input
+            type="number"
+            class="form-control"
+            id="askingPrice"
+            value="15000"
+            oninput="calculate()"
+          >
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Estimated Repairs</label>
+          <input
+            type="number"
+            class="form-control"
+            id="repairs"
+            value="1500"
+            oninput="calculate()"
+          >
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Fees & Misc. Costs</label>
+          <input
+            type="number"
+            class="form-control"
+            id="fees"
+            value="800"
+            oninput="calculate()"
+          >
+          <div class="form-help">Title, registration, auction fees, etc.</div>
+        </div>
+      </div>
+
+      <!-- Target Profit Slider -->
+      <div class="calc-section">
+        <div class="section-title">Target Profit Margin</div>
+
+        <div class="slider-container">
+          <div class="slider-label">
+            <span>Profit Target</span>
+            <span class="slider-value" id="profit-percent-display">30%</span>
+          </div>
+          <input
+            type="range"
+            id="profitPercent"
+            min="10"
+            max="100"
+            value="30"
+            oninput="updateProfitSlider(); calculate();"
+          >
+          <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--gray-500); margin-top: 4px;">
+            <span>10%</span>
+            <span>100%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Results -->
+      <div class="result-box">
+        <div class="result-label">Maximum Offer</div>
+        <div class="result-value" id="max-offer">$0</div>
+        <div class="result-subtext">Based on your target margin</div>
+      </div>
+
+      <!-- Breakdown -->
+      <div class="calc-section">
+        <div class="section-title">Financial Breakdown</div>
+
+        <div class="breakdown-item">
+          <span class="breakdown-label">Resale Value</span>
+          <span class="breakdown-value" id="bd-resale">$0</span>
+        </div>
+        <div class="breakdown-item">
+          <span class="breakdown-label">Purchase Price</span>
+          <span class="breakdown-value" id="bd-purchase">$0</span>
+        </div>
+        <div class="breakdown-item">
+          <span class="breakdown-label">Repairs</span>
+          <span class="breakdown-value" id="bd-repairs">$0</span>
+        </div>
+        <div class="breakdown-item">
+          <span class="breakdown-label">Fees</span>
+          <span class="breakdown-value" id="bd-fees">$0</span>
+        </div>
+        <div class="breakdown-item">
+          <span class="breakdown-label">Total Investment</span>
+          <span class="breakdown-value" id="bd-total-invest">$0</span>
+        </div>
+        <div class="breakdown-item">
+          <span class="breakdown-label" style="color: var(--success);">Net Profit</span>
+          <span class="breakdown-value" style="color: var(--success); font-size: 18px;" id="bd-profit">$0</span>
+        </div>
+      </div>
+
+      <!-- Profit Summary -->
+      <div class="calc-section">
+        <div class="section-title">Profit Analysis</div>
+
+        <div class="grid grid-2" style="gap: var(--space-sm);">
+          <div style="text-align: center; padding: var(--space-md); background: var(--gray-50); border-radius: var(--border-radius-sm);">
+            <div style="font-size: 11px; color: var(--gray-500); margin-bottom: 4px;">ROI</div>
+            <div style="font-size: 20px; font-weight: 700; color: var(--success);" id="roi-percent">0%</div>
+          </div>
+          <div style="text-align: center; padding: var(--space-md); background: var(--gray-50); border-radius: var(--border-radius-sm);">
+            <div style="font-size: 11px; color: var(--gray-500); margin-bottom: 4px;">Margin</div>
+            <div style="font-size: 20px; font-weight: 700; color: var(--info);" id="margin-percent">0%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="calc-section">
+        <button class="btn btn-primary" style="width: 100%; margin-bottom: var(--space-sm);" onclick="saveCalculation()">
+          💾 Save Calculation
+        </button>
+        <button class="btn btn-secondary" style="width: 100%;" onclick="resetCalculator()">
+          🔄 Reset
+        </button>
+      </div>
+
+      <!-- Tip -->
+      <div class="tip-box">
+        <div class="tip-title">💡 Pro Tip</div>
+        <div>
+          Aim for a minimum 30% profit margin on flips. Factor in holding costs like insurance and storage if the vehicle won't sell immediately.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ============================================================
+       DEAL CALCULATOR LOGIC
+       ============================================================ */
+
+    // ========================================
+    // UPDATE PROFIT SLIDER
+    // ========================================
+
+    function updateProfitSlider() {
+      const slider = document.getElementById('profitPercent');
+      const display = document.getElementById('profit-percent-display');
+      display.textContent = slider.value + '%';
+    }
+
+    // ========================================
+    // CALCULATE
+    // ========================================
+
+    function calculate() {
+      // Get inputs
+      const resaleValue = parseFloat(document.getElementById('resaleValue').value) || 0;
+      const askingPrice = parseFloat(document.getElementById('askingPrice').value) || 0;
+      const repairs = parseFloat(document.getElementById('repairs').value) || 0;
+      const fees = parseFloat(document.getElementById('fees').value) || 0;
+      const profitPercent = parseFloat(document.getElementById('profitPercent').value) || 30;
+
+      // Calculate maximum offer
+      // Formula: (Resale Value) / (1 + Profit% / 100) - Repairs - Fees
+      const targetProfit = resaleValue * (profitPercent / 100);
+      const maxOffer = resaleValue - targetProfit - repairs - fees;
+
+      // Calculate actual profit if buying at asking price
+      const totalInvestment = askingPrice + repairs + fees;
+      const actualProfit = resaleValue - totalInvestment;
+      const actualMargin = totalInvestment > 0 ? (actualProfit / resaleValue) * 100 : 0;
+      const roi = totalInvestment > 0 ? (actualProfit / totalInvestment) * 100 : 0;
+
+      // Update UI
+      document.getElementById('max-offer').textContent = formatCurrency(Math.max(0, maxOffer));
+
+      // Breakdown
+      document.getElementById('bd-resale').textContent = formatCurrency(resaleValue);
+      document.getElementById('bd-purchase').textContent = formatCurrency(askingPrice);
+      document.getElementById('bd-repairs').textContent = formatCurrency(repairs);
+      document.getElementById('bd-fees').textContent = formatCurrency(fees);
+      document.getElementById('bd-total-invest').textContent = formatCurrency(totalInvestment);
+      document.getElementById('bd-profit').textContent = formatCurrency(actualProfit);
+
+      // Analysis
+      document.getElementById('roi-percent').textContent = roi.toFixed(1) + '%';
+      document.getElementById('margin-percent').textContent = actualMargin.toFixed(1) + '%';
+
+      // Update colors based on performance
+      const roiElement = document.getElementById('roi-percent');
+      const marginElement = document.getElementById('margin-percent');
+      const profitElement = document.getElementById('bd-profit');
+
+      if (actualProfit > 0) {
+        profitElement.style.color = 'var(--success)';
+      } else {
+        profitElement.style.color = 'var(--danger)';
+      }
+
+      if (roi >= 30) {
+        roiElement.style.color = 'var(--success)';
+      } else if (roi >= 15) {
+        roiElement.style.color = 'var(--warning)';
+      } else {
+        roiElement.style.color = 'var(--danger)';
+      }
+
+      if (actualMargin >= 30) {
+        marginElement.style.color = 'var(--success)';
+      } else if (actualMargin >= 15) {
+        marginElement.style.color = 'var(--warning)';
+      } else {
+        marginElement.style.color = 'var(--danger)';
+      }
+    }
+
+    // ========================================
+    // SAVE CALCULATION
+    // ========================================
+
+    async function saveCalculation() {
+      const data = {
+        resaleValue: parseFloat(document.getElementById('resaleValue').value),
+        askingPrice: parseFloat(document.getElementById('askingPrice').value),
+        repairs: parseFloat(document.getElementById('repairs').value),
+        fees: parseFloat(document.getElementById('fees').value),
+        profitPercent: parseFloat(document.getElementById('profitPercent').value),
+        maxOffer: parseFloat(document.getElementById('max-offer').textContent.replace(/[^0-9.-]+/g, '')),
+        timestamp: new Date().toISOString()
+      };
+
+      try {
+        await safeApi('UI_saveCalculation', data);
+        showToast('Calculation saved', 'success');
+      } catch (error) {
+        showToast('Save functionality not wired yet', 'warning');
+      }
+    }
+
+    // ========================================
+    // RESET CALCULATOR
+    // ========================================
+
+    function resetCalculator() {
+      document.getElementById('resaleValue').value = 20000;
+      document.getElementById('askingPrice').value = 15000;
+      document.getElementById('repairs').value = 1500;
+      document.getElementById('fees').value = 800;
+      document.getElementById('profitPercent').value = 30;
+      updateProfitSlider();
+      calculate();
+      showToast('Calculator reset', 'info');
+    }
+
+    // ========================================
+    // INITIALIZATION
+    // ========================================
+
+    document.addEventListener('DOMContentLoaded', () => {
+      updateProfitSlider();
+      calculate();
+      logDebug('Deal Calculator initialized');
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <?!= include('UI_Components'); ?>
+  <style>
+    /* Deal Gallery Specific Styles */
+    .filters-bar {
+      background: white;
+      border-radius: var(--border-radius);
+      padding: var(--space-lg);
+      margin-bottom: var(--space-lg);
+      box-shadow: var(--shadow);
+    }
+
+    .filter-row {
+      display: flex;
+      gap: var(--space-md);
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .search-box {
+      flex: 1;
+      min-width: 250px;
+    }
+
+    .filter-buttons {
+      display: flex;
+      gap: var(--space-sm);
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      padding: 8px 16px;
+      border: 2px solid var(--gray-200);
+      background: white;
+      border-radius: var(--border-radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .filter-btn.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
+
+    .filter-btn:hover {
+      border-color: var(--primary);
+    }
+
+    .deals-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: var(--space-lg);
+    }
+
+    .deal-card {
+      background: white;
+      border-radius: var(--border-radius);
+      padding: var(--space-lg);
+      box-shadow: var(--shadow);
+      transition: all 0.3s ease;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .deal-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .deal-card.hot::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #ef4444, #f59e0b);
+    }
+
+    .deal-header {
+      margin-bottom: var(--space-md);
+    }
+
+    .deal-rank {
+      display: inline-block;
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 16px;
+      margin-bottom: var(--space-sm);
+    }
+
+    .deal-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--gray-900);
+      margin-bottom: var(--space-xs);
+    }
+
+    .deal-platform {
+      font-size: 12px;
+      color: var(--gray-500);
+    }
+
+    .deal-metrics {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: var(--space-md);
+      margin-top: var(--space-md);
+      padding-top: var(--space-md);
+      border-top: 1px solid var(--gray-100);
+    }
+
+    .metric {
+      text-align: center;
+    }
+
+    .metric-label {
+      font-size: 11px;
+      color: var(--gray-500);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .metric-value {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--gray-900);
+    }
+
+    .metric-value.positive {
+      color: var(--success);
+    }
+
+    .metric-value.negative {
+      color: var(--danger);
+    }
+
+    .deal-footer {
+      margin-top: var(--space-md);
+      padding-top: var(--space-md);
+      border-top: 1px solid var(--gray-100);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .deal-location {
+      font-size: 12px;
+      color: var(--gray-600);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: var(--space-xl) var(--space-lg);
+      color: var(--gray-500);
+    }
+
+    .empty-icon {
+      font-size: 48px;
+      margin-bottom: var(--space-md);
+    }
+
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: var(--space-md);
+      margin-bottom: var(--space-lg);
+    }
+
+    .stat-card {
+      background: white;
+      border-radius: var(--border-radius);
+      padding: var(--space-lg);
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: var(--space-xs);
+    }
+
+    .stat-label {
+      font-size: 13px;
+      color: var(--gray-600);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-title">
+      🎴 Deal Gallery
+      <span class="version-badge">UI v1.0</span>
+    </div>
+    <div>
+      <button class="btn btn-primary" onclick="loadDeals()">
+        🔄 Refresh Deals
+      </button>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Stats Bar -->
+    <div class="stats-bar" id="stats-bar">
+      <div class="stat-card">
+        <div class="stat-value" id="stat-total">0</div>
+        <div class="stat-label">Total Deals</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-hot">0</div>
+        <div class="stat-label">Hot Deals</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-avg-profit">$0</div>
+        <div class="stat-label">Avg Profit</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-analyzed">0</div>
+        <div class="stat-label">Analyzed Today</div>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters-bar">
+      <div class="filter-row">
+        <div class="search-box">
+          <input
+            type="text"
+            class="form-control"
+            id="search-input"
+            placeholder="Search by make, model, location..."
+            oninput="filterDeals()"
+          >
+        </div>
+
+        <select class="form-control" style="width: 200px;" id="sort-select" onchange="sortDeals()">
+          <option value="rank">Sort by Rank</option>
+          <option value="profit">Sort by Profit</option>
+          <option value="distance">Sort by Distance</option>
+          <option value="price">Sort by Price</option>
+        </select>
+      </div>
+
+      <div class="filter-row" style="margin-top: var(--space-md);">
+        <div class="filter-buttons" id="filter-buttons">
+          <button class="filter-btn active" data-filter="all" onclick="toggleFilter('all')">
+            All Deals
+          </button>
+          <button class="filter-btn" data-filter="hot" onclick="toggleFilter('hot')">
+            🔥 Hot
+          </button>
+          <button class="filter-btn" data-filter="highProfit" onclick="toggleFilter('highProfit')">
+            💰 Profit ≥ 50%
+          </button>
+          <button class="filter-btn" data-filter="nearby" onclick="toggleFilter('nearby')">
+            📍 Nearby (< 30mi)
+          </button>
+          <button class="filter-btn" data-filter="highRisk" onclick="toggleFilter('highRisk')">
+            ⚠️ High Risk
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Deals Grid -->
+    <div class="deals-grid" id="deals-grid">
+      <!-- Placeholder cards (will be replaced by real data) -->
+    </div>
+
+    <!-- Empty State -->
+    <div class="card hidden" id="empty-state">
+      <div class="empty-state">
+        <div class="empty-icon">📭</div>
+        <h3>No deals found</h3>
+        <p>Try adjusting your filters or load fresh data.</p>
+        <button class="btn btn-primary" onclick="loadDeals()">Load Deals</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ============================================================
+       DEAL GALLERY LOGIC
+       ============================================================ */
+
+    // State
+    let allDeals = [];
+    let filteredDeals = [];
+    let activeFilter = 'all';
+
+    // ========================================
+    // DATA CONTRACT (for server team)
+    // ========================================
+    /*
+      Expected data from UI_getDealGalleryData():
+      {
+        deals: [
+          {
+            rank: 1,
+            dealId: "D-001",
+            title: "2018 Honda Accord EX",
+            platform: "Facebook Marketplace",
+            location: "St. Louis, MO",
+            distance: 12.5,
+            listingUrl: "https://...",
+            askingPrice: 15000,
+            estimatedValue: 18000,
+            profitMargin: 55,
+            riskScore: 2.5,
+            hot: true,
+            timestamp: "2026-01-15T10:30:00Z"
+          },
+          ...
+        ],
+        stats: {
+          total: 150,
+          hot: 23,
+          avgProfit: 4200,
+          analyzedToday: 45
+        }
+      }
+    */
+
+    // ========================================
+    // LOAD DEALS
+    // ========================================
+
+    async function loadDeals() {
+      try {
+        logDebug('Loading deal gallery data');
+
+        const data = await safeApi('UI_getDealGalleryData');
+
+        allDeals = data.deals || [];
+        updateStats(data.stats || {});
+        filterDeals();
+
+        showToast('Deals loaded successfully', 'success');
+      } catch (error) {
+        // Show placeholder data for development
+        loadPlaceholderData();
+      }
+    }
+
+    // ========================================
+    // PLACEHOLDER DATA (for Phase 1 thin shell)
+    // ========================================
+
+    function loadPlaceholderData() {
+      allDeals = [
+        {
+          rank: 1,
+          dealId: "D-001",
+          title: "2018 Honda Accord EX",
+          platform: "Facebook Marketplace",
+          location: "St. Louis, MO",
+          distance: 12.5,
+          listingUrl: "#",
+          askingPrice: 15000,
+          estimatedValue: 18000,
+          profitMargin: 62,
+          riskScore: 2.1,
+          hot: true
+        },
+        {
+          rank: 2,
+          dealId: "D-002",
+          title: "2019 Toyota Camry SE",
+          platform: "Craigslist",
+          location: "Clayton, MO",
+          distance: 8.3,
+          listingUrl: "#",
+          askingPrice: 17500,
+          estimatedValue: 21000,
+          profitMargin: 48,
+          riskScore: 3.2,
+          hot: true
+        },
+        {
+          rank: 3,
+          dealId: "D-003",
+          title: "2017 Ford F-150 XLT",
+          platform: "OfferUp",
+          location: "Chesterfield, MO",
+          distance: 18.7,
+          listingUrl: "#",
+          askingPrice: 22000,
+          estimatedValue: 26500,
+          profitMargin: 35,
+          riskScore: 4.5,
+          hot: false
+        },
+        {
+          rank: 4,
+          dealId: "D-004",
+          title: "2020 Mazda CX-5 Grand Touring",
+          platform: "Facebook Marketplace",
+          location: "Webster Groves, MO",
+          distance: 6.2,
+          listingUrl: "#",
+          askingPrice: 21000,
+          estimatedValue: 25000,
+          profitMargin: 42,
+          riskScore: 2.8,
+          hot: false
+        }
+      ];
+
+      updateStats({
+        total: 150,
+        hot: 23,
+        avgProfit: 4200,
+        analyzedToday: 45
+      });
+
+      filterDeals();
+    }
+
+    // ========================================
+    // UPDATE STATS
+    // ========================================
+
+    function updateStats(stats) {
+      document.getElementById('stat-total').textContent = stats.total || 0;
+      document.getElementById('stat-hot').textContent = stats.hot || 0;
+      document.getElementById('stat-avg-profit').textContent = formatCurrency(stats.avgProfit || 0);
+      document.getElementById('stat-analyzed').textContent = stats.analyzedToday || 0;
+    }
+
+    // ========================================
+    // FILTER DEALS
+    // ========================================
+
+    function filterDeals() {
+      const searchTerm = document.getElementById('search-input').value.toLowerCase();
+
+      filteredDeals = allDeals.filter(deal => {
+        // Search filter
+        const matchesSearch = deal.title.toLowerCase().includes(searchTerm) ||
+                             deal.location.toLowerCase().includes(searchTerm) ||
+                             deal.platform.toLowerCase().includes(searchTerm);
+
+        if (!matchesSearch) return false;
+
+        // Category filter
+        if (activeFilter === 'all') return true;
+        if (activeFilter === 'hot') return deal.hot;
+        if (activeFilter === 'highProfit') return deal.profitMargin >= 50;
+        if (activeFilter === 'nearby') return deal.distance < 30;
+        if (activeFilter === 'highRisk') return deal.riskScore >= 4;
+
+        return true;
+      });
+
+      sortDeals();
+    }
+
+    // ========================================
+    // SORT DEALS
+    // ========================================
+
+    function sortDeals() {
+      const sortBy = document.getElementById('sort-select').value;
+
+      filteredDeals.sort((a, b) => {
+        switch (sortBy) {
+          case 'rank': return a.rank - b.rank;
+          case 'profit': return b.profitMargin - a.profitMargin;
+          case 'distance': return a.distance - b.distance;
+          case 'price': return a.askingPrice - b.askingPrice;
+          default: return 0;
+        }
+      });
+
+      renderDeals();
+    }
+
+    // ========================================
+    // TOGGLE FILTER
+    // ========================================
+
+    function toggleFilter(filter) {
+      activeFilter = filter;
+
+      // Update button states
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      event.target.classList.add('active');
+
+      filterDeals();
+    }
+
+    // ========================================
+    // RENDER DEALS
+    // ========================================
+
+    function renderDeals() {
+      const grid = document.getElementById('deals-grid');
+      const emptyState = document.getElementById('empty-state');
+
+      if (filteredDeals.length === 0) {
+        grid.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+
+      grid.innerHTML = filteredDeals.map(deal => `
+        <div class="deal-card ${deal.hot ? 'hot' : ''}" onclick="viewDeal('${deal.dealId}')">
+          <div class="deal-header">
+            <div class="deal-rank">${deal.rank}</div>
+            <div class="deal-title">${escapeHtml(deal.title)}</div>
+            <div class="deal-platform">${escapeHtml(deal.platform)}</div>
+          </div>
+
+          <div class="deal-metrics">
+            <div class="metric">
+              <div class="metric-label">Asking Price</div>
+              <div class="metric-value">${formatCurrency(deal.askingPrice)}</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Est. Value</div>
+              <div class="metric-value">${formatCurrency(deal.estimatedValue)}</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Profit Margin</div>
+              <div class="metric-value positive">${formatPercent(deal.profitMargin)}</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Risk Score</div>
+              <div class="metric-value ${deal.riskScore >= 4 ? 'negative' : ''}">${deal.riskScore.toFixed(1)}</div>
+            </div>
+          </div>
+
+          <div class="deal-footer">
+            <div class="deal-location">📍 ${escapeHtml(deal.location)} (${deal.distance.toFixed(1)} mi)</div>
+            ${deal.hot ? '<span class="badge badge-danger">🔥 HOT</span>' : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // ========================================
+    // VIEW DEAL
+    // ========================================
+
+    function viewDeal(dealId) {
+      const deal = allDeals.find(d => d.dealId === dealId);
+      if (!deal) return;
+
+      if (deal.listingUrl && deal.listingUrl !== '#') {
+        window.open(deal.listingUrl, '_blank');
+      } else {
+        showToast(`Viewing deal: ${deal.title}`, 'info');
+      }
+    }
+
+    // ========================================
+    // INITIALIZATION
+    // ========================================
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadPlaceholderData();
+      logDebug('Deal Gallery initialized');
+    });
+  </script>
+</body>
+</html>

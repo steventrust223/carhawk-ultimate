@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <?!= include('UI_Components'); ?>
+  <style>
+    /* SpeedToLead Specific Styles */
+    .lead-queue {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+    }
+
+    .lead-card {
+      background: white;
+      border-radius: var(--border-radius);
+      padding: var(--space-lg);
+      box-shadow: var(--shadow);
+      transition: all 0.2s ease;
+      cursor: pointer;
+      border-left: 4px solid var(--gray-300);
+    }
+
+    .lead-card:hover {
+      transform: translateX(4px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .lead-card.urgent {
+      border-left-color: var(--danger);
+      background: linear-gradient(90deg, rgba(239,68,68,0.05) 0%, white 10%);
+    }
+
+    .lead-card.warning {
+      border-left-color: var(--warning);
+      background: linear-gradient(90deg, rgba(245,158,11,0.05) 0%, white 10%);
+    }
+
+    .lead-card.normal {
+      border-left-color: var(--success);
+    }
+
+    .lead-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: var(--space-md);
+    }
+
+    .lead-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--gray-900);
+      margin-bottom: var(--space-xs);
+    }
+
+    .lead-contact {
+      font-size: 13px;
+      color: var(--gray-600);
+    }
+
+    .lead-timer {
+      text-align: right;
+    }
+
+    .timer-value {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: var(--space-xs);
+    }
+
+    .timer-value.urgent {
+      color: var(--danger);
+    }
+
+    .timer-value.warning {
+      color: var(--warning);
+    }
+
+    .timer-value.normal {
+      color: var(--success);
+    }
+
+    .timer-label {
+      font-size: 11px;
+      color: var(--gray-500);
+      text-transform: uppercase;
+    }
+
+    .lead-info {
+      display: flex;
+      gap: var(--space-lg);
+      margin-bottom: var(--space-md);
+      flex-wrap: wrap;
+    }
+
+    .info-item {
+      font-size: 13px;
+    }
+
+    .info-label {
+      color: var(--gray-500);
+      margin-right: var(--space-xs);
+    }
+
+    .info-value {
+      color: var(--gray-900);
+      font-weight: 600;
+    }
+
+    .lead-actions {
+      display: flex;
+      gap: var(--space-sm);
+    }
+
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: var(--space-md);
+      margin-bottom: var(--space-lg);
+    }
+
+    .stat-card-sm {
+      background: white;
+      border-radius: var(--border-radius);
+      padding: var(--space-md);
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+
+    .stat-value-sm {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: var(--space-xs);
+    }
+
+    .stat-label-sm {
+      font-size: 12px;
+      color: var(--gray-600);
+      font-weight: 600;
+    }
+
+    .empty-queue {
+      text-align: center;
+      padding: var(--space-xl);
+      color: var(--gray-500);
+    }
+
+    .empty-icon {
+      font-size: 48px;
+      margin-bottom: var(--space-md);
+    }
+  </style>
+</head>
+<body>
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-title">
+      📞 Speed to Lead
+      <span class="version-badge">UI v1.0</span>
+    </div>
+    <div>
+      <button class="btn btn-primary" onclick="refreshQueue()">
+        🔄 Refresh Queue
+      </button>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Stats Row -->
+    <div class="stats-row">
+      <div class="stat-card-sm">
+        <div class="stat-value-sm" id="stat-pending">0</div>
+        <div class="stat-label-sm">Pending Response</div>
+      </div>
+      <div class="stat-card-sm">
+        <div class="stat-value-sm" id="stat-urgent">0</div>
+        <div class="stat-label-sm">Urgent (>60min)</div>
+      </div>
+      <div class="stat-card-sm">
+        <div class="stat-value-sm" id="stat-avg-time">0min</div>
+        <div class="stat-label-sm">Avg Response Time</div>
+      </div>
+      <div class="stat-card-sm">
+        <div class="stat-value-sm" id="stat-today">0</div>
+        <div class="stat-label-sm">Contacted Today</div>
+      </div>
+    </div>
+
+    <!-- Lead Queue -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Lead Response Queue</h3>
+        <div class="flex-gap">
+          <select class="form-control" style="width: 200px;" id="filter-select" onchange="filterQueue()">
+            <option value="all">All Leads</option>
+            <option value="urgent">Urgent Only</option>
+            <option value="warning">Warning Only</option>
+            <option value="normal">Normal</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="lead-queue" id="lead-queue">
+        <!-- Lead cards will be inserted here -->
+      </div>
+
+      <div class="empty-queue hidden" id="empty-queue">
+        <div class="empty-icon">✅</div>
+        <h3>All caught up!</h3>
+        <p>No leads pending response at this time.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ============================================================
+       SPEED TO LEAD LOGIC
+       ============================================================ */
+
+    let allLeads = [];
+    let activeFilter = 'all';
+
+    // ========================================
+    // DATA CONTRACT (for server team)
+    // ========================================
+    /*
+      Expected data from UI_getSpeedToLeadQueue():
+      {
+        leads: [
+          {
+            leadId: "L-001",
+            name: "John Smith",
+            phone: "(314) 555-0123",
+            dealTitle: "2018 Honda Accord EX",
+            platform: "Facebook",
+            firstContact: "2026-01-15T09:30:00Z",
+            lastTouch: "2026-01-15T09:30:00Z",
+            ageMinutes: 45,
+            priority: "urgent" | "warning" | "normal",
+            status: "new" | "contacted" | "followup"
+          },
+          ...
+        ],
+        stats: {
+          pending: 12,
+          urgent: 3,
+          avgResponseTime: 32,
+          contactedToday: 45
+        }
+      }
+    */
+
+    // ========================================
+    // REFRESH QUEUE
+    // ========================================
+
+    async function refreshQueue() {
+      try {
+        logDebug('Loading speed-to-lead queue');
+
+        const data = await safeApi('UI_getSpeedToLeadQueue');
+
+        allLeads = data.leads || [];
+        updateStats(data.stats || {});
+        filterQueue();
+
+        showToast('Queue refreshed', 'success');
+      } catch (error) {
+        // Load placeholder data for development
+        loadPlaceholderQueue();
+      }
+    }
+
+    // ========================================
+    // PLACEHOLDER DATA
+    // ========================================
+
+    function loadPlaceholderQueue() {
+      const now = new Date();
+
+      allLeads = [
+        {
+          leadId: "L-001",
+          name: "John Smith",
+          phone: "(314) 555-0123",
+          dealTitle: "2018 Honda Accord EX",
+          platform: "Facebook",
+          firstContact: new Date(now - 75 * 60000).toISOString(),
+          lastTouch: new Date(now - 75 * 60000).toISOString(),
+          ageMinutes: 75,
+          priority: "urgent",
+          status: "new"
+        },
+        {
+          leadId: "L-002",
+          name: "Sarah Johnson",
+          phone: "(314) 555-0456",
+          dealTitle: "2019 Toyota Camry SE",
+          platform: "Craigslist",
+          firstContact: new Date(now - 45 * 60000).toISOString(),
+          lastTouch: new Date(now - 45 * 60000).toISOString(),
+          ageMinutes: 45,
+          priority: "warning",
+          status: "new"
+        },
+        {
+          leadId: "L-003",
+          name: "Mike Davis",
+          phone: "(314) 555-0789",
+          dealTitle: "2020 Ford F-150 XLT",
+          platform: "OfferUp",
+          firstContact: new Date(now - 15 * 60000).toISOString(),
+          lastTouch: new Date(now - 15 * 60000).toISOString(),
+          ageMinutes: 15,
+          priority: "normal",
+          status: "new"
+        }
+      ];
+
+      updateStats({
+        pending: 12,
+        urgent: 3,
+        avgResponseTime: 32,
+        contactedToday: 45
+      });
+
+      filterQueue();
+    }
+
+    // ========================================
+    // UPDATE STATS
+    // ========================================
+
+    function updateStats(stats) {
+      document.getElementById('stat-pending').textContent = stats.pending || 0;
+      document.getElementById('stat-urgent').textContent = stats.urgent || 0;
+      document.getElementById('stat-avg-time').textContent = (stats.avgResponseTime || 0) + 'min';
+      document.getElementById('stat-today').textContent = stats.contactedToday || 0;
+    }
+
+    // ========================================
+    // FILTER QUEUE
+    // ========================================
+
+    function filterQueue() {
+      activeFilter = document.getElementById('filter-select').value;
+
+      const filteredLeads = allLeads.filter(lead => {
+        if (activeFilter === 'all') return true;
+        return lead.priority === activeFilter;
+      });
+
+      renderQueue(filteredLeads);
+    }
+
+    // ========================================
+    // RENDER QUEUE
+    // ========================================
+
+    function renderQueue(leads) {
+      const queue = document.getElementById('lead-queue');
+      const emptyState = document.getElementById('empty-queue');
+
+      if (leads.length === 0) {
+        queue.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+
+      queue.innerHTML = leads.map(lead => `
+        <div class="lead-card ${lead.priority}" onclick="viewLead('${lead.leadId}')">
+          <div class="lead-header">
+            <div>
+              <div class="lead-title">${escapeHtml(lead.name)}</div>
+              <div class="lead-contact">📱 ${escapeHtml(lead.phone)}</div>
+            </div>
+            <div class="lead-timer">
+              <div class="timer-value ${lead.priority}">${lead.ageMinutes}m</div>
+              <div class="timer-label">Age</div>
+            </div>
+          </div>
+
+          <div class="lead-info">
+            <div class="info-item">
+              <span class="info-label">Deal:</span>
+              <span class="info-value">${escapeHtml(lead.dealTitle)}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Platform:</span>
+              <span class="info-value">${escapeHtml(lead.platform)}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Status:</span>
+              <span class="info-value">${lead.status.toUpperCase()}</span>
+            </div>
+          </div>
+
+          <div class="lead-actions">
+            <button class="btn btn-sm btn-success" onclick="event.stopPropagation(); contactLead('${lead.leadId}', 'call')">
+              📞 Call
+            </button>
+            <button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); contactLead('${lead.leadId}', 'sms')">
+              💬 SMS
+            </button>
+            <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); contactLead('${lead.leadId}', 'email')">
+              📧 Email
+            </button>
+            <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); snooze Lead('${lead.leadId}')">
+              ⏰ Snooze
+            </button>
+          </div>
+        </div>
+      `).join('');
+
+      // Start timer to update ages
+      startAgeUpdater();
+    }
+
+    // ========================================
+    // LEAD ACTIONS
+    // ========================================
+
+    function viewLead(leadId) {
+      const lead = allLeads.find(l => l.leadId === leadId);
+      if (!lead) return;
+
+      showToast(`Viewing lead: ${lead.name}`, 'info');
+    }
+
+    async function contactLead(leadId, method) {
+      try {
+        await safeApi('UI_contactLead', leadId, method);
+        showToast(`${method.toUpperCase()} initiated`, 'success');
+        refreshQueue();
+      } catch (error) {
+        showToast(`Contact method not wired yet: ${method}`, 'warning');
+      }
+    }
+
+    async function snoozeLead(leadId) {
+      try {
+        await safeApi('UI_snoozeLead', leadId, 60); // Snooze for 60 minutes
+        showToast('Lead snoozed for 1 hour', 'success');
+        refreshQueue();
+      } catch (error) {
+        showToast('Snooze functionality not wired yet', 'warning');
+      }
+    }
+
+    // ========================================
+    // AGE UPDATER
+    // ========================================
+
+    let ageUpdateInterval;
+
+    function startAgeUpdater() {
+      if (ageUpdateInterval) clearInterval(ageUpdateInterval);
+
+      ageUpdateInterval = setInterval(() => {
+        // Update ages in memory
+        allLeads.forEach(lead => {
+          const firstContact = new Date(lead.firstContact);
+          const now = new Date();
+          lead.ageMinutes = Math.floor((now - firstContact) / 60000);
+
+          // Update priority based on age
+          if (lead.ageMinutes >= 60) {
+            lead.priority = 'urgent';
+          } else if (lead.ageMinutes >= 30) {
+            lead.priority = 'warning';
+          } else {
+            lead.priority = 'normal';
+          }
+        });
+
+        // Re-render
+        filterQueue();
+      }, 60000); // Update every minute
+    }
+
+    // ========================================
+    // INITIALIZATION
+    // ========================================
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadPlaceholderQueue();
+      logDebug('Speed to Lead initialized');
+    });
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+      if (ageUpdateInterval) clearInterval(ageUpdateInterval);
+    });
+  </script>
+</body>
+</html>
