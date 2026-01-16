@@ -1,0 +1,362 @@
+<!--
+  UI_Components.html
+  Shared component library for all CarHawk Ultimate HTML dialogs
+  Include at the top of every template: <?!= include('UI_Components') ?>
+-->
+
+<script>
+// ================================================================
+// SAFE METRICS STUB (prevents "metrics is not defined")
+// ================================================================
+// This stub ensures that any future calls to metrics.* methods
+// (track, event, error, etc.) will not crash the UI runtime.
+// Future enhancement: Wire these to Activity Logs sheet for real tracking
+
+window.metrics = window.metrics || {
+  // Analytics tracking
+  track: function(event, properties) {
+    console.log('[metrics.track]', event, properties);
+    // Future: Send to Activity Logs sheet via google.script.run
+  },
+
+  event: function(category, action, label, value) {
+    console.log('[metrics.event]', category, action, label, value);
+  },
+
+  // Logging methods
+  info: function(message, data) {
+    console.info('[metrics.info]', message, data);
+  },
+
+  warn: function(message, data) {
+    console.warn('[metrics.warn]', message, data);
+  },
+
+  error: function(message, data) {
+    console.error('[metrics.error]', message, data);
+    // Optional: Show toast warning to user
+    if (typeof showToast === 'function') {
+      showToast('Warning: ' + message, 'warning');
+    }
+  },
+
+  // Performance tracking
+  timing: function(category, variable, time) {
+    console.log('[metrics.timing]', category, variable, time + 'ms');
+  },
+
+  // Counters
+  increment: function(metric) {
+    console.log('[metrics.increment]', metric);
+  },
+
+  count: function(metric, value) {
+    console.log('[metrics.count]', metric, value);
+  }
+};
+
+// ================================================================
+// SHARED UI HELPERS
+// ================================================================
+
+/**
+ * Toast notification system
+ * Usage: showToast('Success!', 'success')
+ */
+function showToast(message, type) {
+  type = type || 'info'; // info, success, warning, error
+
+  const toast = document.createElement('div');
+  toast.className = 'carhawk-toast toast-' + type;
+  toast.textContent = message;
+
+  // Inject toast styles if not already present
+  if (!document.getElementById('carhawk-toast-styles')) {
+    const styles = document.createElement('style');
+    styles.id = 'carhawk-toast-styles';
+    styles.textContent = `
+      .carhawk-toast {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        border-radius: 6px;
+        font-weight: 500;
+        font-size: 14px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 10000;
+        animation: slideIn 0.3s ease-out;
+      }
+      .toast-info { background: #2196F3; color: white; }
+      .toast-success { background: #4CAF50; color: white; }
+      .toast-warning { background: #FF9800; color: white; }
+      .toast-error { background: #F44336; color: white; }
+      @keyframes slideIn {
+        from { transform: translateX(400px); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+      }
+    `;
+    document.head.appendChild(styles);
+  }
+
+  document.body.appendChild(toast);
+
+  setTimeout(function() {
+    toast.style.transition = 'opacity 0.3s';
+    toast.style.opacity = '0';
+    setTimeout(function() {
+      if (toast.parentNode) {
+        toast.parentNode.removeChild(toast);
+      }
+    }, 300);
+  }, 3000);
+}
+
+/**
+ * Loading spinner helper
+ * Usage: showLoading() / hideLoading()
+ */
+function showLoading(message) {
+  let overlay = document.getElementById('carhawk-loading-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'carhawk-loading-overlay';
+    overlay.innerHTML = `
+      <div class="loading-spinner"></div>
+      <div class="loading-message">${message || 'Processing...'}</div>
+    `;
+
+    const styles = document.createElement('style');
+    styles.textContent = `
+      #carhawk-loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      }
+      .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid rgba(255, 255, 255, 0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      .loading-message {
+        color: white;
+        margin-top: 16px;
+        font-size: 16px;
+      }
+    `;
+    overlay.appendChild(styles);
+    document.body.appendChild(overlay);
+  } else {
+    overlay.style.display = 'flex';
+    overlay.querySelector('.loading-message').textContent = message || 'Processing...';
+  }
+}
+
+function hideLoading() {
+  const overlay = document.getElementById('carhawk-loading-overlay');
+  if (overlay) {
+    overlay.style.display = 'none';
+  }
+}
+
+/**
+ * Safe API call wrapper with error handling
+ * Usage: safeCall('functionName', [args], successCallback, errorCallback)
+ */
+function safeCall(functionName, args, onSuccess, onError) {
+  metrics.track('api_call', {function: functionName});
+
+  google.script.run
+    .withSuccessHandler(function(result) {
+      metrics.track('api_success', {function: functionName});
+      if (onSuccess) onSuccess(result);
+    })
+    .withFailureHandler(function(error) {
+      metrics.error('API call failed: ' + functionName, error);
+      if (onError) {
+        onError(error);
+      } else {
+        showToast('Error: ' + error.message, 'error');
+      }
+    })
+    [functionName].apply(null, args || []);
+}
+
+// ================================================================
+// GOOGLE FONTS (Inter - modern, professional)
+// ================================================================
+// NOTE: Will be applied when parent template uses this include
+</script>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+/* ================================================================
+   GLOBAL BASE STYLES
+   ================================================================ */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #333;
+}
+
+/* ================================================================
+   CARHAWK BUTTON SYSTEM
+   ================================================================ */
+
+.carhawk-btn {
+  display: inline-block;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+  text-decoration: none;
+}
+
+.carhawk-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.carhawk-btn:active {
+  transform: translateY(0);
+}
+
+.carhawk-btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.carhawk-btn-success {
+  background: #4CAF50;
+  color: white;
+}
+
+.carhawk-btn-danger {
+  background: #F44336;
+  color: white;
+}
+
+.carhawk-btn-secondary {
+  background: #f5f5f5;
+  color: #333;
+  border: 1px solid #ddd;
+}
+
+.carhawk-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ================================================================
+   FORM ELEMENTS
+   ================================================================ */
+
+.carhawk-form-group {
+  margin-bottom: 16px;
+}
+
+.carhawk-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #444;
+}
+
+.carhawk-input,
+.carhawk-select,
+.carhawk-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.carhawk-input:focus,
+.carhawk-select:focus,
+.carhawk-textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.carhawk-help-text {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+/* ================================================================
+   CARDS & CONTAINERS
+   ================================================================ */
+
+.carhawk-card {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.carhawk-card-header {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+/* ================================================================
+   UTILITY CLASSES
+   ================================================================ */
+
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.mt-1 { margin-top: 8px; }
+.mt-2 { margin-top: 16px; }
+.mt-3 { margin-top: 24px; }
+.mb-1 { margin-bottom: 8px; }
+.mb-2 { margin-bottom: 16px; }
+.mb-3 { margin-bottom: 24px; }
+.p-1 { padding: 8px; }
+.p-2 { padding: 16px; }
+.p-3 { padding: 24px; }
+
+.text-success { color: #4CAF50; }
+.text-danger { color: #F44336; }
+.text-warning { color: #FF9800; }
+.text-muted { color: #999; }
+
+.hide { display: none; }
+.show { display: block; }
+</style>
