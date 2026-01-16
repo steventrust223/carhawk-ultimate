@@ -5124,10 +5124,8 @@ function showQuantumHelp() {
 
 function showQuantumAbout() {
   const ui = SpreadsheetApp.getUi();
-  
-  ui.alert(
-    '🚗⚛️ CarHawk Ultimate - Quantum Edition',
-    `The Most Advanced Vehicle Deal Analysis System Ever Created\n\n` +
+
+  const message = `The Most Advanced Vehicle Deal Analysis System Ever Created\n\n` +
     `Version: ${QUANTUM_VERSION}\n` +
     `Architecture: Quantum-Class Neural Processing\n` +
     `AI Engine: GPT-4 Turbo with Custom Training\n\n` +
@@ -5145,9 +5143,9 @@ function showQuantumAbout() {
     `• Accuracy Rate: 94.7%\n` +
     `• Average ROI Improvement: +37%\n\n` +
     `Licensed to: ${getQuantumSetting('BUSINESS_NAME') || 'Quantum Trader'}\n` +
-    `Support: quantumsupport@carhawkultra.com`,
-    ui.ButtonSet.OK
-  );
+    `Support: quantumsupport@carhawkultra.com`;
+
+  ui.alert('🚗⚛️ CarHawk Ultimate - Quantum Edition', message, ui.ButtonSet.OK);
 }
 
 // =========================================================
