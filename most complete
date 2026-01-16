@@ -4542,7 +4542,6 @@ function generatePerformanceMatrix() {
   };
   
   const metricsText = Object.entries(metrics)
-    .map(([key, value   const metricsText = Object.entries(metrics)
     .map(([key, value]) => `${key}: ${value}`)
     .join('\n');
   
