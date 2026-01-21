@@ -21,8 +21,22 @@ function getQuantumSetting(key) {
 
 function setQuantumSetting(key, value) {
   const sheet = getQuantumSheet(QUANTUM_SHEETS.SETTINGS.name);
+  if (!sheet) {
+    Logger.log('Settings sheet not found');
+    return;
+  }
+
+  const lastRow = sheet.getLastRow();
+
+  // If only headers exist (row 1), append new row directly
+  if (lastRow <= 1) {
+    sheet.appendRow([key, value, new Date(), '', 'System', 'String', '', value, false, '', false]);
+    return;
+  }
+
   const data = sheet.getDataRange().getValues();
-  
+
+  // Search for existing key
   for (let i = 1; i < data.length; i++) {
     if (data[i][0] === key) {
       sheet.getRange(i + 1, 2).setValue(value);
@@ -30,13 +44,18 @@ function setQuantumSetting(key, value) {
       return;
     }
   }
-  
+
   // Add new setting
   sheet.appendRow([key, value, new Date(), '', 'System', 'String', '', value, false, '', false]);
 }
 
 function logQuantum(action, details) {
   const sheet = getQuantumSheet(QUANTUM_SHEETS.LOGS.name);
+  if (!sheet) {
+    Logger.log(`Log: ${action} - ${details}`);
+    return;
+  }
+
   sheet.appendRow([
     new Date(),
     'INFO',
@@ -54,6 +73,11 @@ function logQuantum(action, details) {
 
 function logCRMActivity(action, dealId, details) {
   const sheet = getQuantumSheet(QUANTUM_SHEETS.LOGS.name);
+  if (!sheet) {
+    Logger.log(`CRM Log: ${action} - Deal ${dealId} - ${details}`);
+    return;
+  }
+
   sheet.appendRow([
     new Date(),
     'CRM',
