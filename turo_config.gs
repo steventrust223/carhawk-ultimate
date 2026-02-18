@@ -335,11 +335,11 @@ const TURO_STATUSES = {
  */
 const TURO_STATUS_TRANSITIONS = {
   'Candidate': ['Acquired'],
-  'Acquired': ['Listed'],
-  'Listed': ['Active'],
+  'Acquired': ['Listed', 'Retired'],
+  'Listed': ['Active', 'Paused', 'Retired'],
   'Active': ['In Maintenance', 'Paused', 'Retired'],
   'In Maintenance': ['Active', 'Paused', 'Retired'],
-  'Paused': ['Active', 'Retired'],
+  'Paused': ['Active', 'Listed', 'Retired'],
   'Retired': ['Sold'],
   'Sold': []
 };

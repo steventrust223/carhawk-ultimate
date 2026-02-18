@@ -197,6 +197,22 @@ function createQuantumMenu() {
     .addItem('🎴 Deal Gallery', 'showDealGallery')
     .addItem('⚡ Quick Actions', 'showQuickActions')
     .addItem('🧠 Deal Analyzer', 'showDealAnalyzer')
+
+    // Turo Module
+    .addSeparator()
+    .addSubMenu(ui.createMenu('🚗 Turo Module')
+      .addItem('🔍 Analyze Selected Deal for Turo', 'analyzeTuroSelected')
+      .addItem('📊 Batch Analyze All Turo Candidates', 'batchAnalyzeTuro')
+      .addSeparator()
+      .addItem('📋 Refresh Fleet Dashboard', 'refreshFleetManager')
+      .addItem('➕ Add Vehicle to Fleet', 'addToFleetSelected')
+      .addItem('💰 Update Fleet Financials', 'updateFleetFinancials')
+      .addSeparator()
+      .addItem('🔧 Log Maintenance Event', 'logMaintenanceEvent')
+      .addItem('🛡️ Check Compliance Alerts', 'checkComplianceAlerts')
+      .addSeparator()
+      .addItem('⚙️ Setup Turo Module', 'setupTuroModule'))
+
     .addSeparator()
     .addItem('❓ Quantum Help', 'showQuantumHelp')
     .addItem('ℹ️ About CarHawk Ultimate', 'showQuantumAbout')
@@ -1994,9 +2010,16 @@ function exportQuantumCRM() {
   const data = dbSheet.getDataRange().getValues();
   const exportDeals = [];
   
+  // Find Turo column start for enrichment
+  const headers = data[0];
+  let turoScoreColIdx = -1;
+  for (let h = 0; h < headers.length; h++) {
+    if (headers[h] === 'Turo Hold Score') { turoScoreColIdx = h; break; }
+  }
+
   for (let i = 1; i < data.length; i++) {
     if (data[i][44] === 'YES') { // Recommended = YES
-      exportDeals.push({
+      const dealExport = {
         dealId: data[i][0],
         vehicle: `${data[i][5]} ${data[i][6]} ${data[i][7]}`,
         price: data[i][13],
@@ -2013,8 +2036,21 @@ function exportQuantumCRM() {
         daysListed: data[i][32],
         contactCount: data[i][51],
         responseRate: data[i][54],
-        quantumScore: data[i][41]
-      });
+        quantumScore: data[i][41],
+        flipStrategy: data[i][29]
+      };
+
+      // If this deal is a Turo Hold, include Turo-specific fields
+      if (dealExport.flipStrategy === 'Turo Hold' && turoScoreColIdx >= 0) {
+        dealExport.turoHoldScore = data[i][turoScoreColIdx];
+        dealExport.turoMonthlyNet = data[i][turoScoreColIdx + 1];
+        dealExport.turoPaybackMonths = data[i][turoScoreColIdx + 2];
+        dealExport.turoRiskTier = data[i][turoScoreColIdx + 4];
+        dealExport.turoStatus = data[i][turoScoreColIdx + 7];
+        dealExport.fleetId = data[i][turoScoreColIdx + 8];
+      }
+
+      exportDeals.push(dealExport);
     }
   }
   
@@ -5214,6 +5250,18 @@ function quantumDailyAnalysis() {
   
   // Update last analysis time
   setQuantumSetting('LAST_ANALYSIS', new Date().toISOString());
+
+  // Turo module extension
+  try {
+    var turoEnabled = SpreadsheetApp.getActiveSpreadsheet()
+      .getSheetByName(TURO_SHEETS.ENGINE.name);
+    if (turoEnabled) {
+      batchAnalyzeTuro();
+      checkComplianceAlerts();
+    }
+  } catch (e) {
+    // Turo module not installed — skip silently
+  }
 }
 
 // =========================================================
