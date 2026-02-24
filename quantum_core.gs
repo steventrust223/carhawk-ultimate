@@ -9,9 +9,8 @@
 // FILE: quantum_core.gs - Quantum Computing Core Engine
 // =========================================================
 
-const QUANTUM_VERSION = 'QUANTUM-2.0.0';
-const QUANTUM_NAME = 'CarHawk Ultimate CRM';
-const QUANTUM_SIGNATURE = '🚗⚛️';
+// System identity constants (QUANTUM.VERSION, QUANTUM.NAME, QUANTUM.SIGNATURE)
+// are declared in quantum_config.gs to prevent duplicate declarations.
 
 // Quantum State Management
 const QuantumState = {

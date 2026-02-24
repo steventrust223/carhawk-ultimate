@@ -3,6 +3,7 @@
   "rootDir": ".",
   "fileExtension": "gs",
   "filePushOrder": [
+    "quantum_config.gs",
     "quantum_core.gs",
     "quantum_utilities.gs",
     "quantum_headers.gs",
