@@ -9,6 +9,10 @@
 // FILE: quantum-core.gs - Quantum Computing Core Engine
 // =========================================================
 
+// Global constants are declared in quantum_config.gs (QUANTUM object)
+// and quantum_core.gs (QuantumState, QUANTUM_CONFIG, CRM_CONFIG, QUANTUM_SHEETS, CAPITAL_TIERS).
+// Do NOT redeclare them here — all .gs files share a single global scope.
+
 // =========================================================
 // FILE: quantum-menu.gs - Enhanced Menu System with CRM
 // =========================================================

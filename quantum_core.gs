@@ -9,6 +9,9 @@
 // FILE: quantum_core.gs - Quantum Computing Core Engine
 // =========================================================
 
+// System identity constants (QUANTUM.VERSION, QUANTUM.NAME, QUANTUM.SIGNATURE)
+// are declared in quantum_config.gs to prevent duplicate declarations.
+
 // Quantum State Management
 const QuantumState = {
   analysisQueue: [],
