@@ -9,10 +9,6 @@
 // FILE: quantum_core.gs - Quantum Computing Core Engine
 // =========================================================
 
-const QUANTUM_VERSION = 'QUANTUM-2.0.0';
-const QUANTUM_NAME = 'CarHawk Ultimate CRM';
-const QUANTUM_SIGNATURE = '🚗⚛️';
-
 // Quantum State Management
 const QuantumState = {
   analysisQueue: [],

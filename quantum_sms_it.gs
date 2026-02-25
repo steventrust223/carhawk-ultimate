@@ -122,7 +122,7 @@ function processQuantumSMSExport(config) {
 function sendToSMSIT(data, webhookUrl) {
   const payload = {
     source: 'CarHawk Ultimate',
-    version: QUANTUM_VERSION,
+    version: QUANTUM.VERSION,
     timestamp: new Date().toISOString(),
     leads: data
   };

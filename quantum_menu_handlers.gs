@@ -450,7 +450,7 @@ function showQuantumAbout() {
   ui.alert(
     '🚗⚛️ CarHawk Ultimate - Quantum Edition',
     `The Most Advanced Vehicle Deal Analysis System Ever Created\n\n` +
-    `Version: ${QUANTUM_VERSION}\n` +
+    `Version: ${QUANTUM.VERSION}\n` +
     `Architecture: Quantum-Class Neural Processing\n` +
     `AI Engine: GPT-4 Turbo with Custom Training\n\n` +
     `Core Capabilities:\n` +
