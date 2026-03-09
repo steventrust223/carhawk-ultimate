@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #1a1a2e; color: #eee; padding: 20px; }
+    .header { text-align: center; margin-bottom: 20px; }
+    .header h1 { font-size: 24px; color: #00d4ff; }
+    .stats-bar { display: flex; justify-content: space-around; background: #16213e; border-radius: 10px; padding: 15px; margin-bottom: 20px; }
+    .stat { text-align: center; }
+    .stat .value { font-size: 24px; font-weight: bold; color: #00d4ff; }
+    .stat .label { font-size: 12px; color: #888; }
+    .deals-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; }
+    .deal-card { background: #16213e; border-radius: 10px; padding: 15px; border-left: 4px solid #00d4ff; transition: transform 0.2s; }
+    .deal-card:hover { transform: translateY(-3px); }
+    .deal-card.hot { border-left-color: #ff6b35; }
+    .deal-card.solid { border-left-color: #4caf50; }
+    .deal-card.pass { border-left-color: #666; }
+    .deal-title { font-size: 16px; font-weight: bold; margin-bottom: 8px; }
+    .deal-meta { display: flex; justify-content: space-between; font-size: 13px; color: #aaa; margin-bottom: 5px; }
+    .deal-verdict { font-size: 14px; font-weight: bold; margin-top: 8px; }
+    .deal-profit { color: #4caf50; font-weight: bold; }
+    .deal-actions { margin-top: 10px; display: flex; gap: 8px; }
+    .btn { padding: 5px 12px; border: none; border-radius: 5px; cursor: pointer; font-size: 12px; }
+    .btn-primary { background: #00d4ff; color: #000; }
+    .btn-secondary { background: #333; color: #eee; }
+    .empty { text-align: center; padding: 60px; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>CarHawk Deal Gallery</h1>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat">
+      <div class="value" id="totalDeals">0</div>
+      <div class="label">Total Deals</div>
+    </div>
+    <div class="stat">
+      <div class="value" id="hotDeals">0</div>
+      <div class="label">Hot Deals</div>
+    </div>
+    <div class="stat">
+      <div class="value" id="totalProfit">$0</div>
+      <div class="label">Total Profit Potential</div>
+    </div>
+    <div class="stat">
+      <div class="value" id="avgROI">0%</div>
+      <div class="label">Avg ROI</div>
+    </div>
+  </div>
+
+  <div class="deals-grid" id="dealsGrid">
+    <div class="empty">Loading deals...</div>
+  </div>
+
+  <script>
+    var deals = <?!= JSON.stringify(deals || []) ?>;
+    var stats = <?!= JSON.stringify(stats || {}) ?>;
+
+    function init() {
+      // Update stats
+      document.getElementById('totalDeals').textContent = stats.totalDeals || 0;
+      document.getElementById('hotDeals').textContent = stats.hotDeals || 0;
+      document.getElementById('totalProfit').textContent = '$' + ((stats.totalProfit || 0)).toLocaleString();
+      document.getElementById('avgROI').textContent = (stats.avgROI || 0) + '%';
+
+      // Render deals
+      var grid = document.getElementById('dealsGrid');
+      if (!deals || deals.length === 0) {
+        grid.innerHTML = '<div class="empty">No deals found. Run Quantum Sync to import deals.</div>';
+        return;
+      }
+
+      grid.innerHTML = '';
+      deals.forEach(function(deal) {
+        var cardClass = 'deal-card';
+        if (deal.verdict && deal.verdict.includes('HOT')) cardClass += ' hot';
+        else if (deal.verdict && deal.verdict.includes('SOLID')) cardClass += ' solid';
+        else if (deal.verdict && deal.verdict.includes('PASS')) cardClass += ' pass';
+
+        var card = document.createElement('div');
+        card.className = cardClass;
+        card.innerHTML =
+          '<div class="deal-title">' + (deal.year || '') + ' ' + (deal.make || '') + ' ' + (deal.model || '') + '</div>' +
+          '<div class="deal-meta"><span>' + (deal.platform || '') + '</span><span>' + (deal.location || '') + '</span></div>' +
+          '<div class="deal-meta"><span>Price: $' + ((deal.price || 0)).toLocaleString() + '</span><span class="deal-profit">Profit: $' + ((deal.profit || 0)).toLocaleString() + '</span></div>' +
+          '<div class="deal-meta"><span>ROI: ' + (deal.roi || 0) + '%</span><span>' + (deal.mileage || 0).toLocaleString() + ' mi</span></div>' +
+          '<div class="deal-verdict">' + (deal.verdict || 'Pending') + '</div>' +
+          '<div class="deal-actions">' +
+            '<button class="btn btn-primary" onclick="handleAction(\'view\',\'' + deal.dealId + '\')">View</button>' +
+            '<button class="btn btn-secondary" onclick="handleAction(\'analyze\',\'' + deal.dealId + '\')">Analyze</button>' +
+            '<button class="btn btn-secondary" onclick="handleAction(\'contact\',\'' + deal.dealId + '\')">Contact</button>' +
+          '</div>';
+        grid.appendChild(card);
+      });
+    }
+
+    function handleAction(action, dealId) {
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result && result.message) alert(result.message);
+        })
+        .withFailureHandler(function(err) {
+          alert('Error: ' + err.message);
+        })
+        .processDealAction(action, dealId);
+    }
+
+    init();
+  </script>
+</body>
+</html>

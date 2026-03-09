@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #1a1a2e; color: #e0e0e0; font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; }
+    h2 { color: #00d4ff; margin-bottom: 8px; }
+    p.desc { color: #aaa; font-size: 13px; margin-bottom: 20px; }
+    .search-box {
+      width: 100%; padding: 12px; background: #16213e; border: 1px solid #00d4ff44;
+      border-radius: 8px; color: #e0e0e0; font-size: 14px; margin-bottom: 16px;
+    }
+    .search-box:focus { outline: none; border-color: #00d4ff; }
+    .card { background: #16213e; border-radius: 8px; padding: 16px; margin-bottom: 12px; border: 1px solid #00d4ff22; cursor: pointer; transition: border-color 0.2s; }
+    .card:hover { border-color: #00d4ff; }
+    .card h3 { color: #00d4ff; font-size: 14px; margin-bottom: 6px; }
+    .card p { color: #aaa; font-size: 13px; line-height: 1.4; }
+    .tag { display: inline-block; background: #00d4ff22; color: #00d4ff; font-size: 11px; padding: 2px 8px; border-radius: 10px; margin-top: 8px; margin-right: 4px; }
+    .close-btn {
+      margin-top: 16px; width: 100%; padding: 10px; background: #00d4ff;
+      color: #1a1a2e; border: none; border-radius: 6px; font-size: 14px;
+      font-weight: 600; cursor: pointer;
+    }
+    .close-btn:hover { background: #00b8d9; }
+  </style>
+</head>
+<body>
+  <h2>Knowledge Base</h2>
+  <p class="desc">Vehicle data, market insights, and reference guides. Search for any make, model, or topic.</p>
+
+  <input type="text" class="search-box" placeholder="Search vehicles, guides, market data...">
+
+  <div class="card">
+    <h3>Common Recalls by Make (2020-2024)</h3>
+    <p>Overview of major recalls organized by manufacturer, including affected models and repair status.</p>
+    <span class="tag">Recalls</span><span class="tag">Reference</span>
+  </div>
+  <div class="card">
+    <h3>Pricing Guide: Trucks &amp; SUVs</h3>
+    <p>Market pricing benchmarks for popular truck and SUV models. Updated weekly from auction data.</p>
+    <span class="tag">Pricing</span><span class="tag">Trucks</span><span class="tag">SUVs</span>
+  </div>
+  <div class="card">
+    <h3>Title Status Explained</h3>
+    <p>Understanding clean, salvage, rebuilt, and flood title designations and their impact on value.</p>
+    <span class="tag">Titles</span><span class="tag">Guide</span>
+  </div>
+  <div class="card">
+    <h3>EV Battery Health Assessment</h3>
+    <p>How to evaluate battery degradation and remaining capacity in used electric vehicles.</p>
+    <span class="tag">EV</span><span class="tag">Battery</span>
+  </div>
+
+  <button class="close-btn" onclick="google.script.host.close()">Close</button>
+</body>
+</html>

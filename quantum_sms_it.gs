@@ -89,7 +89,7 @@ function processQuantumSMSExport(config) {
     'Hot Deals',
     exportData.reduce((sum, d) => sum + d.customFields.price, 0),
     exportData.reduce((sum, d) => sum + d.customFields.price, 0) / exportData.length,
-    exportData.filter(d => d.customFields.verdict.includes('🔥')).length,
+    exportData.filter(d => d.customFields && d.customFields.verdict && d.customFields.verdict.includes('🔥')).length,
     exportData.length,
     exportData.length,
     0,

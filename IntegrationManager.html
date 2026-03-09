@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #1a1a2e; color: #e0e0e0; font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; }
+    h2 { color: #00d4ff; margin-bottom: 8px; }
+    p.desc { color: #aaa; font-size: 13px; margin-bottom: 20px; }
+    .card { background: #16213e; border-radius: 8px; padding: 16px; margin-bottom: 12px; border: 1px solid #00d4ff22; }
+    .integration { display: flex; justify-content: space-between; align-items: center; }
+    .int-info { display: flex; align-items: center; gap: 12px; }
+    .int-icon { width: 40px; height: 40px; background: #00d4ff22; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+    .int-name { font-weight: 600; font-size: 14px; }
+    .int-detail { color: #aaa; font-size: 12px; margin-top: 2px; }
+    .status { font-size: 11px; padding: 4px 10px; border-radius: 10px; font-weight: 600; }
+    .status.connected { background: #00e67622; color: #00e676; }
+    .status.disconnected { background: #ff525222; color: #ff5252; }
+    .status.pending { background: #ffc10722; color: #ffc107; }
+    .btn-row { display: flex; gap: 10px; margin-top: 16px; }
+    .btn { flex: 1; padding: 10px; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .btn-primary { background: #00d4ff; color: #1a1a2e; }
+    .btn-primary:hover { background: #00b8d9; }
+    .btn-close { background: #16213e; color: #e0e0e0; border: 1px solid #00d4ff44; }
+    .btn-close:hover { border-color: #00d4ff; }
+  </style>
+</head>
+<body>
+  <h2>Integration Manager</h2>
+  <p class="desc">Connect and manage third-party services including Browse.ai, SMS-iT, and more.</p>
+
+  <div class="card">
+    <div class="integration">
+      <div class="int-info">
+        <div class="int-icon">&#x1F310;</div>
+        <div><div class="int-name">Browse.ai</div><div class="int-detail">Web scraping &amp; inventory monitoring</div></div>
+      </div>
+      <span class="status connected">Connected</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="integration">
+      <div class="int-info">
+        <div class="int-icon">&#x1F4AC;</div>
+        <div><div class="int-name">SMS-iT</div><div class="int-detail">SMS messaging &amp; automation</div></div>
+      </div>
+      <span class="status connected">Connected</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="integration">
+      <div class="int-info">
+        <div class="int-icon">&#x1F4DE;</div>
+        <div><div class="int-name">VoIP Provider</div><div class="int-detail">Call tracking &amp; recording</div></div>
+      </div>
+      <span class="status pending">Setup Required</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="integration">
+      <div class="int-info">
+        <div class="int-icon">&#x1F4E7;</div>
+        <div><div class="int-name">Email Service</div><div class="int-detail">Transactional &amp; marketing emails</div></div>
+      </div>
+      <span class="status disconnected">Disconnected</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="integration">
+      <div class="int-info">
+        <div class="int-icon">&#x1F4B3;</div>
+        <div><div class="int-name">Payment Gateway</div><div class="int-detail">Deposit &amp; payment processing</div></div>
+      </div>
+      <span class="status disconnected">Disconnected</span>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="alert('Add integration coming soon')">Add Integration</button>
+    <button class="btn btn-close" onclick="google.script.host.close()">Close</button>
+  </div>
+</body>
+</html>

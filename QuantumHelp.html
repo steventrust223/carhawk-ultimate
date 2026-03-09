@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #1a1a2e; color: #e0e0e0; font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; }
+    h2 { color: #00d4ff; margin-bottom: 8px; }
+    p.desc { color: #aaa; font-size: 13px; margin-bottom: 20px; }
+    .card { background: #16213e; border-radius: 8px; padding: 16px; margin-bottom: 12px; border: 1px solid #00d4ff22; cursor: pointer; transition: border-color 0.2s; }
+    .card:hover { border-color: #00d4ff; }
+    .card h3 { color: #00d4ff; font-size: 14px; margin-bottom: 6px; }
+    .card p { color: #aaa; font-size: 13px; line-height: 1.4; }
+    .section-title { color: #00d4ff; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin: 16px 0 8px; }
+    .shortcut { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #00d4ff11; font-size: 13px; }
+    .shortcut .key { background: #00d4ff22; color: #00d4ff; padding: 2px 8px; border-radius: 4px; font-family: monospace; font-size: 12px; }
+    .close-btn {
+      margin-top: 20px; width: 100%; padding: 10px; background: #00d4ff;
+      color: #1a1a2e; border: none; border-radius: 6px; font-size: 14px;
+      font-weight: 600; cursor: pointer;
+    }
+    .close-btn:hover { background: #00b8d9; }
+  </style>
+</head>
+<body>
+  <h2>Help &amp; Documentation</h2>
+  <p class="desc">Guides, tips, and keyboard shortcuts to get the most out of CarHawk Ultimate.</p>
+
+  <div class="card">
+    <h3>Getting Started</h3>
+    <p>Set up your account, connect integrations, and import your first batch of inventory.</p>
+  </div>
+  <div class="card">
+    <h3>Deal Workflow</h3>
+    <p>Learn the full lifecycle from lead capture through deal close, including follow-up sequences.</p>
+  </div>
+  <div class="card">
+    <h3>Inventory Management</h3>
+    <p>Sync, analyze, and manage vehicle listings across multiple platforms.</p>
+  </div>
+  <div class="card">
+    <h3>Analytics &amp; Reports</h3>
+    <p>Understand your dashboards, KPIs, and how to generate custom reports.</p>
+  </div>
+
+  <div class="section-title">Keyboard Shortcuts</div>
+  <div style="background:#16213e; border-radius:8px; padding:12px; border:1px solid #00d4ff22;">
+    <div class="shortcut"><span>Open Quick Actions</span><span class="key">Ctrl+Q</span></div>
+    <div class="shortcut"><span>New Deal</span><span class="key">Ctrl+N</span></div>
+    <div class="shortcut"><span>Search</span><span class="key">Ctrl+K</span></div>
+    <div class="shortcut"><span>Sync Inventory</span><span class="key">Ctrl+S</span></div>
+  </div>
+
+  <button class="close-btn" onclick="google.script.host.close()">Close</button>
+</body>
+</html>

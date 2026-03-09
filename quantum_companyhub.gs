@@ -135,10 +135,10 @@ function mapToCompanyHubStage(stage) {
 function calculateDealProbability(deal) {
   let probability = 10; // Base probability
 
-  if (deal.verdict === '🔥 HOT DEAL') probability = 80;
-  else if (deal.verdict === '✅ SOLID DEAL') probability = 60;
-  else if (deal.verdict === '⚠️ PORTFOLIO FOUNDATION') probability = 40;
-  else if (deal.verdict === '❌ PASS') probability = 5;
+  if (deal.verdict && deal.verdict === '🔥 HOT DEAL') probability = 80;
+  else if (deal.verdict && deal.verdict === '✅ SOLID DEAL') probability = 60;
+  else if (deal.verdict && deal.verdict === '⚠️ PORTFOLIO FOUNDATION') probability = 40;
+  else if (deal.verdict && deal.verdict === '❌ PASS') probability = 5;
 
   // Adjust based on stage
   if (deal.stage === 'APPOINTMENT_SET') probability += 20;
@@ -166,8 +166,8 @@ function calculateExpectedCloseDate(deal) {
   }
 
   // Adjust based on deal quality
-  if (deal.verdict === '🔥 HOT DEAL') daysToClose = Math.floor(daysToClose * 0.7);
-  else if (deal.verdict === '❌ PASS') daysToClose = Math.floor(daysToClose * 2);
+  if (deal.verdict && deal.verdict === '🔥 HOT DEAL') daysToClose = Math.floor(daysToClose * 0.7);
+  else if (deal.verdict && deal.verdict === '❌ PASS') daysToClose = Math.floor(daysToClose * 2);
 
   const closeDate = new Date(today);
   closeDate.setDate(closeDate.getDate() + daysToClose);
@@ -179,8 +179,8 @@ function generateCompanyHubTags(deal) {
   const tags = [];
 
   // Verdict tags
-  if (deal.verdict.includes('HOT')) tags.push('hot-deal');
-  if (deal.verdict.includes('SOLID')) tags.push('solid-deal');
+  if (deal.verdict && deal.verdict.includes('HOT')) tags.push('hot-deal');
+  if (deal.verdict && deal.verdict.includes('SOLID')) tags.push('solid-deal');
 
   // Platform tag
   tags.push(deal.platform.toLowerCase());

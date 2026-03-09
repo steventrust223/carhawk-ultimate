@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #1a1a2e; color: #e0e0e0; font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; }
+    h2 { color: #00d4ff; margin-bottom: 8px; }
+    p.desc { color: #aaa; font-size: 13px; margin-bottom: 20px; }
+    .conversation-list { margin-bottom: 14px; }
+    .convo { background: #16213e; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; border: 1px solid #00d4ff22; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: border-color 0.2s; }
+    .convo:hover { border-color: #00d4ff; }
+    .convo-left { display: flex; gap: 10px; align-items: center; }
+    .avatar { width: 36px; height: 36px; background: #00d4ff22; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #00d4ff; font-weight: 700; font-size: 14px; }
+    .convo-name { font-weight: 600; font-size: 14px; }
+    .convo-preview { color: #aaa; font-size: 12px; margin-top: 2px; max-width: 280px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .convo-time { color: #aaa; font-size: 11px; white-space: nowrap; }
+    .unread-dot { width: 8px; height: 8px; background: #00d4ff; border-radius: 50%; margin-top: 4px; }
+    .chat-area { background: #16213e; border-radius: 8px; padding: 16px; margin-bottom: 14px; border: 1px solid #00d4ff22; display: none; }
+    .chat-area h3 { color: #00d4ff; font-size: 14px; margin-bottom: 12px; }
+    .msg { margin-bottom: 10px; max-width: 80%; }
+    .msg.incoming { text-align: left; }
+    .msg.outgoing { text-align: right; margin-left: auto; }
+    .msg .bubble { display: inline-block; padding: 8px 12px; border-radius: 12px; font-size: 13px; line-height: 1.4; }
+    .msg.incoming .bubble { background: #1a1a2e; }
+    .msg.outgoing .bubble { background: #00d4ff22; color: #e0e0e0; }
+    .msg .timestamp { font-size: 10px; color: #666; margin-top: 2px; }
+    .close-btn {
+      width: 100%; padding: 10px; background: #00d4ff;
+      color: #1a1a2e; border: none; border-radius: 6px; font-size: 14px;
+      font-weight: 600; cursor: pointer;
+    }
+    .close-btn:hover { background: #00b8d9; }
+  </style>
+</head>
+<body>
+  <h2>SMS Conversations</h2>
+  <p class="desc">View and manage SMS conversations with leads and customers via SMS-iT integration.</p>
+
+  <div class="conversation-list">
+    <div class="convo" onclick="showChat()">
+      <div class="convo-left">
+        <div class="avatar">JD</div>
+        <div><div class="convo-name">John Davis</div><div class="convo-preview">Yes, I'm interested in the Accord. When can I come see it?</div></div>
+      </div>
+      <div style="text-align:right"><div class="convo-time">2m ago</div><div class="unread-dot"></div></div>
+    </div>
+    <div class="convo">
+      <div class="convo-left">
+        <div class="avatar">SM</div>
+        <div><div class="convo-name">Sarah Miller</div><div class="convo-preview">Thanks! I'll be there at 11 for the delivery.</div></div>
+      </div>
+      <div><div class="convo-time">1h ago</div></div>
+    </div>
+    <div class="convo">
+      <div class="convo-left">
+        <div class="avatar">MR</div>
+        <div><div class="convo-name">Mike Ross</div><div class="convo-preview">Can you send me the Carfax for the F-150?</div></div>
+      </div>
+      <div><div class="convo-time">3h ago</div></div>
+    </div>
+    <div class="convo">
+      <div class="convo-left">
+        <div class="avatar">LK</div>
+        <div><div class="convo-name">Lisa Kim</div><div class="convo-preview">Got it, thanks for the info!</div></div>
+      </div>
+      <div><div class="convo-time">Yesterday</div></div>
+    </div>
+  </div>
+
+  <div class="chat-area" id="chatArea">
+    <h3>John Davis</h3>
+    <div class="msg outgoing"><div class="bubble">Hi John! We have a 2022 Honda Accord that just came in. Would you like to take a look?</div><div class="timestamp">10:15 AM</div></div>
+    <div class="msg incoming"><div class="bubble">Yes, I'm interested in the Accord. When can I come see it?</div><div class="timestamp">10:17 AM</div></div>
+    <div class="msg outgoing"><div class="bubble">We're open today until 7 PM. I can have it ready for a test drive anytime!</div><div class="timestamp">10:18 AM</div></div>
+  </div>
+
+  <button class="close-btn" onclick="google.script.host.close()">Close</button>
+
+  <script>
+    function showChat() {
+      document.getElementById('chatArea').style.display = 'block';
+    }
+  </script>
+</body>
+</html>

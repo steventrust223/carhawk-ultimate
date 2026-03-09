@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #1a1a2e; color: #e0e0e0; font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; }
+    h2 { color: #00d4ff; margin-bottom: 8px; }
+    p.desc { color: #aaa; font-size: 13px; margin-bottom: 20px; }
+    .card { background: #16213e; border-radius: 8px; padding: 16px; margin-bottom: 14px; border: 1px solid #00d4ff22; }
+    .card h3 { color: #00d4ff; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+    .appt { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid #00d4ff11; }
+    .appt:last-child { border-bottom: none; }
+    .appt-time { flex-shrink: 0; text-align: center; width: 60px; }
+    .appt-time .time { color: #00d4ff; font-weight: 700; font-size: 15px; }
+    .appt-time .period { color: #aaa; font-size: 11px; }
+    .appt-details .appt-name { font-weight: 600; font-size: 14px; }
+    .appt-details .appt-info { color: #aaa; font-size: 12px; margin-top: 2px; }
+    .appt-type { font-size: 11px; padding: 2px 8px; border-radius: 10px; margin-top: 4px; display: inline-block; }
+    .appt-type.test-drive { background: #00d4ff22; color: #00d4ff; }
+    .appt-type.delivery { background: #00e67622; color: #00e676; }
+    .appt-type.inspection { background: #ffc10722; color: #ffc107; }
+    .btn-row { display: flex; gap: 10px; margin-top: 16px; }
+    .btn { flex: 1; padding: 10px; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .btn-primary { background: #00d4ff; color: #1a1a2e; }
+    .btn-primary:hover { background: #00b8d9; }
+    .btn-close { background: #16213e; color: #e0e0e0; border: 1px solid #00d4ff44; }
+    .btn-close:hover { border-color: #00d4ff; }
+  </style>
+</head>
+<body>
+  <h2>Appointment Manager</h2>
+  <p class="desc">Schedule and track test drives, vehicle deliveries, inspections, and customer meetings.</p>
+
+  <div class="card">
+    <h3>Today's Appointments</h3>
+    <div class="appt">
+      <div class="appt-time"><div class="time">9:30</div><div class="period">AM</div></div>
+      <div class="appt-details">
+        <div class="appt-name">John Davis</div>
+        <div class="appt-info">2022 Honda Accord - Test Drive</div>
+        <span class="appt-type test-drive">Test Drive</span>
+      </div>
+    </div>
+    <div class="appt">
+      <div class="appt-time"><div class="time">11:00</div><div class="period">AM</div></div>
+      <div class="appt-details">
+        <div class="appt-name">Sarah Miller</div>
+        <div class="appt-info">2021 RAV4 - Vehicle Delivery</div>
+        <span class="appt-type delivery">Delivery</span>
+      </div>
+    </div>
+    <div class="appt">
+      <div class="appt-time"><div class="time">2:00</div><div class="period">PM</div></div>
+      <div class="appt-details">
+        <div class="appt-name">Mike Ross</div>
+        <div class="appt-info">2023 F-150 - Pre-Purchase Inspection</div>
+        <span class="appt-type inspection">Inspection</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="alert('New appointment form coming soon')">New Appointment</button>
+    <button class="btn btn-close" onclick="google.script.host.close()">Close</button>
+  </div>
+</body>
+</html>

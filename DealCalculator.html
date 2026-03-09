@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #1a1a2e; color: #e0e0e0; font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; }
+    h2 { color: #00d4ff; margin-bottom: 8px; }
+    p.desc { color: #aaa; font-size: 13px; margin-bottom: 20px; }
+    .card { background: #16213e; border-radius: 8px; padding: 16px; margin-bottom: 14px; border: 1px solid #00d4ff22; }
+    label { display: block; color: #00d4ff; font-size: 12px; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+    input {
+      width: 100%; padding: 10px; background: #1a1a2e; border: 1px solid #00d4ff44;
+      border-radius: 6px; color: #e0e0e0; font-size: 14px; margin-bottom: 10px;
+    }
+    input:focus { outline: none; border-color: #00d4ff; }
+    .result-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #00d4ff11; }
+    .result-label { color: #aaa; }
+    .result-value { font-weight: 600; }
+    .result-value.positive { color: #00e676; }
+    .result-value.negative { color: #ff5252; }
+    .total { font-size: 18px; padding-top: 10px; border-bottom: none; }
+    .btn-row { display: flex; gap: 10px; margin-top: 16px; }
+    .btn { flex: 1; padding: 10px; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .btn-primary { background: #00d4ff; color: #1a1a2e; }
+    .btn-primary:hover { background: #00b8d9; }
+    .btn-close { background: #16213e; color: #e0e0e0; border: 1px solid #00d4ff44; }
+    .btn-close:hover { border-color: #00d4ff; }
+  </style>
+</head>
+<body>
+  <h2>Deal Calculator</h2>
+  <p class="desc">Calculate projected profit on a deal including purchase price, repairs, fees, and estimated sale price.</p>
+
+  <div class="card">
+    <label>Purchase Price ($)</label>
+    <input type="number" id="purchase" placeholder="0.00" oninput="calculate()">
+    <label>Repair / Reconditioning ($)</label>
+    <input type="number" id="repairs" placeholder="0.00" oninput="calculate()">
+    <label>Transport / Fees ($)</label>
+    <input type="number" id="fees" placeholder="0.00" oninput="calculate()">
+    <label>Expected Sale Price ($)</label>
+    <input type="number" id="sale" placeholder="0.00" oninput="calculate()">
+  </div>
+
+  <div class="card" id="results">
+    <div class="result-row"><span class="result-label">Total Cost</span><span class="result-value" id="totalCost">$0</span></div>
+    <div class="result-row"><span class="result-label">Gross Profit</span><span class="result-value" id="grossProfit">$0</span></div>
+    <div class="result-row"><span class="result-label">Margin</span><span class="result-value" id="margin">0%</span></div>
+    <div class="result-row total"><span class="result-label" style="color:#e0e0e0;">Net Profit</span><span class="result-value" id="netProfit">$0</span></div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="calculate()">Calculate</button>
+    <button class="btn btn-close" onclick="google.script.host.close()">Close</button>
+  </div>
+
+  <script>
+    function calculate() {
+      var purchase = parseFloat(document.getElementById('purchase').value) || 0;
+      var repairs = parseFloat(document.getElementById('repairs').value) || 0;
+      var fees = parseFloat(document.getElementById('fees').value) || 0;
+      var sale = parseFloat(document.getElementById('sale').value) || 0;
+      var totalCost = purchase + repairs + fees;
+      var profit = sale - totalCost;
+      var margin = sale > 0 ? ((profit / sale) * 100).toFixed(1) : 0;
+
+      document.getElementById('totalCost').textContent = '$' + totalCost.toLocaleString();
+      var profitEl = document.getElementById('grossProfit');
+      profitEl.textContent = '$' + profit.toLocaleString();
+      profitEl.className = 'result-value ' + (profit >= 0 ? 'positive' : 'negative');
+      document.getElementById('margin').textContent = margin + '%';
+      var netEl = document.getElementById('netProfit');
+      netEl.textContent = '$' + profit.toLocaleString();
+      netEl.className = 'result-value ' + (profit >= 0 ? 'positive' : 'negative');
+    }
+  </script>
+</body>
+</html>

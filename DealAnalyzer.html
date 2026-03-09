@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #1a1a2e; color: #e0e0e0; font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; }
+    h2 { color: #00d4ff; margin-bottom: 8px; }
+    p.desc { color: #aaa; font-size: 13px; margin-bottom: 20px; }
+    .card { background: #16213e; border-radius: 8px; padding: 16px; margin-bottom: 14px; border: 1px solid #00d4ff22; }
+    label { display: block; color: #00d4ff; font-size: 12px; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+    input, select, textarea {
+      width: 100%; padding: 10px; background: #1a1a2e; border: 1px solid #00d4ff44;
+      border-radius: 6px; color: #e0e0e0; font-size: 14px; margin-bottom: 10px;
+    }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #00d4ff; }
+    .btn-row { display: flex; gap: 10px; margin-top: 16px; }
+    .btn {
+      flex: 1; padding: 10px; border: none; border-radius: 6px; font-size: 14px;
+      font-weight: 600; cursor: pointer;
+    }
+    .btn-primary { background: #00d4ff; color: #1a1a2e; }
+    .btn-primary:hover { background: #00b8d9; }
+    .btn-close { background: #16213e; color: #e0e0e0; border: 1px solid #00d4ff44; }
+    .btn-close:hover { border-color: #00d4ff; }
+    #results { display: none; }
+    .result-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #00d4ff11; }
+    .result-label { color: #aaa; }
+    .result-value { color: #00d4ff; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h2>Deal Analyzer</h2>
+  <p class="desc">Evaluate potential vehicle deals across platforms. Enter details to calculate projected profit and risk score.</p>
+
+  <div class="card">
+    <label>Platform</label>
+    <select id="platform">
+      <option value="">Select platform...</option>
+    </select>
+    <label>Vehicle (Year Make Model)</label>
+    <input type="text" id="vehicle" placeholder="e.g. 2021 Toyota Camry">
+    <label>Listing Price ($)</label>
+    <input type="number" id="listPrice" placeholder="0.00">
+    <label>Estimated Market Value ($)</label>
+    <input type="number" id="marketValue" placeholder="0.00">
+    <label>Notes</label>
+    <textarea id="notes" rows="3" placeholder="Additional details..."></textarea>
+  </div>
+
+  <div id="results" class="card">
+    <h3 style="color:#00d4ff; margin-bottom:10px; font-size:14px;">Analysis Results</h3>
+    <div class="result-item"><span class="result-label">Spread</span><span class="result-value" id="resSpread">--</span></div>
+    <div class="result-item"><span class="result-label">Margin</span><span class="result-value" id="resMargin">--</span></div>
+    <div class="result-item"><span class="result-label">Risk Score</span><span class="result-value" id="resRisk">--</span></div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="analyze()">Analyze Deal</button>
+    <button class="btn btn-close" onclick="google.script.host.close()">Close</button>
+  </div>
+
+  <script>
+    var platforms = <?!= JSON.stringify(platforms || []) ?>;
+
+    (function loadPlatforms() {
+      var sel = document.getElementById('platform');
+      platforms.forEach(function(p) {
+        var opt = document.createElement('option');
+        opt.value = p;
+        opt.textContent = p;
+        sel.appendChild(opt);
+      });
+    })();
+
+    function analyze() {
+      var listPrice = parseFloat(document.getElementById('listPrice').value) || 0;
+      var marketValue = parseFloat(document.getElementById('marketValue').value) || 0;
+      var spread = marketValue - listPrice;
+      var margin = marketValue > 0 ? ((spread / marketValue) * 100).toFixed(1) : 0;
+      var risk = spread > 2000 ? 'Low' : spread > 500 ? 'Medium' : 'High';
+
+      document.getElementById('resSpread').textContent = '$' + spread.toLocaleString();
+      document.getElementById('resMargin').textContent = margin + '%';
+      document.getElementById('resRisk').textContent = risk;
+      document.getElementById('results').style.display = 'block';
+    }
+  </script>
+</body>
+</html>

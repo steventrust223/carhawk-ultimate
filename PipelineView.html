@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #1a1a2e; color: #e0e0e0; font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; }
+    h2 { color: #00d4ff; margin-bottom: 8px; }
+    p.desc { color: #aaa; font-size: 13px; margin-bottom: 20px; }
+    .pipeline { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 10px; }
+    .stage { flex: 0 0 200px; background: #16213e; border-radius: 8px; padding: 12px; border: 1px solid #00d4ff22; }
+    .stage-header { color: #00d4ff; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; justify-content: space-between; }
+    .stage-count { background: #00d4ff22; color: #00d4ff; border-radius: 10px; padding: 1px 8px; font-size: 11px; }
+    .deal-card { background: #1a1a2e; border-radius: 6px; padding: 10px; margin-bottom: 8px; border: 1px solid #00d4ff11; }
+    .deal-card .name { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+    .deal-card .vehicle { color: #aaa; font-size: 12px; }
+    .deal-card .price { color: #00d4ff; font-size: 13px; font-weight: 600; margin-top: 4px; }
+    .close-btn {
+      margin-top: 20px; width: 100%; padding: 10px; background: #00d4ff;
+      color: #1a1a2e; border: none; border-radius: 6px; font-size: 14px;
+      font-weight: 600; cursor: pointer;
+    }
+    .close-btn:hover { background: #00b8d9; }
+  </style>
+</head>
+<body>
+  <h2>Sales Pipeline</h2>
+  <p class="desc">Visualize deals moving through your sales stages. Drag deals between columns to update status.</p>
+
+  <div class="pipeline">
+    <div class="stage">
+      <div class="stage-header">New Leads <span class="stage-count">3</span></div>
+      <div class="deal-card"><div class="name">John Davis</div><div class="vehicle">2022 Honda Accord</div><div class="price">$24,500</div></div>
+      <div class="deal-card"><div class="name">Amy Chen</div><div class="vehicle">2021 Toyota Camry</div><div class="price">$22,000</div></div>
+      <div class="deal-card"><div class="name">Robert Lee</div><div class="vehicle">2023 Hyundai Tucson</div><div class="price">$28,900</div></div>
+    </div>
+    <div class="stage">
+      <div class="stage-header">Contacted <span class="stage-count">2</span></div>
+      <div class="deal-card"><div class="name">Sarah Miller</div><div class="vehicle">2021 RAV4</div><div class="price">$27,200</div></div>
+      <div class="deal-card"><div class="name">Tom Wilson</div><div class="vehicle">2020 BMW X3</div><div class="price">$31,500</div></div>
+    </div>
+    <div class="stage">
+      <div class="stage-header">Negotiating <span class="stage-count">1</span></div>
+      <div class="deal-card"><div class="name">Mike Ross</div><div class="vehicle">2023 Ford F-150</div><div class="price">$38,000</div></div>
+    </div>
+    <div class="stage">
+      <div class="stage-header">Closed Won <span class="stage-count">1</span></div>
+      <div class="deal-card"><div class="name">Lisa Kim</div><div class="vehicle">2022 Tesla Model 3</div><div class="price">$35,200</div></div>
+    </div>
+  </div>
+
+  <button class="close-btn" onclick="google.script.host.close()">Close</button>
+</body>
+</html>

@@ -82,7 +82,7 @@ function getQuickStats() {
 
   return {
     totalDeals: deals.length,
-    hotDeals: deals.filter(d => d.verdict.includes('🔥')).length,
+    hotDeals: deals.filter(d => d.verdict && d.verdict.includes('🔥')).length,
     totalProfit: deals.reduce((sum, d) => sum + (d.profit || 0), 0),
     avgROI: deals.length > 0 ?
       Math.round(deals.reduce((sum, d) => sum + (d.roi || 0), 0) / deals.length) : 0,
