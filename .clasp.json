@@ -1,7 +1,6 @@
 {
   "scriptId": "YOUR_SCRIPT_ID_HERE",
   "rootDir": ".",
-  "fileExtension": "gs",
   "filePushOrder": [
     "quantum_config.gs",
     "quantum_core.gs",
