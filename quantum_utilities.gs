@@ -364,7 +364,7 @@ function launchCampaignUI() {
 
     // Get hot deals
     const deals = getTopDeals(50);
-    const hotDeals = deals.filter(d => d.verdict.includes('🔥') || d.verdict.includes('✅'));
+    const hotDeals = deals.filter(d => d.verdict && (d.verdict.includes('🔥') || d.verdict.includes('✅')));
 
     if (hotDeals.length === 0) {
       ui.alert('No hot deals found for campaign.');

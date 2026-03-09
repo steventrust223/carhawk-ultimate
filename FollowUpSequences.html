@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #1a1a2e; color: #e0e0e0; font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; }
+    h1 { color: #00d4ff; font-size: 20px; margin-bottom: 8px; }
+    p.desc { color: #8899aa; font-size: 13px; margin-bottom: 20px; }
+    .card { background: #16213e; border-radius: 8px; padding: 16px; margin-bottom: 12px; border: 1px solid #00d4ff22; }
+    .card h3 { color: #00d4ff; font-size: 14px; margin-bottom: 8px; }
+    .seq-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 0; border-bottom: 1px solid #ffffff0a;
+    }
+    .seq-item:last-child { border-bottom: none; }
+    .seq-name { font-size: 13px; font-weight: 600; }
+    .seq-detail { color: #8899aa; font-size: 11px; margin-top: 2px; }
+    .badge {
+      font-size: 11px; padding: 3px 10px; border-radius: 10px;
+    }
+    .badge-active { background: #00d4ff22; color: #00d4ff; }
+    .badge-paused { background: #ff990022; color: #ff9900; }
+    .btn-row { display: flex; gap: 10px; margin-top: 16px; }
+    .primary-btn {
+      flex: 1; padding: 10px; background: #00d4ff; color: #1a1a2e; border: none;
+      border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600;
+    }
+    .primary-btn:hover { background: #00b8d9; }
+    .close-btn {
+      flex: 1; padding: 10px; background: #16213e; color: #00d4ff;
+      border: 1px solid #00d4ff; border-radius: 6px; cursor: pointer; font-size: 14px;
+    }
+    .close-btn:hover { background: #00d4ff; color: #1a1a2e; }
+  </style>
+</head>
+<body>
+  <h1>Follow-Up Sequences</h1>
+  <p class="desc">Create and manage automated follow-up sequences to nurture leads through your sales funnel.</p>
+
+  <div class="card">
+    <h3>Active Sequences</h3>
+    <div class="seq-item">
+      <div><div class="seq-name">New Lead Welcome</div><div class="seq-detail">5 steps - 23 active contacts</div></div>
+      <span class="badge badge-active">Active</span>
+    </div>
+    <div class="seq-item">
+      <div><div class="seq-name">Post-Test Drive</div><div class="seq-detail">3 steps - 8 active contacts</div></div>
+      <span class="badge badge-active">Active</span>
+    </div>
+    <div class="seq-item">
+      <div><div class="seq-name">Re-engagement</div><div class="seq-detail">4 steps - 15 active contacts</div></div>
+      <span class="badge badge-paused">Paused</span>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="primary-btn" onclick="createSequence()">New Sequence</button>
+    <button class="close-btn" onclick="google.script.host.close()">Close</button>
+  </div>
+
+  <script>
+    function createSequence() {
+      google.script.run.withSuccessHandler(function() {
+        alert('Sequence created.');
+      }).createFollowUpSequence();
+    }
+  </script>
+</body>
+</html>

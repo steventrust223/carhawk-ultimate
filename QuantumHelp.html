@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #1a1a2e; color: #eee; padding: 20px; }
+    h1 { color: #00d4ff; text-align: center; margin-bottom: 20px; font-size: 22px; }
+    .section { background: #16213e; border-radius: 10px; padding: 15px; margin-bottom: 15px; }
+    .section h2 { font-size: 16px; color: #00d4ff; margin-bottom: 10px; }
+    .help-item { padding: 10px 0; border-bottom: 1px solid #1a1a2e; }
+    .help-item:last-child { border-bottom: none; }
+    .help-item strong { color: #00d4ff; }
+    .help-item p { color: #aaa; font-size: 13px; margin-top: 4px; }
+    .btn { padding: 8px 16px; border: none; border-radius: 5px; cursor: pointer; background: #00d4ff; color: #000; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>CarHawk Ultimate - Help</h1>
+  <div class="section">
+    <h2>Getting Started</h2>
+    <div class="help-item">
+      <strong>1. Initialize System</strong>
+      <p>Go to CarHawk Ultimate > Quantum Operations > Initialize System to set up all required sheets and configurations.</p>
+    </div>
+    <div class="help-item">
+      <strong>2. Import Deals</strong>
+      <p>Use Quantum Sync to import deals from Browse.ai integrations, or manually add deals to the Master Import sheet.</p>
+    </div>
+    <div class="help-item">
+      <strong>3. Run AI Analysis</strong>
+      <p>Execute AI Analysis from the Quantum Operations menu to analyze deals and generate verdicts.</p>
+    </div>
+    <div class="help-item">
+      <strong>4. Export to CRM</strong>
+      <p>Export hot deals to SMS-iT or CompanyHub from the CRM & Export menu.</p>
+    </div>
+  </div>
+  <div class="section">
+    <h2>Key Features</h2>
+    <div class="help-item">
+      <strong>Deal Gallery</strong>
+      <p>Visual gallery of your top deals with quick action buttons.</p>
+    </div>
+    <div class="help-item">
+      <strong>Lead Management</strong>
+      <p>Track leads through your pipeline from import to close.</p>
+    </div>
+    <div class="help-item">
+      <strong>Turo Module</strong>
+      <p>Analyze deals for Turo rental potential and manage your fleet.</p>
+    </div>
+  </div>
+  <div style="text-align:center; margin-top:15px;">
+    <button class="btn" onclick="google.script.host.close()">Close</button>
+  </div>
+</body>
+</html>

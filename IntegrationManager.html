@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #1a1a2e; color: #e0e0e0; font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; }
+    h1 { color: #00d4ff; font-size: 20px; margin-bottom: 8px; }
+    p.desc { color: #8899aa; font-size: 13px; margin-bottom: 20px; }
+    .card { background: #16213e; border-radius: 8px; padding: 16px; margin-bottom: 12px; border: 1px solid #00d4ff22; }
+    .integration {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px 0; border-bottom: 1px solid #ffffff0a;
+    }
+    .integration:last-child { border-bottom: none; }
+    .int-info { flex: 1; }
+    .int-name { font-size: 14px; font-weight: 600; }
+    .int-desc { color: #8899aa; font-size: 11px; margin-top: 2px; }
+    .badge { font-size: 11px; padding: 3px 10px; border-radius: 10px; }
+    .badge-connected { background: #00ff8822; color: #00ff88; }
+    .badge-disconnected { background: #ff444422; color: #ff4466; }
+    .badge-available { background: #8899aa22; color: #8899aa; }
+    .connect-btn {
+      padding: 6px 14px; background: transparent; color: #00d4ff; border: 1px solid #00d4ff;
+      border-radius: 6px; cursor: pointer; font-size: 12px; margin-left: 10px;
+    }
+    .connect-btn:hover { background: #00d4ff; color: #1a1a2e; }
+    .close-btn {
+      display: block; width: 100%; padding: 10px; background: #16213e; color: #00d4ff;
+      border: 1px solid #00d4ff; border-radius: 6px; cursor: pointer; font-size: 14px; margin-top: 16px;
+    }
+    .close-btn:hover { background: #00d4ff; color: #1a1a2e; }
+  </style>
+</head>
+<body>
+  <h1>Integration Manager</h1>
+  <p class="desc">Connect and manage third-party services including Browse.ai, SMS-iT, and other platforms.</p>
+
+  <div class="card">
+    <div class="integration">
+      <div class="int-info"><div class="int-name">Browse.ai</div><div class="int-desc">Web scraping and monitoring for vehicle listings</div></div>
+      <span class="badge badge-connected">Connected</span>
+      <button class="connect-btn" onclick="configure('browseai')">Configure</button>
+    </div>
+    <div class="integration">
+      <div class="int-info"><div class="int-name">SMS-iT</div><div class="int-desc">SMS messaging and conversation management</div></div>
+      <span class="badge badge-connected">Connected</span>
+      <button class="connect-btn" onclick="configure('smsit')">Configure</button>
+    </div>
+    <div class="integration">
+      <div class="int-info"><div class="int-name">OpenAI</div><div class="int-desc">AI-powered analysis and content generation</div></div>
+      <span class="badge badge-disconnected">Disconnected</span>
+      <button class="connect-btn" onclick="configure('openai')">Connect</button>
+    </div>
+    <div class="integration">
+      <div class="int-info"><div class="int-name">Google Calendar</div><div class="int-desc">Appointment scheduling and reminders</div></div>
+      <span class="badge badge-available">Available</span>
+      <button class="connect-btn" onclick="configure('gcal')">Connect</button>
+    </div>
+    <div class="integration">
+      <div class="int-info"><div class="int-name">Twilio</div><div class="int-desc">Voice calls and phone number management</div></div>
+      <span class="badge badge-available">Available</span>
+      <button class="connect-btn" onclick="configure('twilio')">Connect</button>
+    </div>
+  </div>
+
+  <button class="close-btn" onclick="google.script.host.close()">Close</button>
+
+  <script>
+    function configure(service) {
+      google.script.run.withSuccessHandler(function(result) {
+        alert(service + ' configuration updated.');
+      }).configureIntegration(service);
+    }
+  </script>
+</body>
+</html>

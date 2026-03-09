@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #1a1a2e; color: #e0e0e0; font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; }
+    h1 { color: #00d4ff; font-size: 20px; margin-bottom: 8px; }
+    p.desc { color: #8899aa; font-size: 13px; margin-bottom: 20px; }
+    .search-box {
+      width: 100%; padding: 10px 14px; background: #16213e; border: 1px solid #00d4ff33;
+      border-radius: 8px; color: #e0e0e0; font-size: 14px; margin-bottom: 16px;
+    }
+    .search-box:focus { outline: none; border-color: #00d4ff; }
+    .card { background: #16213e; border-radius: 8px; padding: 16px; margin-bottom: 12px; border: 1px solid #00d4ff22; }
+    .card h3 { color: #00d4ff; font-size: 14px; margin-bottom: 8px; }
+    .kb-item {
+      display: block; padding: 10px 0; border-bottom: 1px solid #ffffff0a; cursor: pointer;
+    }
+    .kb-item:last-child { border-bottom: none; }
+    .kb-item:hover { color: #00d4ff; }
+    .kb-title { font-size: 13px; font-weight: 600; }
+    .kb-meta { color: #8899aa; font-size: 11px; margin-top: 2px; }
+    .category-tag {
+      display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 10px;
+      background: #00d4ff22; color: #00d4ff; margin-right: 6px;
+    }
+    .close-btn {
+      display: block; width: 100%; padding: 10px; background: #16213e; color: #00d4ff;
+      border: 1px solid #00d4ff; border-radius: 6px; cursor: pointer; font-size: 14px; margin-top: 16px;
+    }
+    .close-btn:hover { background: #00d4ff; color: #1a1a2e; }
+  </style>
+</head>
+<body>
+  <h1>Knowledge Base</h1>
+  <p class="desc">Search vehicle specifications, market data, and reference guides for informed decision-making.</p>
+
+  <input type="text" class="search-box" placeholder="Search vehicles, specs, guides..." oninput="search(this.value)">
+
+  <div class="card">
+    <h3>Categories</h3>
+    <div class="kb-item"><span class="category-tag">Specs</span><span class="kb-title">Vehicle Specifications</span><div class="kb-meta">Make, model, year data and trim details</div></div>
+    <div class="kb-item"><span class="category-tag">Market</span><span class="kb-title">Market Valuations</span><div class="kb-meta">Current market prices and trends</div></div>
+    <div class="kb-item"><span class="category-tag">Guide</span><span class="kb-title">Buying Guides</span><div class="kb-meta">Inspection checklists and tips</div></div>
+    <div class="kb-item"><span class="category-tag">History</span><span class="kb-title">Common Issues</span><div class="kb-meta">Known problems by make and model</div></div>
+  </div>
+
+  <button class="close-btn" onclick="google.script.host.close()">Close</button>
+
+  <script>
+    function search(query) {
+      if (query.length > 2) {
+        google.script.run.withSuccessHandler(function(results) {
+          // Render search results
+        }).searchKnowledgeBase(query);
+      }
+    }
+  </script>
+</body>
+</html>

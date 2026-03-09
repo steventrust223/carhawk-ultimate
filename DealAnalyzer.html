@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #1a1a2e; color: #e0e0e0; font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; }
+    h1 { color: #00d4ff; font-size: 20px; margin-bottom: 8px; }
+    p.desc { color: #8899aa; font-size: 13px; margin-bottom: 20px; }
+    .card { background: #16213e; border-radius: 8px; padding: 16px; margin-bottom: 16px; border: 1px solid #00d4ff22; }
+    label { display: block; color: #8899aa; font-size: 12px; margin-bottom: 4px; }
+    input, select, textarea {
+      width: 100%; padding: 8px 10px; background: #1a1a2e; border: 1px solid #00d4ff33;
+      border-radius: 6px; color: #e0e0e0; font-size: 13px; margin-bottom: 12px;
+    }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #00d4ff; }
+    .btn-row { display: flex; gap: 10px; margin-top: 8px; }
+    .primary-btn {
+      flex: 1; padding: 10px; background: #00d4ff; color: #1a1a2e; border: none;
+      border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600;
+    }
+    .primary-btn:hover { background: #00b8d9; }
+    .close-btn {
+      flex: 1; padding: 10px; background: #16213e; color: #00d4ff;
+      border: 1px solid #00d4ff; border-radius: 6px; cursor: pointer; font-size: 14px;
+    }
+    .close-btn:hover { background: #00d4ff; color: #1a1a2e; }
+    #results { margin-top: 16px; display: none; }
+    #results .card { border-color: #00d4ff55; }
+  </style>
+</head>
+<body>
+  <h1>Deal Analyzer</h1>
+  <p class="desc">Evaluate potential deals by analyzing costs, market value, and expected profit margins.</p>
+
+  <div class="card">
+    <label>Platform</label>
+    <select id="platform">
+      <option value="">Select platform...</option>
+    </select>
+    <label>Vehicle (Year Make Model)</label>
+    <input type="text" id="vehicle" placeholder="e.g. 2021 Toyota Camry">
+    <label>Listing Price ($)</label>
+    <input type="number" id="listPrice" placeholder="0.00">
+    <label>Estimated Repair Cost ($)</label>
+    <input type="number" id="repairCost" placeholder="0.00">
+    <label>Notes</label>
+    <textarea id="notes" rows="3" placeholder="Additional deal notes..."></textarea>
+  </div>
+
+  <div class="btn-row">
+    <button class="primary-btn" onclick="analyzeDeal()">Analyze Deal</button>
+    <button class="close-btn" onclick="google.script.host.close()">Close</button>
+  </div>
+
+  <div id="results">
+    <div class="card">
+      <h3 style="color:#00d4ff;margin-bottom:8px;">Analysis Results</h3>
+      <div id="resultsContent"></div>
+    </div>
+  </div>
+
+  <script>
+    var platforms = <?!= JSON.stringify(platforms || []) ?>;
+
+    (function init() {
+      var sel = document.getElementById('platform');
+      platforms.forEach(function(p) {
+        var opt = document.createElement('option');
+        opt.value = p;
+        opt.textContent = p;
+        sel.appendChild(opt);
+      });
+    })();
+
+    function analyzeDeal() {
+      var data = {
+        platform: document.getElementById('platform').value,
+        vehicle: document.getElementById('vehicle').value,
+        listPrice: parseFloat(document.getElementById('listPrice').value) || 0,
+        repairCost: parseFloat(document.getElementById('repairCost').value) || 0,
+        notes: document.getElementById('notes').value
+      };
+      google.script.run.withSuccessHandler(function(result) {
+        document.getElementById('resultsContent').innerHTML = result || 'Analysis complete.';
+        document.getElementById('results').style.display = 'block';
+      }).analyzeDeal(data);
+    }
+  </script>
+</body>
+</html>

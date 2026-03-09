@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #1a1a2e; color: #eee; padding: 20px; }
+    h1 { color: #00d4ff; text-align: center; margin-bottom: 20px; font-size: 22px; }
+    .section { background: #16213e; border-radius: 10px; padding: 15px; margin-bottom: 15px; }
+    .section h2 { font-size: 16px; color: #00d4ff; margin-bottom: 10px; }
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; margin-bottom: 5px; color: #aaa; font-size: 13px; }
+    .form-group input { width: 100%; padding: 10px; border: 1px solid #333; border-radius: 5px; background: #0f3460; color: #eee; font-size: 14px; }
+    .btn { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; background: #00d4ff; color: #000; font-weight: bold; font-size: 14px; }
+    .btn-close { background: #333; color: #eee; }
+    .result { padding: 15px; color: #888; text-align: center; }
+    .actions { text-align: center; margin-top: 15px; display: flex; gap: 10px; justify-content: center; }
+  </style>
+</head>
+<body>
+  <h1>Quantum VIN Decoder</h1>
+  <div class="section">
+    <div class="form-group">
+      <label>Enter VIN Number</label>
+      <input type="text" id="vinInput" placeholder="e.g. 1HGBH41JXMN109186" maxlength="17">
+    </div>
+    <div style="text-align:center;">
+      <button class="btn" onclick="decodeVIN()">Decode VIN</button>
+    </div>
+    <div class="result" id="result">Enter a 17-character VIN to decode vehicle information.</div>
+  </div>
+  <div class="actions">
+    <button class="btn btn-close" onclick="google.script.host.close()">Close</button>
+  </div>
+  <script>
+    function decodeVIN() {
+      var vin = document.getElementById('vinInput').value.trim();
+      if (vin.length !== 17) {
+        document.getElementById('result').innerHTML = '<span style="color:#ff6b35">Please enter a valid 17-character VIN.</span>';
+        return;
+      }
+      document.getElementById('result').textContent = 'Decoding VIN...';
+      google.script.run
+        .withSuccessHandler(function(data) {
+          if (data && data.success) {
+            document.getElementById('result').innerHTML = '<pre style="text-align:left;color:#eee">' + JSON.stringify(data.vehicle, null, 2) + '</pre>';
+          } else {
+            document.getElementById('result').innerHTML = '<span style="color:#ff6b35">Could not decode VIN. ' + (data ? data.message : '') + '</span>';
+          }
+        })
+        .withFailureHandler(function(err) {
+          document.getElementById('result').innerHTML = '<span style="color:#ff6b35">Error: ' + err.message + '</span>';
+        })
+        .decodeVIN(vin);
+    }
+  </script>
+</body>
+</html>
