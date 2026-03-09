@@ -3,27 +3,76 @@
 <head>
   <base target="_top">
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; background: #1a1a2e; color: #eee; padding: 20px; }
-    h1 { color: #00d4ff; text-align: center; margin-bottom: 20px; font-size: 22px; }
-    .section { background: #16213e; border-radius: 10px; padding: 15px; margin-bottom: 15px; }
-    .section h2 { font-size: 16px; color: #00d4ff; margin-bottom: 10px; }
-    .info { text-align: center; padding: 40px; color: #888; }
-    .btn { padding: 8px 16px; border: none; border-radius: 5px; cursor: pointer; background: #00d4ff; color: #000; font-weight: bold; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #1a1a2e; color: #e0e0e0; font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; }
+    h2 { color: #00d4ff; margin-bottom: 8px; }
+    p.desc { color: #aaa; font-size: 13px; margin-bottom: 20px; }
+    .card { background: #16213e; border-radius: 8px; padding: 16px; margin-bottom: 12px; border: 1px solid #00d4ff22; }
+    .card h3 { color: #00d4ff; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+    .campaign { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #00d4ff11; }
+    .campaign:last-child { border-bottom: none; }
+    .camp-name { font-weight: 600; font-size: 14px; }
+    .camp-meta { color: #aaa; font-size: 12px; margin-top: 2px; }
+    .camp-stats { display: flex; gap: 16px; font-size: 12px; margin-top: 4px; }
+    .camp-stat { color: #aaa; }
+    .camp-stat span { color: #00d4ff; font-weight: 600; }
+    .badge { font-size: 11px; padding: 3px 10px; border-radius: 10px; font-weight: 600; }
+    .badge.active { background: #00e67622; color: #00e676; }
+    .badge.draft { background: #ffc10722; color: #ffc107; }
+    .badge.completed { background: #00d4ff22; color: #00d4ff; }
+    .btn-row { display: flex; gap: 10px; margin-top: 16px; }
+    .btn { flex: 1; padding: 10px; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .btn-primary { background: #00d4ff; color: #1a1a2e; }
+    .btn-primary:hover { background: #00b8d9; }
+    .btn-close { background: #16213e; color: #e0e0e0; border: 1px solid #00d4ff44; }
+    .btn-close:hover { border-color: #00d4ff; }
   </style>
 </head>
 <body>
-  <h1>Campaign Manager</h1>
-  <div class="section">
-    <h2>Active Campaigns</h2>
-    <div class="info">No active campaigns. Use "Launch Campaign" from the CRM Operations menu to create one.</div>
+  <h2>Campaign Manager</h2>
+  <p class="desc">Create and manage SMS and email marketing campaigns to engage leads and customers.</p>
+
+  <div class="card">
+    <h3>Campaigns</h3>
+    <div class="campaign">
+      <div>
+        <div class="camp-name">Spring Clearance Sale</div>
+        <div class="camp-meta">SMS &middot; Started Mar 1</div>
+        <div class="camp-stats">
+          <div class="camp-stat">Sent: <span>1,240</span></div>
+          <div class="camp-stat">Opened: <span>68%</span></div>
+          <div class="camp-stat">Replied: <span>12%</span></div>
+        </div>
+      </div>
+      <span class="badge active">Active</span>
+    </div>
+    <div class="campaign">
+      <div>
+        <div class="camp-name">Service Reminder Follow-Up</div>
+        <div class="camp-meta">Email &middot; Started Feb 15</div>
+        <div class="camp-stats">
+          <div class="camp-stat">Sent: <span>860</span></div>
+          <div class="camp-stat">Opened: <span>42%</span></div>
+          <div class="camp-stat">Clicked: <span>8%</span></div>
+        </div>
+      </div>
+      <span class="badge completed">Completed</span>
+    </div>
+    <div class="campaign">
+      <div>
+        <div class="camp-name">New Inventory Alert</div>
+        <div class="camp-meta">SMS &middot; Draft</div>
+        <div class="camp-stats">
+          <div class="camp-stat">Recipients: <span>2,100</span></div>
+        </div>
+      </div>
+      <span class="badge draft">Draft</span>
+    </div>
   </div>
-  <div class="section">
-    <h2>Campaign History</h2>
-    <div class="info">No campaign history available.</div>
-  </div>
-  <div style="text-align:center; margin-top:15px;">
-    <button class="btn" onclick="google.script.host.close()">Close</button>
+
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="alert('New campaign wizard coming soon')">New Campaign</button>
+    <button class="btn btn-close" onclick="google.script.host.close()">Close</button>
   </div>
 </body>
 </html>

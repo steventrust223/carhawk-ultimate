@@ -5,66 +5,60 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #1a1a2e; color: #e0e0e0; font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; }
-    h1 { color: #00d4ff; font-size: 20px; margin-bottom: 8px; }
-    p.desc { color: #8899aa; font-size: 13px; margin-bottom: 20px; }
-    .card { background: #16213e; border-radius: 8px; padding: 16px; margin-bottom: 12px; border: 1px solid #00d4ff22; }
-    .card h3 { color: #00d4ff; font-size: 14px; margin-bottom: 8px; }
-    .seq-item {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 10px 0; border-bottom: 1px solid #ffffff0a;
-    }
-    .seq-item:last-child { border-bottom: none; }
-    .seq-name { font-size: 13px; font-weight: 600; }
-    .seq-detail { color: #8899aa; font-size: 11px; margin-top: 2px; }
-    .badge {
-      font-size: 11px; padding: 3px 10px; border-radius: 10px;
-    }
-    .badge-active { background: #00d4ff22; color: #00d4ff; }
-    .badge-paused { background: #ff990022; color: #ff9900; }
+    h2 { color: #00d4ff; margin-bottom: 8px; }
+    p.desc { color: #aaa; font-size: 13px; margin-bottom: 20px; }
+    .card { background: #16213e; border-radius: 8px; padding: 16px; margin-bottom: 14px; border: 1px solid #00d4ff22; }
+    .card h3 { color: #00d4ff; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+    .seq-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #00d4ff11; }
+    .seq-name { font-weight: 600; }
+    .seq-detail { font-size: 12px; color: #aaa; margin-top: 2px; }
+    .badge { font-size: 11px; padding: 3px 10px; border-radius: 10px; font-weight: 600; }
+    .badge.active { background: #00e67622; color: #00e676; }
+    .badge.paused { background: #ffc10722; color: #ffc107; }
+    .step { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #00d4ff11; }
+    .step-num { width: 24px; height: 24px; background: #00d4ff22; color: #00d4ff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; }
+    .step-info { font-size: 13px; }
+    .step-delay { color: #aaa; font-size: 11px; }
     .btn-row { display: flex; gap: 10px; margin-top: 16px; }
-    .primary-btn {
-      flex: 1; padding: 10px; background: #00d4ff; color: #1a1a2e; border: none;
-      border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600;
-    }
-    .primary-btn:hover { background: #00b8d9; }
-    .close-btn {
-      flex: 1; padding: 10px; background: #16213e; color: #00d4ff;
-      border: 1px solid #00d4ff; border-radius: 6px; cursor: pointer; font-size: 14px;
-    }
-    .close-btn:hover { background: #00d4ff; color: #1a1a2e; }
+    .btn { flex: 1; padding: 10px; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .btn-primary { background: #00d4ff; color: #1a1a2e; }
+    .btn-primary:hover { background: #00b8d9; }
+    .btn-close { background: #16213e; color: #e0e0e0; border: 1px solid #00d4ff44; }
+    .btn-close:hover { border-color: #00d4ff; }
   </style>
 </head>
 <body>
-  <h1>Follow-Up Sequences</h1>
-  <p class="desc">Create and manage automated follow-up sequences to nurture leads through your sales funnel.</p>
+  <h2>Follow-Up Sequences</h2>
+  <p class="desc">Manage automated follow-up sequences to nurture leads and re-engage prospects on a schedule.</p>
 
   <div class="card">
     <h3>Active Sequences</h3>
     <div class="seq-item">
-      <div><div class="seq-name">New Lead Welcome</div><div class="seq-detail">5 steps - 23 active contacts</div></div>
-      <span class="badge badge-active">Active</span>
+      <div><div class="seq-name">New Lead Welcome</div><div class="seq-detail">5 steps &middot; 12 active contacts</div></div>
+      <span class="badge active">Active</span>
     </div>
     <div class="seq-item">
-      <div><div class="seq-name">Post-Test Drive</div><div class="seq-detail">3 steps - 8 active contacts</div></div>
-      <span class="badge badge-active">Active</span>
+      <div><div class="seq-name">Post-Test Drive</div><div class="seq-detail">3 steps &middot; 4 active contacts</div></div>
+      <span class="badge active">Active</span>
     </div>
     <div class="seq-item">
-      <div><div class="seq-name">Re-engagement</div><div class="seq-detail">4 steps - 15 active contacts</div></div>
-      <span class="badge badge-paused">Paused</span>
+      <div><div class="seq-name">Re-Engagement</div><div class="seq-detail">4 steps &middot; 0 active contacts</div></div>
+      <span class="badge paused">Paused</span>
     </div>
+  </div>
+
+  <div class="card">
+    <h3>New Lead Welcome Steps</h3>
+    <div class="step"><span class="step-num">1</span><div><div class="step-info">Welcome SMS</div><div class="step-delay">Immediately</div></div></div>
+    <div class="step"><span class="step-num">2</span><div><div class="step-info">Follow-up Call</div><div class="step-delay">After 1 hour</div></div></div>
+    <div class="step"><span class="step-num">3</span><div><div class="step-info">Vehicle Details Email</div><div class="step-delay">After 1 day</div></div></div>
+    <div class="step"><span class="step-num">4</span><div><div class="step-info">Check-in SMS</div><div class="step-delay">After 3 days</div></div></div>
+    <div class="step"><span class="step-num">5</span><div><div class="step-info">Final Offer</div><div class="step-delay">After 7 days</div></div></div>
   </div>
 
   <div class="btn-row">
-    <button class="primary-btn" onclick="createSequence()">New Sequence</button>
-    <button class="close-btn" onclick="google.script.host.close()">Close</button>
+    <button class="btn btn-primary" onclick="alert('Create sequence coming soon')">New Sequence</button>
+    <button class="btn btn-close" onclick="google.script.host.close()">Close</button>
   </div>
-
-  <script>
-    function createSequence() {
-      google.script.run.withSuccessHandler(function() {
-        alert('Sequence created.');
-      }).createFollowUpSequence();
-    }
-  </script>
 </body>
 </html>

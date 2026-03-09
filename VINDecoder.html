@@ -3,55 +3,78 @@
 <head>
   <base target="_top">
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; background: #1a1a2e; color: #eee; padding: 20px; }
-    h1 { color: #00d4ff; text-align: center; margin-bottom: 20px; font-size: 22px; }
-    .section { background: #16213e; border-radius: 10px; padding: 15px; margin-bottom: 15px; }
-    .section h2 { font-size: 16px; color: #00d4ff; margin-bottom: 10px; }
-    .form-group { margin-bottom: 15px; }
-    .form-group label { display: block; margin-bottom: 5px; color: #aaa; font-size: 13px; }
-    .form-group input { width: 100%; padding: 10px; border: 1px solid #333; border-radius: 5px; background: #0f3460; color: #eee; font-size: 14px; }
-    .btn { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; background: #00d4ff; color: #000; font-weight: bold; font-size: 14px; }
-    .btn-close { background: #333; color: #eee; }
-    .result { padding: 15px; color: #888; text-align: center; }
-    .actions { text-align: center; margin-top: 15px; display: flex; gap: 10px; justify-content: center; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #1a1a2e; color: #e0e0e0; font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; }
+    h2 { color: #00d4ff; margin-bottom: 8px; }
+    p.desc { color: #aaa; font-size: 13px; margin-bottom: 20px; }
+    .card { background: #16213e; border-radius: 8px; padding: 16px; margin-bottom: 14px; border: 1px solid #00d4ff22; }
+    label { display: block; color: #00d4ff; font-size: 12px; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+    input {
+      width: 100%; padding: 12px; background: #1a1a2e; border: 1px solid #00d4ff44;
+      border-radius: 6px; color: #e0e0e0; font-size: 16px; font-family: monospace;
+      letter-spacing: 2px; text-transform: uppercase;
+    }
+    input:focus { outline: none; border-color: #00d4ff; }
+    .char-count { text-align: right; font-size: 11px; color: #aaa; margin-top: 4px; }
+    .result-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #00d4ff11; }
+    .result-label { color: #aaa; font-size: 13px; }
+    .result-value { color: #e0e0e0; font-weight: 600; font-size: 13px; }
+    #results { display: none; }
+    .btn-row { display: flex; gap: 10px; margin-top: 16px; }
+    .btn { flex: 1; padding: 10px; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .btn-primary { background: #00d4ff; color: #1a1a2e; }
+    .btn-primary:hover { background: #00b8d9; }
+    .btn-close { background: #16213e; color: #e0e0e0; border: 1px solid #00d4ff44; }
+    .btn-close:hover { border-color: #00d4ff; }
   </style>
 </head>
 <body>
-  <h1>Quantum VIN Decoder</h1>
-  <div class="section">
-    <div class="form-group">
-      <label>Enter VIN Number</label>
-      <input type="text" id="vinInput" placeholder="e.g. 1HGBH41JXMN109186" maxlength="17">
-    </div>
-    <div style="text-align:center;">
-      <button class="btn" onclick="decodeVIN()">Decode VIN</button>
-    </div>
-    <div class="result" id="result">Enter a 17-character VIN to decode vehicle information.</div>
+  <h2>VIN Decoder</h2>
+  <p class="desc">Enter a 17-character VIN to decode vehicle details including make, model, year, engine, and plant info.</p>
+
+  <div class="card">
+    <label>Vehicle Identification Number</label>
+    <input type="text" id="vinInput" maxlength="17" placeholder="Enter 17-character VIN..." oninput="updateCount()">
+    <div class="char-count"><span id="charCount">0</span>/17 characters</div>
   </div>
-  <div class="actions">
+
+  <div class="card" id="results">
+    <div class="result-row"><span class="result-label">Year</span><span class="result-value" id="resYear">--</span></div>
+    <div class="result-row"><span class="result-label">Make</span><span class="result-value" id="resMake">--</span></div>
+    <div class="result-row"><span class="result-label">Model</span><span class="result-value" id="resModel">--</span></div>
+    <div class="result-row"><span class="result-label">Engine</span><span class="result-value" id="resEngine">--</span></div>
+    <div class="result-row"><span class="result-label">Drive Type</span><span class="result-value" id="resDrive">--</span></div>
+    <div class="result-row"><span class="result-label">Plant</span><span class="result-value" id="resPlant">--</span></div>
+    <div class="result-row"><span class="result-label">Country</span><span class="result-value" id="resCountry">--</span></div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="decode()">Decode VIN</button>
     <button class="btn btn-close" onclick="google.script.host.close()">Close</button>
   </div>
+
   <script>
-    function decodeVIN() {
-      var vin = document.getElementById('vinInput').value.trim();
-      if (vin.length !== 17) {
-        document.getElementById('result').innerHTML = '<span style="color:#ff6b35">Please enter a valid 17-character VIN.</span>';
-        return;
-      }
-      document.getElementById('result').textContent = 'Decoding VIN...';
-      google.script.run
-        .withSuccessHandler(function(data) {
-          if (data && data.success) {
-            document.getElementById('result').innerHTML = '<pre style="text-align:left;color:#eee">' + JSON.stringify(data.vehicle, null, 2) + '</pre>';
-          } else {
-            document.getElementById('result').innerHTML = '<span style="color:#ff6b35">Could not decode VIN. ' + (data ? data.message : '') + '</span>';
-          }
-        })
-        .withFailureHandler(function(err) {
-          document.getElementById('result').innerHTML = '<span style="color:#ff6b35">Error: ' + err.message + '</span>';
-        })
-        .decodeVIN(vin);
+    function updateCount() {
+      var v = document.getElementById('vinInput').value;
+      document.getElementById('charCount').textContent = v.length;
+    }
+    function decode() {
+      var vin = document.getElementById('vinInput').value.trim().toUpperCase();
+      if (vin.length !== 17) { alert('VIN must be exactly 17 characters.'); return; }
+      google.script.run.withSuccessHandler(function(data) {
+        if (data) {
+          document.getElementById('resYear').textContent = data.year || '--';
+          document.getElementById('resMake').textContent = data.make || '--';
+          document.getElementById('resModel').textContent = data.model || '--';
+          document.getElementById('resEngine').textContent = data.engine || '--';
+          document.getElementById('resDrive').textContent = data.driveType || '--';
+          document.getElementById('resPlant').textContent = data.plant || '--';
+          document.getElementById('resCountry').textContent = data.country || '--';
+          document.getElementById('results').style.display = 'block';
+        }
+      }).withFailureHandler(function(e) {
+        alert('Decode error: ' + e.message);
+      }).decodeVIN(vin);
     }
   </script>
 </body>

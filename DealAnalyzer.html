@@ -5,33 +5,33 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #1a1a2e; color: #e0e0e0; font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; }
-    h1 { color: #00d4ff; font-size: 20px; margin-bottom: 8px; }
-    p.desc { color: #8899aa; font-size: 13px; margin-bottom: 20px; }
-    .card { background: #16213e; border-radius: 8px; padding: 16px; margin-bottom: 16px; border: 1px solid #00d4ff22; }
-    label { display: block; color: #8899aa; font-size: 12px; margin-bottom: 4px; }
+    h2 { color: #00d4ff; margin-bottom: 8px; }
+    p.desc { color: #aaa; font-size: 13px; margin-bottom: 20px; }
+    .card { background: #16213e; border-radius: 8px; padding: 16px; margin-bottom: 14px; border: 1px solid #00d4ff22; }
+    label { display: block; color: #00d4ff; font-size: 12px; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
     input, select, textarea {
-      width: 100%; padding: 8px 10px; background: #1a1a2e; border: 1px solid #00d4ff33;
-      border-radius: 6px; color: #e0e0e0; font-size: 13px; margin-bottom: 12px;
+      width: 100%; padding: 10px; background: #1a1a2e; border: 1px solid #00d4ff44;
+      border-radius: 6px; color: #e0e0e0; font-size: 14px; margin-bottom: 10px;
     }
     input:focus, select:focus, textarea:focus { outline: none; border-color: #00d4ff; }
-    .btn-row { display: flex; gap: 10px; margin-top: 8px; }
-    .primary-btn {
-      flex: 1; padding: 10px; background: #00d4ff; color: #1a1a2e; border: none;
-      border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600;
+    .btn-row { display: flex; gap: 10px; margin-top: 16px; }
+    .btn {
+      flex: 1; padding: 10px; border: none; border-radius: 6px; font-size: 14px;
+      font-weight: 600; cursor: pointer;
     }
-    .primary-btn:hover { background: #00b8d9; }
-    .close-btn {
-      flex: 1; padding: 10px; background: #16213e; color: #00d4ff;
-      border: 1px solid #00d4ff; border-radius: 6px; cursor: pointer; font-size: 14px;
-    }
-    .close-btn:hover { background: #00d4ff; color: #1a1a2e; }
-    #results { margin-top: 16px; display: none; }
-    #results .card { border-color: #00d4ff55; }
+    .btn-primary { background: #00d4ff; color: #1a1a2e; }
+    .btn-primary:hover { background: #00b8d9; }
+    .btn-close { background: #16213e; color: #e0e0e0; border: 1px solid #00d4ff44; }
+    .btn-close:hover { border-color: #00d4ff; }
+    #results { display: none; }
+    .result-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #00d4ff11; }
+    .result-label { color: #aaa; }
+    .result-value { color: #00d4ff; font-weight: 600; }
   </style>
 </head>
 <body>
-  <h1>Deal Analyzer</h1>
-  <p class="desc">Evaluate potential deals by analyzing costs, market value, and expected profit margins.</p>
+  <h2>Deal Analyzer</h2>
+  <p class="desc">Evaluate potential vehicle deals across platforms. Enter details to calculate projected profit and risk score.</p>
 
   <div class="card">
     <label>Platform</label>
@@ -42,28 +42,28 @@
     <input type="text" id="vehicle" placeholder="e.g. 2021 Toyota Camry">
     <label>Listing Price ($)</label>
     <input type="number" id="listPrice" placeholder="0.00">
-    <label>Estimated Repair Cost ($)</label>
-    <input type="number" id="repairCost" placeholder="0.00">
+    <label>Estimated Market Value ($)</label>
+    <input type="number" id="marketValue" placeholder="0.00">
     <label>Notes</label>
-    <textarea id="notes" rows="3" placeholder="Additional deal notes..."></textarea>
+    <textarea id="notes" rows="3" placeholder="Additional details..."></textarea>
+  </div>
+
+  <div id="results" class="card">
+    <h3 style="color:#00d4ff; margin-bottom:10px; font-size:14px;">Analysis Results</h3>
+    <div class="result-item"><span class="result-label">Spread</span><span class="result-value" id="resSpread">--</span></div>
+    <div class="result-item"><span class="result-label">Margin</span><span class="result-value" id="resMargin">--</span></div>
+    <div class="result-item"><span class="result-label">Risk Score</span><span class="result-value" id="resRisk">--</span></div>
   </div>
 
   <div class="btn-row">
-    <button class="primary-btn" onclick="analyzeDeal()">Analyze Deal</button>
-    <button class="close-btn" onclick="google.script.host.close()">Close</button>
-  </div>
-
-  <div id="results">
-    <div class="card">
-      <h3 style="color:#00d4ff;margin-bottom:8px;">Analysis Results</h3>
-      <div id="resultsContent"></div>
-    </div>
+    <button class="btn btn-primary" onclick="analyze()">Analyze Deal</button>
+    <button class="btn btn-close" onclick="google.script.host.close()">Close</button>
   </div>
 
   <script>
     var platforms = <?!= JSON.stringify(platforms || []) ?>;
 
-    (function init() {
+    (function loadPlatforms() {
       var sel = document.getElementById('platform');
       platforms.forEach(function(p) {
         var opt = document.createElement('option');
@@ -73,18 +73,17 @@
       });
     })();
 
-    function analyzeDeal() {
-      var data = {
-        platform: document.getElementById('platform').value,
-        vehicle: document.getElementById('vehicle').value,
-        listPrice: parseFloat(document.getElementById('listPrice').value) || 0,
-        repairCost: parseFloat(document.getElementById('repairCost').value) || 0,
-        notes: document.getElementById('notes').value
-      };
-      google.script.run.withSuccessHandler(function(result) {
-        document.getElementById('resultsContent').innerHTML = result || 'Analysis complete.';
-        document.getElementById('results').style.display = 'block';
-      }).analyzeDeal(data);
+    function analyze() {
+      var listPrice = parseFloat(document.getElementById('listPrice').value) || 0;
+      var marketValue = parseFloat(document.getElementById('marketValue').value) || 0;
+      var spread = marketValue - listPrice;
+      var margin = marketValue > 0 ? ((spread / marketValue) * 100).toFixed(1) : 0;
+      var risk = spread > 2000 ? 'Low' : spread > 500 ? 'Medium' : 'High';
+
+      document.getElementById('resSpread').textContent = '$' + spread.toLocaleString();
+      document.getElementById('resMargin').textContent = margin + '%';
+      document.getElementById('resRisk').textContent = risk;
+      document.getElementById('results').style.display = 'block';
     }
   </script>
 </body>

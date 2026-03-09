@@ -5,52 +5,47 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #1a1a2e; color: #e0e0e0; font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; }
-    h1 { color: #00d4ff; font-size: 20px; margin-bottom: 8px; }
-    p.desc { color: #8899aa; font-size: 13px; margin-bottom: 20px; }
-    .card { background: #16213e; border-radius: 8px; padding: 16px; margin-bottom: 12px; border: 1px solid #00d4ff22; }
-    .stat-row { display: flex; justify-content: space-between; align-items: center; }
-    .stat-label { color: #8899aa; font-size: 12px; }
-    .stat-value { color: #00d4ff; font-size: 24px; font-weight: 700; }
-    .stat-unit { color: #8899aa; font-size: 12px; }
-    .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
-    .metric-card { background: #16213e; border-radius: 8px; padding: 14px; text-align: center; border: 1px solid #00d4ff22; }
-    .metric-card .val { color: #00d4ff; font-size: 22px; font-weight: 700; }
-    .metric-card .lbl { color: #8899aa; font-size: 11px; margin-top: 4px; }
-    .lead-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #ffffff0a; }
-    .lead-item:last-child { border-bottom: none; }
-    .lead-name { font-size: 13px; }
-    .lead-time { color: #00d4ff; font-size: 12px; }
+    h2 { color: #00d4ff; margin-bottom: 8px; }
+    p.desc { color: #aaa; font-size: 13px; margin-bottom: 20px; }
+    .card { background: #16213e; border-radius: 8px; padding: 16px; margin-bottom: 14px; border: 1px solid #00d4ff22; }
+    .card h3 { color: #00d4ff; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+    .metric { text-align: center; padding: 10px; }
+    .metric .value { font-size: 36px; font-weight: 700; color: #00d4ff; }
+    .metric .label { font-size: 12px; color: #aaa; margin-top: 4px; }
+    .metrics-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .metrics-row .card { margin-bottom: 0; }
+    .lead-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #00d4ff11; }
+    .lead-name { font-weight: 600; }
+    .lead-time { font-size: 13px; }
+    .lead-time.fast { color: #00e676; }
+    .lead-time.medium { color: #ffc107; }
+    .lead-time.slow { color: #ff5252; }
     .close-btn {
-      display: block; width: 100%; padding: 10px; background: #16213e; color: #00d4ff;
-      border: 1px solid #00d4ff; border-radius: 6px; cursor: pointer; font-size: 14px; margin-top: 16px;
+      margin-top: 20px; width: 100%; padding: 10px; background: #00d4ff;
+      color: #1a1a2e; border: none; border-radius: 6px; font-size: 14px;
+      font-weight: 600; cursor: pointer;
     }
-    .close-btn:hover { background: #00d4ff; color: #1a1a2e; }
+    .close-btn:hover { background: #00b8d9; }
   </style>
 </head>
 <body>
-  <h1>Speed to Lead</h1>
-  <p class="desc">Monitor response times and ensure new leads are contacted quickly to maximize conversion rates.</p>
+  <h2>Speed to Lead</h2>
+  <p class="desc">Monitor response times to new leads. Faster contact means higher close rates.</p>
 
-  <div class="metrics">
-    <div class="metric-card"><div class="val">2.4m</div><div class="lbl">Avg Response</div></div>
-    <div class="metric-card"><div class="val">94%</div><div class="lbl">Under 5 min</div></div>
-    <div class="metric-card"><div class="val">12</div><div class="lbl">Pending</div></div>
-    <div class="metric-card"><div class="val">47</div><div class="lbl">Today</div></div>
+  <div class="metrics-row">
+    <div class="card"><div class="metric"><div class="value">2.4m</div><div class="label">Avg Response</div></div></div>
+    <div class="card"><div class="metric"><div class="value">87%</div><div class="label">Under 5 Min</div></div></div>
+    <div class="card"><div class="metric"><div class="value">14</div><div class="label">Today's Leads</div></div></div>
   </div>
 
   <div class="card">
-    <h3 style="color:#00d4ff;font-size:14px;margin-bottom:10px;">Recent Leads</h3>
-    <div class="lead-item"><span class="lead-name">Loading leads...</span><span class="lead-time">--</span></div>
+    <h3>Recent Leads</h3>
+    <div class="lead-row"><span class="lead-name">John D. - 2022 Accord</span><span class="lead-time fast">1m 12s</span></div>
+    <div class="lead-row"><span class="lead-name">Sarah M. - 2021 RAV4</span><span class="lead-time fast">2m 45s</span></div>
+    <div class="lead-row"><span class="lead-name">Mike R. - 2023 F-150</span><span class="lead-time medium">6m 03s</span></div>
+    <div class="lead-row"><span class="lead-name">Lisa K. - 2020 Civic</span><span class="lead-time slow">12m 30s</span></div>
   </div>
 
   <button class="close-btn" onclick="google.script.host.close()">Close</button>
-
-  <script>
-    google.script.run.withSuccessHandler(function(data) {
-      if (data && data.leads) {
-        // Populate lead list
-      }
-    }).getSpeedToLeadData();
-  </script>
 </body>
 </html>

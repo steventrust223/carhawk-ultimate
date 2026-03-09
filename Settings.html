@@ -5,101 +5,86 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #1a1a2e; color: #e0e0e0; font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; }
-    h1 { color: #00d4ff; font-size: 20px; margin-bottom: 8px; }
-    p.desc { color: #8899aa; font-size: 13px; margin-bottom: 20px; }
-    .card { background: #16213e; border-radius: 8px; padding: 16px; margin-bottom: 12px; border: 1px solid #00d4ff22; }
-    .card h3 { color: #00d4ff; font-size: 14px; margin-bottom: 12px; }
-    label { display: block; color: #8899aa; font-size: 12px; margin-bottom: 4px; }
-    input, select {
-      width: 100%; padding: 8px 10px; background: #1a1a2e; border: 1px solid #00d4ff33;
-      border-radius: 6px; color: #e0e0e0; font-size: 13px; margin-bottom: 12px;
+    h2 { color: #00d4ff; margin-bottom: 8px; }
+    p.desc { color: #aaa; font-size: 13px; margin-bottom: 20px; }
+    .card { background: #16213e; border-radius: 8px; padding: 16px; margin-bottom: 14px; border: 1px solid #00d4ff22; }
+    .card h3 { color: #00d4ff; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+    .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #00d4ff11; }
+    .setting-row:last-child { border-bottom: none; }
+    .setting-label { font-size: 14px; }
+    .setting-hint { font-size: 11px; color: #aaa; margin-top: 2px; }
+    .toggle { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle .slider {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      background: #333; border-radius: 12px; cursor: pointer; transition: 0.3s;
+    }
+    .toggle .slider:before {
+      content: ''; position: absolute; width: 18px; height: 18px;
+      left: 3px; bottom: 3px; background: #e0e0e0; border-radius: 50%; transition: 0.3s;
+    }
+    .toggle input:checked + .slider { background: #00d4ff; }
+    .toggle input:checked + .slider:before { transform: translateX(20px); }
+    input[type="text"], input[type="number"], select {
+      padding: 8px 10px; background: #1a1a2e; border: 1px solid #00d4ff44;
+      border-radius: 6px; color: #e0e0e0; font-size: 13px;
     }
     input:focus, select:focus { outline: none; border-color: #00d4ff; }
-    .toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #ffffff0a; }
-    .toggle-row:last-child { border-bottom: none; }
-    .toggle-label { font-size: 13px; }
-    .toggle-sub { color: #8899aa; font-size: 11px; }
-    .toggle {
-      width: 40px; height: 22px; background: #333; border-radius: 11px; position: relative;
-      cursor: pointer; border: none;
-    }
-    .toggle.on { background: #00d4ff; }
-    .toggle::after {
-      content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px;
-      background: white; border-radius: 50%; transition: 0.2s;
-    }
-    .toggle.on::after { left: 21px; }
     .btn-row { display: flex; gap: 10px; margin-top: 16px; }
-    .primary-btn {
-      flex: 1; padding: 10px; background: #00d4ff; color: #1a1a2e; border: none;
-      border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600;
-    }
-    .primary-btn:hover { background: #00b8d9; }
-    .close-btn {
-      flex: 1; padding: 10px; background: #16213e; color: #00d4ff;
-      border: 1px solid #00d4ff; border-radius: 6px; cursor: pointer; font-size: 14px;
-    }
-    .close-btn:hover { background: #00d4ff; color: #1a1a2e; }
+    .btn { flex: 1; padding: 10px; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .btn-primary { background: #00d4ff; color: #1a1a2e; }
+    .btn-primary:hover { background: #00b8d9; }
+    .btn-close { background: #16213e; color: #e0e0e0; border: 1px solid #00d4ff44; }
+    .btn-close:hover { border-color: #00d4ff; }
   </style>
 </head>
 <body>
-  <h1>Settings</h1>
-  <p class="desc">Configure system preferences, API keys, notification settings, and user options.</p>
+  <h2>Settings</h2>
+  <p class="desc">Configure system preferences, notifications, API keys, and automation rules.</p>
 
   <div class="card">
     <h3>General</h3>
-    <label>Business Name</label>
-    <input type="text" id="bizName" placeholder="Your dealership name">
-    <label>Timezone</label>
-    <select id="timezone">
-      <option>America/New_York</option>
-      <option>America/Chicago</option>
-      <option>America/Denver</option>
-      <option>America/Los_Angeles</option>
-    </select>
-  </div>
-
-  <div class="card">
-    <h3>Notifications</h3>
-    <div class="toggle-row">
-      <div><div class="toggle-label">Email Alerts</div><div class="toggle-sub">Receive email for new leads</div></div>
-      <button class="toggle on" onclick="this.classList.toggle('on')"></button>
+    <div class="setting-row">
+      <div><div class="setting-label">Auto-Sync Inventory</div><div class="setting-hint">Sync every 30 minutes</div></div>
+      <label class="toggle"><input type="checkbox" checked><span class="slider"></span></label>
     </div>
-    <div class="toggle-row">
-      <div><div class="toggle-label">SMS Alerts</div><div class="toggle-sub">SMS notifications for urgent items</div></div>
-      <button class="toggle" onclick="this.classList.toggle('on')"></button>
+    <div class="setting-row">
+      <div><div class="setting-label">Email Notifications</div><div class="setting-hint">New leads and deal alerts</div></div>
+      <label class="toggle"><input type="checkbox" checked><span class="slider"></span></label>
     </div>
-    <div class="toggle-row">
-      <div><div class="toggle-label">Auto-Sync</div><div class="toggle-sub">Sync data every 15 minutes</div></div>
-      <button class="toggle on" onclick="this.classList.toggle('on')"></button>
+    <div class="setting-row">
+      <div><div class="setting-label">SMS Notifications</div><div class="setting-hint">Urgent alerts via SMS</div></div>
+      <label class="toggle"><input type="checkbox"><span class="slider"></span></label>
     </div>
   </div>
 
   <div class="card">
-    <h3>API Keys</h3>
-    <label>OpenAI API Key</label>
-    <input type="password" id="openaiKey" placeholder="sk-...">
-    <label>Browse.ai API Key</label>
-    <input type="password" id="browseaiKey" placeholder="Enter key...">
+    <h3>API Configuration</h3>
+    <div class="setting-row">
+      <div><div class="setting-label">Browse.ai API Key</div></div>
+      <input type="text" placeholder="Enter key..." style="width: 180px;">
+    </div>
+    <div class="setting-row">
+      <div><div class="setting-label">SMS-iT API Key</div></div>
+      <input type="text" placeholder="Enter key..." style="width: 180px;">
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Thresholds</h3>
+    <div class="setting-row">
+      <div><div class="setting-label">Min Profit Target ($)</div></div>
+      <input type="number" value="1500" style="width: 100px;">
+    </div>
+    <div class="setting-row">
+      <div><div class="setting-label">Speed-to-Lead Goal (min)</div></div>
+      <input type="number" value="5" style="width: 100px;">
+    </div>
   </div>
 
   <div class="btn-row">
-    <button class="primary-btn" onclick="saveSettings()">Save Settings</button>
-    <button class="close-btn" onclick="google.script.host.close()">Close</button>
+    <button class="btn btn-primary" onclick="alert('Settings saved')">Save Settings</button>
+    <button class="btn btn-close" onclick="google.script.host.close()">Close</button>
   </div>
-
-  <script>
-    function saveSettings() {
-      var settings = {
-        bizName: document.getElementById('bizName').value,
-        timezone: document.getElementById('timezone').value,
-        openaiKey: document.getElementById('openaiKey').value,
-        browseaiKey: document.getElementById('browseaiKey').value
-      };
-      google.script.run.withSuccessHandler(function() {
-        alert('Settings saved.');
-      }).saveSettings(settings);
-    }
-  </script>
 </body>
 </html>

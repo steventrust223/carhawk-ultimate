@@ -5,57 +5,53 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #1a1a2e; color: #e0e0e0; font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; }
-    h1 { color: #00d4ff; font-size: 20px; margin-bottom: 8px; }
-    p.desc { color: #8899aa; font-size: 13px; margin-bottom: 20px; }
+    h2 { color: #00d4ff; margin-bottom: 8px; }
+    p.desc { color: #aaa; font-size: 13px; margin-bottom: 20px; }
     .search-box {
-      width: 100%; padding: 10px 14px; background: #16213e; border: 1px solid #00d4ff33;
+      width: 100%; padding: 12px; background: #16213e; border: 1px solid #00d4ff44;
       border-radius: 8px; color: #e0e0e0; font-size: 14px; margin-bottom: 16px;
     }
     .search-box:focus { outline: none; border-color: #00d4ff; }
-    .card { background: #16213e; border-radius: 8px; padding: 16px; margin-bottom: 12px; border: 1px solid #00d4ff22; }
-    .card h3 { color: #00d4ff; font-size: 14px; margin-bottom: 8px; }
-    .kb-item {
-      display: block; padding: 10px 0; border-bottom: 1px solid #ffffff0a; cursor: pointer;
-    }
-    .kb-item:last-child { border-bottom: none; }
-    .kb-item:hover { color: #00d4ff; }
-    .kb-title { font-size: 13px; font-weight: 600; }
-    .kb-meta { color: #8899aa; font-size: 11px; margin-top: 2px; }
-    .category-tag {
-      display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 10px;
-      background: #00d4ff22; color: #00d4ff; margin-right: 6px;
-    }
+    .card { background: #16213e; border-radius: 8px; padding: 16px; margin-bottom: 12px; border: 1px solid #00d4ff22; cursor: pointer; transition: border-color 0.2s; }
+    .card:hover { border-color: #00d4ff; }
+    .card h3 { color: #00d4ff; font-size: 14px; margin-bottom: 6px; }
+    .card p { color: #aaa; font-size: 13px; line-height: 1.4; }
+    .tag { display: inline-block; background: #00d4ff22; color: #00d4ff; font-size: 11px; padding: 2px 8px; border-radius: 10px; margin-top: 8px; margin-right: 4px; }
     .close-btn {
-      display: block; width: 100%; padding: 10px; background: #16213e; color: #00d4ff;
-      border: 1px solid #00d4ff; border-radius: 6px; cursor: pointer; font-size: 14px; margin-top: 16px;
+      margin-top: 16px; width: 100%; padding: 10px; background: #00d4ff;
+      color: #1a1a2e; border: none; border-radius: 6px; font-size: 14px;
+      font-weight: 600; cursor: pointer;
     }
-    .close-btn:hover { background: #00d4ff; color: #1a1a2e; }
+    .close-btn:hover { background: #00b8d9; }
   </style>
 </head>
 <body>
-  <h1>Knowledge Base</h1>
-  <p class="desc">Search vehicle specifications, market data, and reference guides for informed decision-making.</p>
+  <h2>Knowledge Base</h2>
+  <p class="desc">Vehicle data, market insights, and reference guides. Search for any make, model, or topic.</p>
 
-  <input type="text" class="search-box" placeholder="Search vehicles, specs, guides..." oninput="search(this.value)">
+  <input type="text" class="search-box" placeholder="Search vehicles, guides, market data...">
 
   <div class="card">
-    <h3>Categories</h3>
-    <div class="kb-item"><span class="category-tag">Specs</span><span class="kb-title">Vehicle Specifications</span><div class="kb-meta">Make, model, year data and trim details</div></div>
-    <div class="kb-item"><span class="category-tag">Market</span><span class="kb-title">Market Valuations</span><div class="kb-meta">Current market prices and trends</div></div>
-    <div class="kb-item"><span class="category-tag">Guide</span><span class="kb-title">Buying Guides</span><div class="kb-meta">Inspection checklists and tips</div></div>
-    <div class="kb-item"><span class="category-tag">History</span><span class="kb-title">Common Issues</span><div class="kb-meta">Known problems by make and model</div></div>
+    <h3>Common Recalls by Make (2020-2024)</h3>
+    <p>Overview of major recalls organized by manufacturer, including affected models and repair status.</p>
+    <span class="tag">Recalls</span><span class="tag">Reference</span>
+  </div>
+  <div class="card">
+    <h3>Pricing Guide: Trucks &amp; SUVs</h3>
+    <p>Market pricing benchmarks for popular truck and SUV models. Updated weekly from auction data.</p>
+    <span class="tag">Pricing</span><span class="tag">Trucks</span><span class="tag">SUVs</span>
+  </div>
+  <div class="card">
+    <h3>Title Status Explained</h3>
+    <p>Understanding clean, salvage, rebuilt, and flood title designations and their impact on value.</p>
+    <span class="tag">Titles</span><span class="tag">Guide</span>
+  </div>
+  <div class="card">
+    <h3>EV Battery Health Assessment</h3>
+    <p>How to evaluate battery degradation and remaining capacity in used electric vehicles.</p>
+    <span class="tag">EV</span><span class="tag">Battery</span>
   </div>
 
   <button class="close-btn" onclick="google.script.host.close()">Close</button>
-
-  <script>
-    function search(query) {
-      if (query.length > 2) {
-        google.script.run.withSuccessHandler(function(results) {
-          // Render search results
-        }).searchKnowledgeBase(query);
-      }
-    }
-  </script>
 </body>
 </html>
