@@ -12,7 +12,7 @@ function quantumImportSync() {
   const unprocessed = [];
 
   for (let i = 1; i < importData.length; i++) {
-    if (!importData[i][13]) { // Not processed
+    if (!importData[i][16]) { // Not processed (column shifted for new fields)
       unprocessed.push({
         row: i + 1,
         data: importData[i]
@@ -61,7 +61,7 @@ function processQuantumImport(rowData, rowNum) {
   const importSheet = getQuantumSheet(QUANTUM_SHEETS.IMPORT.name);
   const dbSheet = getQuantumSheet(QUANTUM_SHEETS.DATABASE.name);
 
-  // Extract Browse.AI data structure
+  // Extract Browse.AI data structure (includes marketplace-specific fields)
   const importData = {
     importId: rowData[0],
     dateGMT: rowData[1],
@@ -74,7 +74,10 @@ function processQuantumImport(rowData, rowNum) {
     rawDescription: rowData[8],
     sellerInfo: rowData[9],
     postedDate: rowData[10],
-    imageCount: rowData[11]
+    imageCount: rowData[11],
+    rawMileage: rowData[12],   // Pre-extracted by Browse.ai robot
+    rawYear: rowData[13],      // Pre-extracted by Browse.ai robot (OfferUp)
+    rawCondition: rowData[14]  // Pre-extracted by Browse.ai robot (Craigslist)
   };
 
   // Quantum parsing engine
@@ -155,9 +158,9 @@ function processQuantumImport(rowData, rowNum) {
   // Add to database
   dbSheet.appendRow(dbRow);
 
-  // Mark as processed
-  importSheet.getRange(rowNum, 14).setValue(true);
-  importSheet.getRange(rowNum, 15).setValue(dealId);
+  // Mark as processed (columns 17-18 after new Browse.ai fields added)
+  importSheet.getRange(rowNum, 17).setValue(true);
+  importSheet.getRange(rowNum, 18).setValue(dealId);
 
   // Add to leads tracker
   addToLeadsTracker(dealId, parsed, metrics);
@@ -193,7 +196,14 @@ function quantumParseVehicle(data) {
     sellerType: 'Private',
     hotSeller: false,
     multipleVehicles: false,
-    repairKeywords: []
+    repairKeywords: [],
+    transmission: '',
+    drivetrain: '',
+    fuelType: '',
+    exteriorColor: '',
+    interiorColor: '',
+    titleStatus: '',
+    bodyType: ''
   };
 
   // Quantum title parsing with AI patterns
@@ -205,34 +215,159 @@ function quantumParseVehicle(data) {
     color: /\b(black|white|silver|gray|grey|red|blue|green|gold|beige|brown|orange|yellow|purple)\b/i
   };
 
-  // Extract year
-  const yearMatch = parsed.title.match(titlePatterns.year);
-  if (yearMatch) parsed.year = yearMatch[0];
+  // =========================================================
+  // PLATFORM-SPECIFIC TITLE PURGING
+  // Each marketplace packs different data into its fields.
+  // Purge embedded data from titles before parsing vehicle info.
+  // =========================================================
+  let purgedTitle = String(data.rawTitle || '');
+  let descriptionText = String(data.rawDescription || '');
 
-  // Extract make
-  const makeMatch = parsed.title.match(titlePatterns.make);
+  if (data.platform === 'Craigslist') {
+    // Craigslist title format: "2007 jeep liberty limited 4x4 - $3,850 (St.louis)"
+    // Purge: strip embedded price after " - $" and location in parentheses
+    purgedTitle = purgedTitle.replace(/\s*-\s*\$[\d,]+/g, '');  // Remove " - $3,850"
+    purgedTitle = purgedTitle.replace(/\s*\([^)]*\)\s*/g, ' ');  // Remove "(St.louis)"
+    purgedTitle = purgedTitle.trim();
+  }
+
+  if (data.platform === 'Facebook') {
+    // Facebook "Listing Title" can be generic or seller-written.
+    // The real vehicle details are often in the seller's description.
+    // e.g. Description: "2002 Silverado 1500 5.3/4x4 CLEAN MO TITLE..."
+    // Also extract structured "About this vehicle" fields from description:
+    // "Driven 274,000 miles", "Automatic transmission", "Exterior color: Blue"
+    const fbTransmission = descriptionText.match(/\b(automatic|manual|cvt)\s*transmission\b/i);
+    if (fbTransmission) parsed.transmission = fbTransmission[1].charAt(0).toUpperCase() + fbTransmission[1].slice(1).toLowerCase();
+
+    const fbExterior = descriptionText.match(/exterior\s*color:\s*(\w+)/i);
+    if (fbExterior) parsed.exteriorColor = fbExterior[1].toLowerCase();
+
+    const fbInterior = descriptionText.match(/interior\s*color:\s*(\w+)/i);
+    if (fbInterior) parsed.interiorColor = fbInterior[1].toLowerCase();
+
+    const fbFuel = descriptionText.match(/fuel\s*type:\s*(\w+)/i);
+    if (fbFuel) parsed.fuelType = fbFuel[1].charAt(0).toUpperCase() + fbFuel[1].slice(1).toLowerCase();
+
+    const fbDriven = descriptionText.match(/driven\s+([\d,]+)\s*miles/i);
+    if (fbDriven && !data.rawMileage) {
+      data.rawMileage = fbDriven[1];
+    }
+  }
+
+  if (data.platform === 'OfferUp') {
+    // OfferUp title is usually clean: "2008 Hyundai Santa FE"
+    // But drivetrain, transmission, condition come as separate tags/badges.
+    // These may be embedded in description or as structured fields.
+    const ouDrivetrain = descriptionText.match(/\b(front[- ]wheel drive|rear[- ]wheel drive|all[- ]wheel drive|4wd|4x4|awd|fwd|rwd)\b/i);
+    if (ouDrivetrain) parsed.drivetrain = ouDrivetrain[0].replace(/-/g, ' ');
+
+    const ouTransmission = descriptionText.match(/\b(automatic|manual|cvt)\b/i);
+    if (ouTransmission && !parsed.transmission) parsed.transmission = ouTransmission[1].charAt(0).toUpperCase() + ouTransmission[1].slice(1).toLowerCase();
+
+    // OfferUp condition tags: "regular", "like new", "good", "fair"
+    const ouCondition = descriptionText.match(/\b(like new|good|fair|regular|excellent)\b/i);
+    if (ouCondition && !data.rawCondition) {
+      data.rawCondition = ouCondition[1];
+    }
+  }
+
+  // Use purged title for vehicle info extraction
+  parsed.title = purgedTitle;
+
+  // Extract year - prefer Browse.ai pre-extracted value (OfferUp robot provides this)
+  if (data.rawYear) {
+    const yearVal = String(data.rawYear).match(/\b(19|20)\d{2}\b/);
+    if (yearVal) parsed.year = yearVal[0];
+  }
+  if (!parsed.year) {
+    const yearMatch = purgedTitle.match(titlePatterns.year);
+    if (yearMatch) parsed.year = yearMatch[0];
+  }
+  // Facebook fallback: extract year from description if title didn't have it
+  if (!parsed.year && data.platform === 'Facebook') {
+    const descYearMatch = descriptionText.match(titlePatterns.year);
+    if (descYearMatch) parsed.year = descYearMatch[0];
+  }
+
+  // Extract make - try purged title first
+  let makeMatch = purgedTitle.match(titlePatterns.make);
+  // Facebook fallback: extract make from description if title didn't have it
+  if (!makeMatch && data.platform === 'Facebook') {
+    makeMatch = descriptionText.match(titlePatterns.make);
+  }
   if (makeMatch) parsed.make = standardizeMake(makeMatch[0]);
 
   // Extract model (context-aware)
   if (parsed.make) {
+    // Try purged title first
     const modelPattern = new RegExp(parsed.make + '\\s+(\\w+(?:\\s+\\w+)?)', 'i');
-    const modelMatch = parsed.title.match(modelPattern);
+    let modelMatch = purgedTitle.match(modelPattern);
+    // Facebook fallback: try description
+    if (!modelMatch && data.platform === 'Facebook') {
+      // Also try with the raw make name before standardization
+      const rawMake = makeMatch ? makeMatch[0] : parsed.make;
+      const rawModelPattern = new RegExp(rawMake + '\\s+(\\w+(?:\\s+\\w+)?)', 'i');
+      modelMatch = descriptionText.match(rawModelPattern) || descriptionText.match(modelPattern);
+    }
     if (modelMatch) parsed.model = modelMatch[1];
   }
 
-  // Extract mileage
-  const mileageMatch = (parsed.title + ' ' + data.rawDescription).match(titlePatterns.mileage);
-  if (mileageMatch) {
-    parsed.mileage = parseInt(mileageMatch[1] + (mileageMatch[2] || '000'));
+  // Extract trim from Craigslist purged title (often has trim after model)
+  if (data.platform === 'Craigslist' && parsed.model) {
+    const trimPattern = new RegExp(parsed.model + '\\s+(limited|sport|se|le|xle|sr5|lx|ex|touring|premium|base|sxt|slt|lt|ls|xl|xlt|sel|awd|4x4|4wd)', 'i');
+    const trimMatch = purgedTitle.match(trimPattern);
+    if (trimMatch) parsed.trim = trimMatch[1].toUpperCase();
+  }
+
+  // Extract mileage - prefer Browse.ai pre-extracted value (all 3 robots provide this)
+  if (data.rawMileage) {
+    const mileageVal = String(data.rawMileage).replace(/[^0-9.]/g, '');
+    if (mileageVal) {
+      let miles = parseFloat(mileageVal);
+      // Handle "k" shorthand (e.g. "120k")
+      if (String(data.rawMileage).toLowerCase().includes('k') && miles < 1000) {
+        miles *= 1000;
+      }
+      parsed.mileage = Math.round(miles);
+    }
+  }
+  if (!parsed.mileage) {
+    const mileageMatch = (purgedTitle + ' ' + descriptionText).match(titlePatterns.mileage);
+    if (mileageMatch) {
+      parsed.mileage = parseInt(mileageMatch[1] + (mileageMatch[2] || '000'));
+    }
   }
 
   // Extract VIN
-  const vinMatch = data.rawDescription.match(titlePatterns.vin);
+  const vinMatch = descriptionText.match(titlePatterns.vin);
   if (vinMatch) parsed.vin = vinMatch[0];
 
-  // Extract color
-  const colorMatch = parsed.title.match(titlePatterns.color);
+  // Extract color - check purged title, then description
+  let colorMatch = purgedTitle.match(titlePatterns.color);
+  if (!colorMatch) colorMatch = descriptionText.match(titlePatterns.color);
   if (colorMatch) parsed.color = colorMatch[0].toLowerCase();
+  // Use Facebook exterior color if available and no color found
+  if (!parsed.color && parsed.exteriorColor) parsed.color = parsed.exteriorColor;
+
+  // Extract Craigslist structured fields from description
+  if (data.platform === 'Craigslist') {
+    const clTitleStatus = descriptionText.match(/title\s*status:\s*(\w+)/i);
+    if (clTitleStatus) parsed.titleStatus = clTitleStatus[1].toLowerCase();
+
+    const clType = descriptionText.match(/type:\s*(\w+)/i);
+    if (clType) parsed.bodyType = clType[1];
+
+    const clFuel = descriptionText.match(/fuel:\s*(\w+)/i);
+    if (clFuel) parsed.fuelType = clFuel[1].charAt(0).toUpperCase() + clFuel[1].slice(1).toLowerCase();
+
+    const clTransmission = descriptionText.match(/transmission:\s*(\w+)/i);
+    if (clTransmission) parsed.transmission = clTransmission[1].charAt(0).toUpperCase() + clTransmission[1].slice(1).toLowerCase();
+
+    // Craigslist drivetrain is often in title: "4x4", "4wd", "awd"
+    const clDrivetrain = purgedTitle.match(/\b(4x4|4wd|awd|fwd|rwd|2wd)\b/i);
+    if (clDrivetrain) parsed.drivetrain = clDrivetrain[0].toUpperCase();
+  }
 
   // Parse price with quantum intelligence
   parsed.price = parseQuantumPrice(data.rawPrice);
@@ -252,8 +387,17 @@ function quantumParseVehicle(data) {
   const sellerData = extractQuantumSellerInfo(data.sellerInfo, data.rawDescription);
   Object.assign(parsed, sellerData);
 
-  // Detect condition with AI
-  parsed.condition = detectQuantumCondition(parsed.title, data.rawDescription);
+  // Detect condition - prefer Browse.ai pre-extracted value (Craigslist robot provides this)
+  if (data.rawCondition) {
+    const conditionStr = String(data.rawCondition).trim().toLowerCase();
+    const validConditions = ['excellent', 'very good', 'good', 'fair', 'poor', 'like new', 'new', 'salvage'];
+    const matched = validConditions.find(c => conditionStr.includes(c));
+    parsed.condition = matched
+      ? matched.charAt(0).toUpperCase() + matched.slice(1)
+      : detectQuantumCondition(parsed.title, data.rawDescription);
+  } else {
+    parsed.condition = detectQuantumCondition(parsed.title, data.rawDescription);
+  }
 
   // Find repair keywords
   parsed.repairKeywords = findRepairKeywords(parsed.title + ' ' + data.rawDescription);

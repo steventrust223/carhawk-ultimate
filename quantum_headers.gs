@@ -32,8 +32,9 @@ function setupImportHeaders() {
   const headers = [
     'Import ID', 'Date (GMT)', 'Job Link', 'Origin URL', 'Platform',
     'Raw Title', 'Raw Price', 'Raw Location', 'Raw Description',
-    'Seller Info', 'Posted Date', 'Images Count', 'Import Status',
-    'Processed', 'Master ID', 'Error Log'
+    'Seller Info', 'Posted Date', 'Images Count',
+    'Raw Mileage', 'Raw Year', 'Raw Condition',
+    'Import Status', 'Processed', 'Master ID', 'Error Log'
   ];
   applyQuantumHeaders(QUANTUM_SHEETS.IMPORT.name, headers, '#4285f4');
 }

@@ -85,6 +85,9 @@ function processBrowseAIIntegration(integration) {
       row[columnMap.sellerInfo] || '', // Seller Info
       row[columnMap.postedDate] || '', // Posted Date
       row[columnMap.images] || 0, // Images Count
+      row[columnMap.mileage] || '', // Raw Mileage (from Browse.ai robot)
+      row[columnMap.year] || '', // Raw Year (from Browse.ai robot)
+      row[columnMap.condition] || '', // Raw Condition (from Browse.ai robot)
       'Pending', // Import Status
       false, // Processed
       '', // Master ID
@@ -102,17 +105,23 @@ function processBrowseAIIntegration(integration) {
 }
 
 function mapBrowseAIColumns(headers) {
-  // Common Browse.ai column mappings
+  // Browse.ai column mappings for all marketplace robots
+  // Facebook Marketplace: Listing Title, Price, Description, Location, Mileage, Seller Name, Date Posted
+  // OfferUp: Title, Price, Location, Date Posted, Mileage, Year, Description
+  // Craigslist: Title, Price, Mileage, Condition, Location, Seller Name, Date Posted, Description
   const mappings = {
-    url: ['url', 'link', 'listing_url', 'ad_url'],
+    url: ['url', 'link', 'listing_url', 'ad_url', 'origin_url'],
     title: ['title', 'name', 'listing_title', 'vehicle'],
     price: ['price', 'asking_price', 'cost'],
     location: ['location', 'city', 'area'],
     description: ['description', 'details', 'info'],
     sellerInfo: ['seller', 'contact', 'seller_name'],
-    postedDate: ['date', 'posted', 'listed_date'],
+    postedDate: ['date_posted', 'date', 'posted', 'listed_date', 'posted_date'],
     images: ['images', 'photos', 'image_count'],
-    jobLink: ['job_link', 'browse_ai_link']
+    jobLink: ['job_link', 'browse_ai_link'],
+    mileage: ['mileage', 'miles', 'odometer', 'mi'],
+    year: ['year', 'model_year', 'vehicle_year'],
+    condition: ['condition', 'vehicle_condition', 'state']
   };
 
   const columnMap = {};
