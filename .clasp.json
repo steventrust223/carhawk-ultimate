@@ -39,6 +39,24 @@
     "turo_fleet.gs",
     "turo_maintenance.gs",
     "turo_compliance.gs",
-    "turo_tests.gs"
+    "turo_tests.gs",
+    "AppointmentManager.html",
+    "CallLogs.html",
+    "CampaignManager.html",
+    "CRMAnalytics.html",
+    "DealAnalyzer.html",
+    "DealCalculator.html",
+    "DealGallery.html",
+    "FollowUpCenter.html",
+    "FollowUpSequences.html",
+    "IntegrationManager.html",
+    "KnowledgeBase.html",
+    "PipelineView.html",
+    "QuantumHelp.html",
+    "QuickActions.html",
+    "Settings.html",
+    "SMSConversations.html",
+    "SpeedToLead.html",
+    "VINDecoder.html"
   ]
 }
