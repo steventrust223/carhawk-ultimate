@@ -12,7 +12,7 @@ function quantumImportSync() {
   const unprocessed = [];
 
   for (let i = 1; i < importData.length; i++) {
-    if (!importData[i][13]) { // Not processed
+    if (!importData[i][16]) { // Not processed (column shifted for new fields)
       unprocessed.push({
         row: i + 1,
         data: importData[i]
@@ -61,7 +61,7 @@ function processQuantumImport(rowData, rowNum) {
   const importSheet = getQuantumSheet(QUANTUM_SHEETS.IMPORT.name);
   const dbSheet = getQuantumSheet(QUANTUM_SHEETS.DATABASE.name);
 
-  // Extract Browse.AI data structure
+  // Extract Browse.AI data structure (includes marketplace-specific fields)
   const importData = {
     importId: rowData[0],
     dateGMT: rowData[1],
@@ -74,7 +74,10 @@ function processQuantumImport(rowData, rowNum) {
     rawDescription: rowData[8],
     sellerInfo: rowData[9],
     postedDate: rowData[10],
-    imageCount: rowData[11]
+    imageCount: rowData[11],
+    rawMileage: rowData[12],   // Pre-extracted by Browse.ai robot
+    rawYear: rowData[13],      // Pre-extracted by Browse.ai robot (OfferUp)
+    rawCondition: rowData[14]  // Pre-extracted by Browse.ai robot (Craigslist)
   };
 
   // Quantum parsing engine
@@ -155,9 +158,9 @@ function processQuantumImport(rowData, rowNum) {
   // Add to database
   dbSheet.appendRow(dbRow);
 
-  // Mark as processed
-  importSheet.getRange(rowNum, 14).setValue(true);
-  importSheet.getRange(rowNum, 15).setValue(dealId);
+  // Mark as processed (columns 17-18 after new Browse.ai fields added)
+  importSheet.getRange(rowNum, 17).setValue(true);
+  importSheet.getRange(rowNum, 18).setValue(dealId);
 
   // Add to leads tracker
   addToLeadsTracker(dealId, parsed, metrics);
@@ -205,9 +208,15 @@ function quantumParseVehicle(data) {
     color: /\b(black|white|silver|gray|grey|red|blue|green|gold|beige|brown|orange|yellow|purple)\b/i
   };
 
-  // Extract year
-  const yearMatch = parsed.title.match(titlePatterns.year);
-  if (yearMatch) parsed.year = yearMatch[0];
+  // Extract year - prefer Browse.ai pre-extracted value (OfferUp robot provides this)
+  if (data.rawYear) {
+    const yearVal = String(data.rawYear).match(/\b(19|20)\d{2}\b/);
+    if (yearVal) parsed.year = yearVal[0];
+  }
+  if (!parsed.year) {
+    const yearMatch = parsed.title.match(titlePatterns.year);
+    if (yearMatch) parsed.year = yearMatch[0];
+  }
 
   // Extract make
   const makeMatch = parsed.title.match(titlePatterns.make);
@@ -220,10 +229,23 @@ function quantumParseVehicle(data) {
     if (modelMatch) parsed.model = modelMatch[1];
   }
 
-  // Extract mileage
-  const mileageMatch = (parsed.title + ' ' + data.rawDescription).match(titlePatterns.mileage);
-  if (mileageMatch) {
-    parsed.mileage = parseInt(mileageMatch[1] + (mileageMatch[2] || '000'));
+  // Extract mileage - prefer Browse.ai pre-extracted value (all 3 robots provide this)
+  if (data.rawMileage) {
+    const mileageVal = String(data.rawMileage).replace(/[^0-9.]/g, '');
+    if (mileageVal) {
+      let miles = parseFloat(mileageVal);
+      // Handle "k" shorthand (e.g. "120k")
+      if (String(data.rawMileage).toLowerCase().includes('k') && miles < 1000) {
+        miles *= 1000;
+      }
+      parsed.mileage = Math.round(miles);
+    }
+  }
+  if (!parsed.mileage) {
+    const mileageMatch = (parsed.title + ' ' + data.rawDescription).match(titlePatterns.mileage);
+    if (mileageMatch) {
+      parsed.mileage = parseInt(mileageMatch[1] + (mileageMatch[2] || '000'));
+    }
   }
 
   // Extract VIN
@@ -252,8 +274,17 @@ function quantumParseVehicle(data) {
   const sellerData = extractQuantumSellerInfo(data.sellerInfo, data.rawDescription);
   Object.assign(parsed, sellerData);
 
-  // Detect condition with AI
-  parsed.condition = detectQuantumCondition(parsed.title, data.rawDescription);
+  // Detect condition - prefer Browse.ai pre-extracted value (Craigslist robot provides this)
+  if (data.rawCondition) {
+    const conditionStr = String(data.rawCondition).trim().toLowerCase();
+    const validConditions = ['excellent', 'very good', 'good', 'fair', 'poor', 'like new', 'new', 'salvage'];
+    const matched = validConditions.find(c => conditionStr.includes(c));
+    parsed.condition = matched
+      ? matched.charAt(0).toUpperCase() + matched.slice(1)
+      : detectQuantumCondition(parsed.title, data.rawDescription);
+  } else {
+    parsed.condition = detectQuantumCondition(parsed.title, data.rawDescription);
+  }
 
   // Find repair keywords
   parsed.repairKeywords = findRepairKeywords(parsed.title + ' ' + data.rawDescription);
