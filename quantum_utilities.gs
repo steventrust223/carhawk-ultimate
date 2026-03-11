@@ -36,6 +36,13 @@ function setQuantumSetting(key, value) {
   sheet.appendRow([key, value, new Date(), '', 'System', 'String', '', value, false, '', false]);
 }
 
+/**
+ * Alias for setQuantumSetting for backward compatibility.
+ */
+function updateQuantumSetting(key, value) {
+  setQuantumSetting(key, value);
+}
+
 function logQuantum(action, details) {
   const sheet = getQuantumSheet(QUANTUM_SHEETS.LOGS.name);
   sheet.appendRow([
