@@ -70,23 +70,38 @@ function executeQuantumAIBatch() {
     return {success: true, message: 'All deals already analyzed.', analyzed: 0};
   }
 
-  // Process in batches to avoid execution time limits
-  var BATCH_SIZE = 10;
+  // Process deals one at a time with time limit check (5 min safety margin)
+  var MAX_RUNTIME_MS = 5 * 60 * 1000; // 5 minutes (leave 1 min buffer before Google's 6 min limit)
   var analyzed = 0;
-  for (var b = 0; b < deals.length; b += BATCH_SIZE) {
-    var batch = deals.slice(b, b + BATCH_SIZE);
+  var skipped = 0;
+
+  for (var d = 0; d < deals.length; d++) {
+    // Check if we're running out of time
+    var elapsed = new Date() - startTime;
+    if (elapsed > MAX_RUNTIME_MS) {
+      skipped = deals.length - d;
+      logQuantum('Batch Analysis', 'Time limit approaching. Stopping after ' + analyzed + ' deals. ' + skipped + ' remaining for next run.');
+      break;
+    }
+
     try {
-      triggerQuantumAnalysis(batch);
-      analyzed += batch.length;
+      triggerQuantumAnalysis([deals[d]]);
+      analyzed++;
     } catch (e) {
-      logQuantum('Batch Analysis Error', 'Batch starting at index ' + b + ': ' + e.toString());
+      logQuantum('Batch Analysis Error', 'Deal ' + deals[d].dealId + ': ' + e.toString());
     }
   }
 
   var duration = new Date() - startTime;
-  logQuantum('Batch Analysis', 'Completed. ' + analyzed + '/' + deals.length + ' deals analyzed in ' + duration + 'ms.');
+  logQuantum('Batch Analysis', 'Completed. ' + analyzed + '/' + deals.length + ' deals analyzed in ' + Math.round(duration / 1000) + 's.' + (skipped > 0 ? ' Run again to process remaining ' + skipped + ' deals.' : ''));
 
-  return {success: true, message: analyzed + ' deals analyzed.', analyzed: analyzed, duration: duration};
+  if (analyzed > 0) {
+    SpreadsheetApp.getUi().alert('Quantum AI Analysis Complete\n\n' + analyzed + ' deals analyzed.\n' + (skipped > 0 ? skipped + ' deals remaining — run again to continue.' : 'All deals processed!'));
+  } else {
+    SpreadsheetApp.getUi().alert('No unanalyzed deals found in the Master Database.');
+  }
+
+  return {success: true, message: analyzed + ' deals analyzed.', analyzed: analyzed, skipped: skipped, duration: duration};
 }
 
 function triggerQuantumAnalysis(deals) {
