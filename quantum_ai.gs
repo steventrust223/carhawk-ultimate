@@ -23,6 +23,7 @@ function executeQuantumAIBatch() {
   }
 
   var deals = [];
+  var skippedIncomplete = 0;
   for (var i = 1; i < data.length; i++) {
     var row = data[i];
     var dealId = row[0];     // Column A: Deal ID
@@ -32,37 +33,50 @@ function executeQuantumAIBatch() {
     if (!dealId) continue;
     if (verdict && verdict !== '' && verdict !== 'Needs Review') continue;
 
-    var parsed = {
-      year: row[5],
-      make: row[6],
-      model: row[7],
-      trim: row[8],
-      vin: row[9],
-      mileage: row[10],
-      color: row[11],
-      condition: row[19],
-      price: row[13],
-      zip: row[15],
-      daysListed: row[32],
-      platform: row[2],
-      sellerType: row[36],
-      sellerPhone: row[34],
-      sellerEmail: row[35],
-      multipleVehicles: row[39],
-      imageCount: row[11] ? 5 : 0,
-      repairKeywords: row[21] ? (typeof row[21] === 'string' ? JSON.parse(row[21] || '[]') : []) : []
+    // Validate critical fields: must have year, make, and price
+    var year = row[5];
+    var make = row[6];
+    var price = row[13];
+    if (!year || !make || !price) {
+      skippedIncomplete++;
+      logQuantum('Batch Skip', 'Deal ' + dealId + ': Missing critical data (year=' + year + ', make=' + make + ', price=' + price + ')');
+      continue;
+    }
+
+    // Read already-calculated metrics directly from the sheet
+    // These were computed during import by processQuantumImport -> calculateQuantumMetrics
+    var metrics = {
+      distance: row[16] || 0,           // Column Q: Distance
+      locationRisk: row[17] || '',       // Column R: Location Risk
+      locationFlag: row[18] || '',       // Column S: Location Flag
+      conditionScore: row[20] || 50,     // Column U: Condition Score
+      repairRiskScore: row[22] || 0,     // Column W: Repair Risk Score
+      estimatedRepairCost: row[23] || 0, // Column X: Est. Repair Cost
+      marketValue: row[24] || 0,         // Column Y: Market Value
+      mao: row[25] || 0,                 // Column Z: MAO
+      salesVelocity: row[30] || 0,       // Column AE: Sales Velocity Score
+      marketAdvantage: row[31] || 0,     // Column AF: Market Advantage
+      imageScore: row[45] || 0,          // Column AT: Image Score
+      engagementScore: row[46] || 0,     // Column AU: Engagement Score
+      competitionLevel: row[47] || 0     // Column AV: Competition Level
     };
 
-    try {
-      var metrics = calculateQuantumMetrics(parsed);
-      deals.push({
-        rowNum: i + 1,  // 1-indexed for sheet operations
-        dealId: dealId,
-        metrics: metrics
-      });
-    } catch (e) {
-      logQuantum('Metrics Error', 'Deal ' + dealId + ': ' + e.toString());
+    // If market value is 0, the import didn't calculate it properly — skip
+    if (metrics.marketValue <= 0) {
+      skippedIncomplete++;
+      logQuantum('Batch Skip', 'Deal ' + dealId + ': No market value calculated');
+      continue;
     }
+
+    deals.push({
+      rowNum: i + 1,  // 1-indexed for sheet operations
+      dealId: dealId,
+      metrics: metrics
+    });
+  }
+
+  if (skippedIncomplete > 0) {
+    logQuantum('Batch Analysis', skippedIncomplete + ' deals skipped due to missing data.');
   }
 
   if (deals.length === 0) {
@@ -280,26 +294,30 @@ Return analysis in this JSON structure:
 }
 
 function updateQuantumResults(sheet, rowNum, analysis) {
-  // Update flip strategy
-  sheet.getRange(rowNum, 29).setValue(analysis.flipStrategy);
+  // Column numbers are 1-based for getRange()
+  // 30:Flip Strategy, 38:Deal Flag, 41:Seller Message,
+  // 42:AI Confidence, 43:Verdict, 44:Verdict Icon, 45:Recommended?
 
-  // Update deal flag based on verdict
+  // Update flip strategy (Column AD = 30)
+  sheet.getRange(rowNum, 30).setValue(analysis.flipStrategy);
+
+  // Update deal flag based on verdict (Column AL = 38)
   const flagMap = {
     '🔥 HOT DEAL': '🔥',
     '✅ SOLID DEAL': '✅',
     '⚠️ PORTFOLIO FOUNDATION': '⚠️',
     '❌ PASS': '❌'
   };
-  sheet.getRange(rowNum, 37).setValue(flagMap[analysis.verdict]);
+  sheet.getRange(rowNum, 38).setValue(flagMap[analysis.verdict] || '');
 
-  // Update seller message
-  sheet.getRange(rowNum, 40).setValue(analysis.sellerMessage);
+  // Update seller message (Column AO = 41)
+  sheet.getRange(rowNum, 41).setValue(analysis.sellerMessage || '');
 
   // Update AI fields
-  sheet.getRange(rowNum, 41).setValue(analysis.confidence);
-  sheet.getRange(rowNum, 42).setValue(analysis.verdict);
-  sheet.getRange(rowNum, 43).setValue(analysis.verdict.split(' ')[0]); // Icon only
-  sheet.getRange(rowNum, 44).setValue(analysis.recommended ? 'YES' : 'NO');
+  sheet.getRange(rowNum, 42).setValue(analysis.confidence);        // Column AP: AI Confidence
+  sheet.getRange(rowNum, 43).setValue(analysis.verdict);           // Column AQ: Verdict
+  sheet.getRange(rowNum, 44).setValue(analysis.verdict ? analysis.verdict.split(' ')[0] : ''); // Column AR: Verdict Icon
+  sheet.getRange(rowNum, 45).setValue(analysis.recommended ? 'YES' : 'NO'); // Column AS: Recommended?
 
   // Apply conditional formatting based on verdict
   const row = sheet.getRange(rowNum, 1, 1, sheet.getLastColumn());

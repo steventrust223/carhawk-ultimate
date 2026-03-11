@@ -7,6 +7,16 @@ function quantumImportSync() {
   const importSheet = getQuantumSheet(QUANTUM_SHEETS.IMPORT.name);
   const dbSheet = getQuantumSheet(QUANTUM_SHEETS.DATABASE.name);
 
+  // Build set of existing Origin URLs in Master Database to prevent duplicates
+  // Origin URL is not stored in DB by default, so we deduplicate by title+price+platform
+  const dbData = dbSheet.getDataRange().getValues();
+  const existingDeals = new Set();
+  for (let d = 1; d < dbData.length; d++) {
+    // Create a fingerprint from year + make + model + price + platform
+    var fp = String(dbData[d][5]) + '|' + String(dbData[d][6]) + '|' + String(dbData[d][7]) + '|' + String(dbData[d][13]) + '|' + String(dbData[d][2]);
+    existingDeals.add(fp.toLowerCase());
+  }
+
   // Get unprocessed imports
   const importData = importSheet.getDataRange().getValues();
   const unprocessed = [];
@@ -38,9 +48,11 @@ function quantumImportSync() {
 
   for (const item of unprocessed) {
     try {
-      const result = processQuantumImport(item.data, item.row);
-      results.push(result);
-      processed++;
+      const result = processQuantumImport(item.data, item.row, existingDeals);
+      if (result) {
+        results.push(result);
+        processed++;
+      }
 
       // Update progress (would use server events in production)
       Utilities.sleep(100);
@@ -57,7 +69,7 @@ function quantumImportSync() {
   ui.alert(`Quantum Import Complete! Processed ${processed} deals.`);
 }
 
-function processQuantumImport(rowData, rowNum) {
+function processQuantumImport(rowData, rowNum, existingDeals) {
   const importSheet = getQuantumSheet(QUANTUM_SHEETS.IMPORT.name);
   const dbSheet = getQuantumSheet(QUANTUM_SHEETS.DATABASE.name);
 
@@ -82,6 +94,20 @@ function processQuantumImport(rowData, rowNum) {
 
   // Quantum parsing engine
   const parsed = quantumParseVehicle(importData);
+
+  // Check for duplicates: skip if same year+make+model+price+platform already exists
+  if (existingDeals) {
+    var fp = String(parsed.year) + '|' + String(parsed.make) + '|' + String(parsed.model) + '|' + String(parsed.price) + '|' + String(parsed.platform);
+    if (existingDeals.has(fp.toLowerCase())) {
+      // Mark as processed but don't add to database
+      importSheet.getRange(rowNum, 17).setValue(true);
+      importSheet.getRange(rowNum, 18).setValue('DUPLICATE');
+      logQuantum('Import Skip', 'Duplicate detected: ' + parsed.year + ' ' + parsed.make + ' ' + parsed.model + ' $' + parsed.price);
+      return null;
+    }
+    // Add this deal's fingerprint to prevent duplicates within the same batch
+    existingDeals.add(fp.toLowerCase());
+  }
 
   // Calculate quantum metrics
   const metrics = calculateQuantumMetrics(parsed);
