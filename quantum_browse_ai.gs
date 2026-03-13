@@ -120,8 +120,9 @@ function processBrowseAIIntegration(integration) {
       const postedDate = resolveField(row, columnMap, 'postedDate') || '';
       const imageCount = resolveField(row, columnMap, 'images') || 0;
 
-      // Extract enhanced fields (mileage, condition, VIN, etc.)
+      // Extract enhanced fields (mileage, condition, VIN, year, etc.)
       const mileage = resolveField(row, columnMap, 'mileage') || '';
+      const year = resolveField(row, columnMap, 'year') || '';
       const condition = resolveField(row, columnMap, 'condition') || '';
       const vin = resolveField(row, columnMap, 'vin') || '';
       const transmission = resolveField(row, columnMap, 'transmission') || '';
@@ -150,7 +151,8 @@ function processBrowseAIIntegration(integration) {
       // Build enhanced seller info
       const enhancedSellerInfo = buildEnhancedSellerInfo(sellerInfo, sellerType, extras);
 
-      // Prepare import row (16 columns matching Master Import schema)
+      // Prepare import row (19 columns matching expanded Master Import schema)
+      // Columns 12-14 carry pre-extracted Browse.ai robot fields for downstream parsing
       const importRow = [
         generateQuantumId('IMP'),    // Import ID
         new Date(),                   // Date (GMT)
@@ -164,6 +166,9 @@ function processBrowseAIIntegration(integration) {
         enhancedSellerInfo,           // Seller Info (enhanced with type detection)
         postedDate,                   // Posted Date
         imageCount,                   // Images Count
+        mileage,                      // Raw Mileage (pre-extracted by Browse.ai robot)
+        year,                         // Raw Year (pre-extracted by Browse.ai robot)
+        condition,                    // Raw Condition (pre-extracted by Browse.ai robot)
         'Pending',                    // Import Status
         false,                        // Processed
         '',                           // Master ID
@@ -192,6 +197,7 @@ function processBrowseAIIntegration(integration) {
 /**
  * Map Browse.ai export headers using platform-specific column definitions.
  * Falls back to generic mapping if platform is unknown.
+ * Includes mileage, year, and condition variants from all marketplace robots.
  */
 function mapBrowseAIColumnsPlatform(headers, platform) {
   const platformMappings = getPlatformColumnMap(platform);
