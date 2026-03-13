@@ -193,13 +193,34 @@ function quantumParseVehicle(data) {
     sellerType: 'Private',
     hotSeller: false,
     multipleVehicles: false,
-    repairKeywords: []
+    repairKeywords: [],
+    // Enhanced fields from platform-specific robots
+    transmission: '',
+    fuelType: '',
+    bodyStyle: '',
+    drivetrain: '',
+    titleStatus: '',
+    accidents: '',
+    owners: '',
+    engineSize: '',
+    vehicleType: '',
+    hours: 0,
+    listingId: '',
+    bidCount: 0,
+    watchers: 0,
+    dealRating: '',
+    certifiedPreOwned: false,
+    features: ''
   };
+
+  // First, extract structured data tags from enhanced description
+  // These are injected by the platform-specific Browse.ai importers
+  const structuredTags = extractStructuredTags(data.rawDescription);
 
   // Quantum title parsing with AI patterns
   const titlePatterns = {
     year: /\b(19|20)\d{2}\b/,
-    make: /\b(Ford|Chevrolet|Chevy|Toyota|Honda|Nissan|Jeep|Ram|GMC|Hyundai|Kia|Mazda|Subaru|VW|Volkswagen|Audi|BMW|Mercedes|Lexus|Acura|Infiniti|Cadillac|Lincoln|Buick|Chrysler|Dodge|Fiat|Genesis|Jaguar|Land Rover|Maserati|Mini|Mitsubishi|Porsche|Tesla|Volvo)\b/i,
+    make: /\b(Ford|Chevrolet|Chevy|Toyota|Honda|Nissan|Jeep|Ram|GMC|Hyundai|Kia|Mazda|Subaru|VW|Volkswagen|Audi|BMW|Mercedes|Lexus|Acura|Infiniti|Cadillac|Lincoln|Buick|Chrysler|Dodge|Fiat|Genesis|Jaguar|Land Rover|Maserati|Mini|Mitsubishi|Porsche|Tesla|Volvo|Polaris|Can-Am|Honda|Yamaha|Kawasaki|Arctic Cat|Suzuki|Harley-Davidson|Indian|Triumph|KTM|John Deere|Kubota|Sea-Doo|Ski-Doo|CF Moto)\b/i,
     mileage: /(\d{1,3})[,.]?(\d{3})\s*(?:mi|miles|k)/i,
     vin: /\b[A-HJ-NPR-Z0-9]{17}\b/,
     color: /\b(black|white|silver|gray|grey|red|blue|green|gold|beige|brown|orange|yellow|purple)\b/i
@@ -220,19 +241,33 @@ function quantumParseVehicle(data) {
     if (modelMatch) parsed.model = modelMatch[1];
   }
 
-  // Extract mileage
-  const mileageMatch = (parsed.title + ' ' + data.rawDescription).match(titlePatterns.mileage);
-  if (mileageMatch) {
-    parsed.mileage = parseInt(mileageMatch[1] + (mileageMatch[2] || '000'));
+  // Extract mileage - prefer structured tag, fall back to regex
+  if (structuredTags.MILEAGE) {
+    const tagMileage = parseInt(String(structuredTags.MILEAGE).replace(/[^0-9]/g, ''));
+    if (tagMileage > 0) parsed.mileage = tagMileage;
+  }
+  if (!parsed.mileage) {
+    const mileageMatch = (parsed.title + ' ' + data.rawDescription).match(titlePatterns.mileage);
+    if (mileageMatch) {
+      parsed.mileage = parseInt(mileageMatch[1] + (mileageMatch[2] || '000'));
+    }
   }
 
-  // Extract VIN
-  const vinMatch = data.rawDescription.match(titlePatterns.vin);
-  if (vinMatch) parsed.vin = vinMatch[0];
+  // Extract VIN - prefer structured tag
+  if (structuredTags.VIN) {
+    parsed.vin = structuredTags.VIN;
+  } else {
+    const vinMatch = data.rawDescription.match(titlePatterns.vin);
+    if (vinMatch) parsed.vin = vinMatch[0];
+  }
 
-  // Extract color
-  const colorMatch = parsed.title.match(titlePatterns.color);
-  if (colorMatch) parsed.color = colorMatch[0].toLowerCase();
+  // Extract color - prefer structured tag
+  if (structuredTags.COLOR) {
+    parsed.color = structuredTags.COLOR.toLowerCase();
+  } else {
+    const colorMatch = parsed.title.match(titlePatterns.color);
+    if (colorMatch) parsed.color = colorMatch[0].toLowerCase();
+  }
 
   // Parse price with quantum intelligence
   parsed.price = parseQuantumPrice(data.rawPrice);
@@ -252,8 +287,43 @@ function quantumParseVehicle(data) {
   const sellerData = extractQuantumSellerInfo(data.sellerInfo, data.rawDescription);
   Object.assign(parsed, sellerData);
 
-  // Detect condition with AI
-  parsed.condition = detectQuantumCondition(parsed.title, data.rawDescription);
+  // Apply structured tag overrides for seller type
+  if (data.sellerInfo && data.sellerInfo.includes('[TYPE:')) {
+    const typeMatch = data.sellerInfo.match(/\[TYPE:\s*(\w+)\]/);
+    if (typeMatch) parsed.sellerType = typeMatch[1];
+  }
+
+  // Detect condition - prefer structured tag, fall back to AI detection
+  if (structuredTags.CONDITION && structuredTags.CONDITION !== 'Unknown') {
+    parsed.condition = structuredTags.CONDITION;
+  } else {
+    parsed.condition = detectQuantumCondition(parsed.title, data.rawDescription);
+  }
+
+  // Apply all structured tag fields
+  if (structuredTags.TRANSMISSION) parsed.transmission = structuredTags.TRANSMISSION;
+  if (structuredTags.FUEL) parsed.fuelType = structuredTags.FUEL;
+  if (structuredTags.BODY) parsed.bodyStyle = structuredTags.BODY;
+  if (structuredTags.DRIVETRAIN) parsed.drivetrain = structuredTags.DRIVETRAIN;
+  if (structuredTags.TITLE) parsed.titleStatus = structuredTags.TITLE;
+  if (structuredTags.TRIM) parsed.trim = structuredTags.TRIM;
+  if (structuredTags.LISTING_ID) parsed.listingId = structuredTags.LISTING_ID;
+  if (structuredTags.ACCIDENTS) parsed.accidents = structuredTags.ACCIDENTS;
+  if (structuredTags.OWNERS) parsed.owners = structuredTags.OWNERS;
+  if (structuredTags.ENGINE_SIZE) parsed.engineSize = structuredTags.ENGINE_SIZE;
+  if (structuredTags.VEHICLE_TYPE) parsed.vehicleType = structuredTags.VEHICLE_TYPE;
+  if (structuredTags.DEAL_RATING) parsed.dealRating = structuredTags.DEAL_RATING;
+  if (structuredTags.FEATURES) parsed.features = structuredTags.FEATURES;
+  if (structuredTags.CPO) parsed.certifiedPreOwned = String(structuredTags.CPO).toLowerCase() === 'true' || structuredTags.CPO === 'Yes';
+  if (structuredTags.PRICE_HISTORY) parsed.priceHistory = structuredTags.PRICE_HISTORY;
+  if (structuredTags.SERIAL) parsed.vin = parsed.vin || structuredTags.SERIAL; // Use serial as VIN fallback for powersports
+
+  // eBay-specific fields
+  if (structuredTags.BIDS) parsed.bidCount = parseInt(structuredTags.BIDS) || 0;
+  if (structuredTags.WATCHERS) parsed.watchers = parseInt(structuredTags.WATCHERS) || 0;
+
+  // Powersports engine hours
+  if (structuredTags.HOURS) parsed.hours = parseInt(String(structuredTags.HOURS).replace(/[^0-9]/g, '')) || 0;
 
   // Find repair keywords
   parsed.repairKeywords = findRepairKeywords(parsed.title + ' ' + data.rawDescription);
@@ -263,6 +333,23 @@ function quantumParseVehicle(data) {
   parsed.multipleVehicles = detectMultipleVehicles(data.rawDescription);
 
   return parsed;
+}
+
+/**
+ * Extract structured data tags embedded in enhanced descriptions.
+ * Tags follow the format: [TAG_NAME: value]
+ */
+function extractStructuredTags(description) {
+  const tags = {};
+  if (!description) return tags;
+
+  const tagPattern = /\[([A-Z_]+):\s*([^\]]+)\]/g;
+  let match;
+  while ((match = tagPattern.exec(description)) !== null) {
+    tags[match[1]] = match[2].trim();
+  }
+
+  return tags;
 }
 
 function parseQuantumPrice(priceStr) {
@@ -363,14 +450,24 @@ function extractQuantumSellerInfo(sellerStr, description) {
     }
   }
 
-  // Detect dealer patterns
-  const dealerKeywords = ['dealer', 'dealership', 'motors', 'auto', 'cars', 'automotive', 'sales'];
-  const lowerText = (sellerStr + ' ' + description).toLowerCase();
+  // Detect dealer patterns - uses platform-aware detection if available
+  // The enhanced importer may have already embedded [TYPE: ...] in sellerStr
+  const typeTag = (sellerStr || '').match(/\[TYPE:\s*(\w+)\]/);
+  if (typeTag) {
+    info.sellerType = typeTag[1];
+  } else {
+    const dealerKeywords = [
+      'dealer', 'dealership', 'motors', 'auto sales', 'automotive',
+      'llc', 'inc', 'financing', 'warranty', 'certified',
+      'powersports', 'motorsports', 'marine'
+    ];
+    const lowerText = (sellerStr + ' ' + description).toLowerCase();
 
-  for (const keyword of dealerKeywords) {
-    if (lowerText.includes(keyword)) {
-      info.sellerType = 'Dealer';
-      break;
+    for (const keyword of dealerKeywords) {
+      if (lowerText.includes(keyword)) {
+        info.sellerType = 'Dealer';
+        break;
+      }
     }
   }
 
