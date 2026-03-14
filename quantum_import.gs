@@ -12,7 +12,7 @@ function quantumImportSync() {
   const unprocessed = [];
 
   for (let i = 1; i < importData.length; i++) {
-    if (!importData[i][16]) { // Not processed (column shifted for new fields)
+    if (!importData[i][16]) { // Not processed (column 16 after new Browse.ai fields)
       unprocessed.push({
         row: i + 1,
         data: importData[i]
@@ -197,19 +197,36 @@ function quantumParseVehicle(data) {
     hotSeller: false,
     multipleVehicles: false,
     repairKeywords: [],
+    // Enhanced fields from platform-specific robots + main branch parsing
     transmission: '',
     drivetrain: '',
     fuelType: '',
     exteriorColor: '',
     interiorColor: '',
     titleStatus: '',
-    bodyType: ''
+    bodyStyle: '',
+    bodyType: '',
+    accidents: '',
+    owners: '',
+    engineSize: '',
+    vehicleType: '',
+    hours: 0,
+    listingId: '',
+    bidCount: 0,
+    watchers: 0,
+    dealRating: '',
+    certifiedPreOwned: false,
+    features: ''
   };
+
+  // Extract structured data tags from enhanced description
+  // These are injected by the platform-specific Browse.ai importers
+  const structuredTags = extractStructuredTags(data.rawDescription);
 
   // Quantum title parsing with AI patterns
   const titlePatterns = {
     year: /\b(19|20)\d{2}\b/,
-    make: /\b(Ford|Chevrolet|Chevy|Toyota|Honda|Nissan|Jeep|Ram|GMC|Hyundai|Kia|Mazda|Subaru|VW|Volkswagen|Audi|BMW|Mercedes|Lexus|Acura|Infiniti|Cadillac|Lincoln|Buick|Chrysler|Dodge|Fiat|Genesis|Jaguar|Land Rover|Maserati|Mini|Mitsubishi|Porsche|Tesla|Volvo)\b/i,
+    make: /\b(Ford|Chevrolet|Chevy|Toyota|Honda|Nissan|Jeep|Ram|GMC|Hyundai|Kia|Mazda|Subaru|VW|Volkswagen|Audi|BMW|Mercedes|Lexus|Acura|Infiniti|Cadillac|Lincoln|Buick|Chrysler|Dodge|Fiat|Genesis|Jaguar|Land Rover|Maserati|Mini|Mitsubishi|Porsche|Tesla|Volvo|Polaris|Can-Am|Yamaha|Kawasaki|Arctic Cat|Suzuki|Harley-Davidson|Indian|Triumph|KTM|John Deere|Kubota|Sea-Doo|Ski-Doo|CF Moto)\b/i,
     mileage: /(\d{1,3})[,.]?(\d{3})\s*(?:mi|miles|k)/i,
     vin: /\b[A-HJ-NPR-Z0-9]{17}\b/,
     color: /\b(black|white|silver|gray|grey|red|blue|green|gold|beige|brown|orange|yellow|purple)\b/i
@@ -234,9 +251,7 @@ function quantumParseVehicle(data) {
   if (data.platform === 'Facebook') {
     // Facebook "Listing Title" can be generic or seller-written.
     // The real vehicle details are often in the seller's description.
-    // e.g. Description: "2002 Silverado 1500 5.3/4x4 CLEAN MO TITLE..."
-    // Also extract structured "About this vehicle" fields from description:
-    // "Driven 274,000 miles", "Automatic transmission", "Exterior color: Blue"
+    // Extract structured "About this vehicle" fields from description:
     const fbTransmission = descriptionText.match(/\b(automatic|manual|cvt)\s*transmission\b/i);
     if (fbTransmission) parsed.transmission = fbTransmission[1].charAt(0).toUpperCase() + fbTransmission[1].slice(1).toLowerCase();
 
@@ -258,7 +273,6 @@ function quantumParseVehicle(data) {
   if (data.platform === 'OfferUp') {
     // OfferUp title is usually clean: "2008 Hyundai Santa FE"
     // But drivetrain, transmission, condition come as separate tags/badges.
-    // These may be embedded in description or as structured fields.
     const ouDrivetrain = descriptionText.match(/\b(front[- ]wheel drive|rear[- ]wheel drive|all[- ]wheel drive|4wd|4x4|awd|fwd|rwd)\b/i);
     if (ouDrivetrain) parsed.drivetrain = ouDrivetrain[0].replace(/-/g, ' ');
 
@@ -305,7 +319,6 @@ function quantumParseVehicle(data) {
     let modelMatch = purgedTitle.match(modelPattern);
     // Facebook fallback: try description
     if (!modelMatch && data.platform === 'Facebook') {
-      // Also try with the raw make name before standardization
       const rawMake = makeMatch ? makeMatch[0] : parsed.make;
       const rawModelPattern = new RegExp(rawMake + '\\s+(\\w+(?:\\s+\\w+)?)', 'i');
       modelMatch = descriptionText.match(rawModelPattern) || descriptionText.match(modelPattern);
@@ -320,7 +333,7 @@ function quantumParseVehicle(data) {
     if (trimMatch) parsed.trim = trimMatch[1].toUpperCase();
   }
 
-  // Extract mileage - prefer Browse.ai pre-extracted value (all 3 robots provide this)
+  // Extract mileage - priority: Browse.ai pre-extracted > structured tag > regex
   if (data.rawMileage) {
     const mileageVal = String(data.rawMileage).replace(/[^0-9.]/g, '');
     if (mileageVal) {
@@ -332,6 +345,10 @@ function quantumParseVehicle(data) {
       parsed.mileage = Math.round(miles);
     }
   }
+  if (!parsed.mileage && structuredTags.MILEAGE) {
+    const tagMileage = parseInt(String(structuredTags.MILEAGE).replace(/[^0-9]/g, ''));
+    if (tagMileage > 0) parsed.mileage = tagMileage;
+  }
   if (!parsed.mileage) {
     const mileageMatch = (purgedTitle + ' ' + descriptionText).match(titlePatterns.mileage);
     if (mileageMatch) {
@@ -339,15 +356,20 @@ function quantumParseVehicle(data) {
     }
   }
 
-  // Extract VIN
-  const vinMatch = descriptionText.match(titlePatterns.vin);
-  if (vinMatch) parsed.vin = vinMatch[0];
+  // Extract VIN - prefer structured tag, fall back to regex
+  if (structuredTags.VIN) {
+    parsed.vin = structuredTags.VIN;
+  } else {
+    const vinMatch = descriptionText.match(titlePatterns.vin);
+    if (vinMatch) parsed.vin = vinMatch[0];
+  }
 
-  // Extract color - check purged title, then description
+  // Extract color - check purged title, then description, then structured tag
   let colorMatch = purgedTitle.match(titlePatterns.color);
   if (!colorMatch) colorMatch = descriptionText.match(titlePatterns.color);
   if (colorMatch) parsed.color = colorMatch[0].toLowerCase();
-  // Use Facebook exterior color if available and no color found
+  // Use structured tag or Facebook exterior color if available
+  if (!parsed.color && structuredTags.COLOR) parsed.color = structuredTags.COLOR.toLowerCase();
   if (!parsed.color && parsed.exteriorColor) parsed.color = parsed.exteriorColor;
 
   // Extract Craigslist structured fields from description
@@ -387,7 +409,13 @@ function quantumParseVehicle(data) {
   const sellerData = extractQuantumSellerInfo(data.sellerInfo, data.rawDescription);
   Object.assign(parsed, sellerData);
 
-  // Detect condition - prefer Browse.ai pre-extracted value (Craigslist robot provides this)
+  // Apply structured tag overrides for seller type
+  if (data.sellerInfo && data.sellerInfo.includes('[TYPE:')) {
+    const typeMatch = data.sellerInfo.match(/\[TYPE:\s*(\w+)\]/);
+    if (typeMatch) parsed.sellerType = typeMatch[1];
+  }
+
+  // Detect condition - priority: Browse.ai pre-extracted > structured tag > AI detection
   if (data.rawCondition) {
     const conditionStr = String(data.rawCondition).trim().toLowerCase();
     const validConditions = ['excellent', 'very good', 'good', 'fair', 'poor', 'like new', 'new', 'salvage'];
@@ -395,9 +423,36 @@ function quantumParseVehicle(data) {
     parsed.condition = matched
       ? matched.charAt(0).toUpperCase() + matched.slice(1)
       : detectQuantumCondition(parsed.title, data.rawDescription);
+  } else if (structuredTags.CONDITION && structuredTags.CONDITION !== 'Unknown') {
+    parsed.condition = structuredTags.CONDITION;
   } else {
     parsed.condition = detectQuantumCondition(parsed.title, data.rawDescription);
   }
+
+  // Apply structured tag fields (these override platform-specific parsing when present)
+  if (structuredTags.TRANSMISSION && !parsed.transmission) parsed.transmission = structuredTags.TRANSMISSION;
+  if (structuredTags.FUEL && !parsed.fuelType) parsed.fuelType = structuredTags.FUEL;
+  if (structuredTags.BODY && !parsed.bodyStyle) parsed.bodyStyle = structuredTags.BODY;
+  if (structuredTags.DRIVETRAIN && !parsed.drivetrain) parsed.drivetrain = structuredTags.DRIVETRAIN;
+  if (structuredTags.TITLE && !parsed.titleStatus) parsed.titleStatus = structuredTags.TITLE;
+  if (structuredTags.TRIM && !parsed.trim) parsed.trim = structuredTags.TRIM;
+  if (structuredTags.LISTING_ID) parsed.listingId = structuredTags.LISTING_ID;
+  if (structuredTags.ACCIDENTS) parsed.accidents = structuredTags.ACCIDENTS;
+  if (structuredTags.OWNERS) parsed.owners = structuredTags.OWNERS;
+  if (structuredTags.ENGINE_SIZE) parsed.engineSize = structuredTags.ENGINE_SIZE;
+  if (structuredTags.VEHICLE_TYPE) parsed.vehicleType = structuredTags.VEHICLE_TYPE;
+  if (structuredTags.DEAL_RATING) parsed.dealRating = structuredTags.DEAL_RATING;
+  if (structuredTags.FEATURES) parsed.features = structuredTags.FEATURES;
+  if (structuredTags.CPO) parsed.certifiedPreOwned = String(structuredTags.CPO).toLowerCase() === 'true' || structuredTags.CPO === 'Yes';
+  if (structuredTags.PRICE_HISTORY) parsed.priceHistory = structuredTags.PRICE_HISTORY;
+  if (structuredTags.SERIAL) parsed.vin = parsed.vin || structuredTags.SERIAL; // Use serial as VIN fallback for powersports
+
+  // eBay-specific fields
+  if (structuredTags.BIDS) parsed.bidCount = parseInt(structuredTags.BIDS) || 0;
+  if (structuredTags.WATCHERS) parsed.watchers = parseInt(structuredTags.WATCHERS) || 0;
+
+  // Powersports engine hours
+  if (structuredTags.HOURS) parsed.hours = parseInt(String(structuredTags.HOURS).replace(/[^0-9]/g, '')) || 0;
 
   // Find repair keywords
   parsed.repairKeywords = findRepairKeywords(parsed.title + ' ' + data.rawDescription);
@@ -407,6 +462,23 @@ function quantumParseVehicle(data) {
   parsed.multipleVehicles = detectMultipleVehicles(data.rawDescription);
 
   return parsed;
+}
+
+/**
+ * Extract structured data tags embedded in enhanced descriptions.
+ * Tags follow the format: [TAG_NAME: value]
+ */
+function extractStructuredTags(description) {
+  const tags = {};
+  if (!description) return tags;
+
+  const tagPattern = /\[([A-Z_]+):\s*([^\]]+)\]/g;
+  let match;
+  while ((match = tagPattern.exec(description)) !== null) {
+    tags[match[1]] = match[2].trim();
+  }
+
+  return tags;
 }
 
 function parseQuantumPrice(priceStr) {
@@ -507,14 +579,24 @@ function extractQuantumSellerInfo(sellerStr, description) {
     }
   }
 
-  // Detect dealer patterns
-  const dealerKeywords = ['dealer', 'dealership', 'motors', 'auto', 'cars', 'automotive', 'sales'];
-  const lowerText = (sellerStr + ' ' + description).toLowerCase();
+  // Detect dealer patterns - uses platform-aware detection if available
+  // The enhanced importer may have already embedded [TYPE: ...] in sellerStr
+  const typeTag = (sellerStr || '').match(/\[TYPE:\s*(\w+)\]/);
+  if (typeTag) {
+    info.sellerType = typeTag[1];
+  } else {
+    const dealerKeywords = [
+      'dealer', 'dealership', 'motors', 'auto sales', 'automotive',
+      'llc', 'inc', 'financing', 'warranty', 'certified',
+      'powersports', 'motorsports', 'marine'
+    ];
+    const lowerText = (sellerStr + ' ' + description).toLowerCase();
 
-  for (const keyword of dealerKeywords) {
-    if (lowerText.includes(keyword)) {
-      info.sellerType = 'Dealer';
-      break;
+    for (const keyword of dealerKeywords) {
+      if (lowerText.includes(keyword)) {
+        info.sellerType = 'Dealer';
+        break;
+      }
     }
   }
 
