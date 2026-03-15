@@ -89,7 +89,46 @@ const ROBOT_REGISTRY = {
         'selling my', 'owner', 'one owner', 'clean title'
       ]
     },
-    listingIdPattern: /\/item\/(\d+)/
+    listingIdPattern: /\/item\/(\d+)/,
+    trainingGuide: {
+      startUrl: 'https://www.facebook.com/marketplace/stlouis/vehicles?minPrice=500&maxPrice=15000&minYear=2005&daysSinceListed=7&sortBy=creation_time_descend',
+      robotType: 'Extract data from a list of elements on a page',
+      steps: [
+        'Navigate to Facebook Marketplace > Vehicles with your desired filters',
+        'When Browse.ai asks "What data do you want to extract?", choose "Data from a list"',
+        'Click the FIRST listing card in the search results grid',
+        'Browse.ai will auto-detect the repeating pattern — confirm it highlights all listing cards',
+        'For each highlighted card, label the extracted fields (see field names below)',
+        'Click into a single listing to train detail-page fields (description, VIN, seller info)',
+        'Set pagination: Facebook uses infinite scroll — set "Scroll to load more" with max 10 scrolls'
+      ],
+      fieldTraining: {
+        title:       'Click the listing title text (e.g. "2015 Honda Civic LX"). Name it: title',
+        price:       'Click the price text (e.g. "$8,500"). Name it: price',
+        location:    'Click the location/city text below the price. Name it: location',
+        url:         'The listing link is auto-captured. Name it: url',
+        images:      'On the detail page, count the photo thumbnails or grab the main image. Name it: images',
+        mileage:     'On the detail page, find "Mileage" or "Miles" in the vehicle details section. Name it: mileage',
+        description: 'On the detail page, click the "Description" or "Seller\'s description" block. Name it: description',
+        condition:   'On the detail page, find "Condition" in the details grid. Name it: condition',
+        sellerInfo:  'On the detail page, click the seller name/profile link. Name it: seller',
+        postedDate:  'On the detail page or card, click the "Listed X days/hours ago" text. Name it: posted',
+        transmission:'On the detail page, find "Transmission" in the details grid. Name it: transmission',
+        fuelType:    'On the detail page, find "Fuel type" in the details grid. Name it: fuel_type',
+        bodyStyle:   'On the detail page, find "Body style" in the details grid. Name it: body_style',
+        exteriorColor:'On the detail page, find "Exterior color" in the details grid. Name it: color',
+        vin:         'On the detail page, look for VIN near the bottom of vehicle details. Name it: vin',
+        titleStatus: 'On the detail page, find "Clean title" badge if present. Name it: title_status'
+      },
+      paginationMethod: 'infinite_scroll',
+      paginationNotes: 'Set scroll count to 8-10. Each scroll loads ~8 more listings. Facebook may require login for full results.',
+      importantNotes: [
+        'Facebook may block scraping if too frequent — set monitor to 30+ minute intervals',
+        'You MUST be logged into Facebook for the robot to see vehicle details',
+        'Use a "Prerun action" to dismiss any pop-ups (cookie consent, login prompts)',
+        'If listings show "See More" for descriptions, add a click action to expand them'
+      ]
+    }
   },
 
   CRAIGSLIST: {
@@ -170,7 +209,48 @@ const ROBOT_REGISTRY = {
         'by owner', 'private', 'my car', 'personal', 'selling my'
       ]
     },
-    listingIdPattern: /\/(\d{10,})\./
+    listingIdPattern: /\/(\d{10,})\./,
+    trainingGuide: {
+      startUrl: 'https://stlouis.craigslist.org/search/cto?min_price=500&max_price=15000&min_auto_year=2005&auto_title_status=1&sort=date&purveyor=owner',
+      robotType: 'Extract data from a list of elements on a page',
+      steps: [
+        'Navigate to Craigslist > Cars+Trucks - By Owner with your price/year filters',
+        'When Browse.ai asks "What data?", choose "Data from a list"',
+        'Click the FIRST listing row in the search results',
+        'Browse.ai will auto-detect the repeating list rows — confirm all rows are highlighted',
+        'Label each field in the row (title, price, location, date — see below)',
+        'Then click into a single listing to train detail-page fields',
+        'Set pagination: Click the "next >" button at the bottom of search results'
+      ],
+      fieldTraining: {
+        title:       'Click the listing title link (blue text). Name it: title',
+        price:       'Click the price text on the right side of each row. Name it: price',
+        location:    'Click the location text in parentheses after the title. Name it: location',
+        url:         'The href from the title link is auto-captured. Name it: url',
+        postedDate:  'Click the date on the left side of each row. Name it: posted',
+        images:      'On the detail page, count image thumbnails or grab the image gallery count. Name it: images',
+        mileage:     'On the detail page, find "odometer" in the attributes list. Name it: mileage',
+        description: 'On the detail page, click the posting body text block. Name it: description',
+        condition:   'On the detail page, find "condition" in the attributes list. Name it: condition',
+        vin:         'On the detail page, find "VIN" in the attributes list. Name it: vin',
+        transmission:'On the detail page, find "transmission" in attributes. Name it: transmission',
+        fuelType:    'On the detail page, find "fuel" in attributes. Name it: fuel_type',
+        bodyStyle:   'On the detail page, find "type" in attributes. Name it: body_style',
+        exteriorColor:'On the detail page, find "paint color" in attributes. Name it: color',
+        drivetrain:  'On the detail page, find "drive" in attributes. Name it: drivetrain',
+        titleStatus: 'On the detail page, find "title status" in attributes. Name it: title_status',
+        cylinders:   'On the detail page, find "cylinders" in attributes. Name it: cylinders'
+      },
+      paginationMethod: 'click_next',
+      paginationNotes: 'Click the "next >" link at the bottom. Craigslist shows 120 results per page. Set max 5 pages.',
+      importantNotes: [
+        'Craigslist moves fast — set monitor interval to 15 minutes',
+        'Train on "cto" (by owner) category to filter out dealers',
+        'Create separate robots for each Craigslist subdomain (stlouis, kansascity, etc.)',
+        'Craigslist attributes are key-value pairs on the detail page — click the VALUE, not the label',
+        'Some listings lack attributes — Browse.ai will return empty strings, which is fine'
+      ]
+    }
   },
 
   OFFERUP: {
@@ -232,7 +312,41 @@ const ROBOT_REGISTRY = {
         'private', 'owner', 'personal', 'my car'
       ]
     },
-    listingIdPattern: /\/detail\/(\d+)/
+    listingIdPattern: /\/detail\/(\d+)/,
+    trainingGuide: {
+      startUrl: 'https://offerup.com/search?q=car&delivery_param=all&sort=-posted&price_min=500&price_max=15000&location=63101&radius=50&category_id=7',
+      robotType: 'Extract data from a list of elements on a page',
+      steps: [
+        'Navigate to OfferUp > Vehicles category with your ZIP, price, and radius filters',
+        'When Browse.ai asks "What data?", choose "Data from a list"',
+        'Click the FIRST listing card in the grid',
+        'Browse.ai auto-detects the card grid — confirm all cards highlight',
+        'Label the visible card fields (title, price, location — see below)',
+        'Click into a listing to train detail-page fields (description, seller, etc.)',
+        'Set pagination: OfferUp uses infinite scroll — set scroll count to 6-8'
+      ],
+      fieldTraining: {
+        title:       'Click the item title on each card. Name it: title',
+        price:       'Click the price on each card. Name it: price',
+        location:    'Click the location/distance text below the price. Name it: location',
+        url:         'Auto-captured from the card link. Name it: url',
+        images:      'On the detail page, count photos or grab main image. Name it: images',
+        description: 'On the detail page, click the item description text block. Name it: description',
+        condition:   'On the detail page, find "Condition" in the details section. Name it: condition',
+        sellerInfo:  'On the detail page, click the seller name. Name it: seller',
+        sellerRating:'On the detail page, click the seller star rating. Name it: seller_rating',
+        sellerJoined:'On the detail page, find "Member since" text. Name it: member_since',
+        postedDate:  'On the detail page or card, find the "Posted X days ago" text. Name it: posted'
+      },
+      paginationMethod: 'infinite_scroll',
+      paginationNotes: 'Set scroll count to 6-8. Each scroll loads ~12 more cards.',
+      importantNotes: [
+        'OfferUp merged with LetGo — same robot works for both',
+        'Filter by category_id=7 (Vehicles) in the URL to avoid non-vehicle results',
+        'Pro Seller badges indicate dealers — the seller detection logic handles this',
+        'OfferUp detail pages load dynamically — add a 2-3 second wait before extraction'
+      ]
+    }
   },
 
   EBAY: {
@@ -315,7 +429,53 @@ const ROBOT_REGISTRY = {
         'private listing', 'private seller', 'personal vehicle'
       ]
     },
-    listingIdPattern: /\/itm\/(\d+)/
+    listingIdPattern: /\/itm\/(\d+)/,
+    trainingGuide: {
+      startUrl: 'https://www.ebay.com/sch/Cars-Trucks/6001/i.html?_udlo=1000&_udhi=20000&_stpos=63101&_sadis=150&LH_ItemCondition=3000&_sop=10&LH_BIN=1',
+      robotType: 'Extract data from a list of elements on a page',
+      steps: [
+        'Navigate to eBay Motors > Cars & Trucks with your filters',
+        'When Browse.ai asks "What data?", choose "Data from a list"',
+        'Click the FIRST listing in the search results',
+        'Browse.ai will highlight all listing cards — confirm the pattern',
+        'Label the card-level fields (title, price, location, shipping)',
+        'Click into a listing to train detail-page fields (VIN, condition, seller feedback)',
+        'Set pagination: Click the "Next" arrow button at the bottom'
+      ],
+      fieldTraining: {
+        title:       'Click the listing title. Name it: title',
+        price:       'Click the price (Buy It Now or current bid). Name it: price',
+        location:    'Click the item location text. Name it: location',
+        url:         'Auto-captured from the listing link. Name it: url',
+        images:      'On the detail page, photo gallery count or main image. Name it: images',
+        mileage:     'On the detail page, find "Mileage" in the item specifics table. Name it: mileage',
+        condition:   'On the detail page, find "Condition" near the top. Name it: condition',
+        description: 'On the detail page, click the item description (may be in an iframe). Name it: description',
+        sellerInfo:  'On the detail page, click the seller username link. Name it: seller',
+        vin:         'On the detail page, find "VIN" in item specifics. Name it: vin',
+        transmission:'On the detail page, find "Transmission" in item specifics. Name it: transmission',
+        fuelType:    'On the detail page, find "Fuel Type" in item specifics. Name it: fuel_type',
+        bodyStyle:   'On the detail page, find "Body Type" in item specifics. Name it: body_style',
+        exteriorColor:'On the detail page, find "Exterior Color" in item specifics. Name it: color',
+        drivetrain:  'On the detail page, find "Drive Type" in item specifics. Name it: drivetrain',
+        engine:      'On the detail page, find "Engine" in item specifics. Name it: engine',
+        bidCount:    'On the listing card or detail page, find bid count. Name it: bids',
+        watchers:    'On the detail page, find "X watchers" text. Name it: watchers',
+        endDate:     'On the detail page, find auction end date/time left. Name it: end_date',
+        listingType: 'On the listing card, note "Buy It Now" vs "Auction". Name it: listing_type',
+        sellerFeedback:'On the detail page, click the seller feedback score. Name it: feedback',
+        shippingCost:'On the listing card, find shipping cost text. Name it: shipping'
+      },
+      paginationMethod: 'click_next',
+      paginationNotes: 'Click the right arrow / "Next" at the bottom of search results. 50-60 results per page.',
+      importantNotes: [
+        'Create TWO separate robots: one for Buy It Now (LH_BIN=1), one for Auctions (LH_Auction=1)',
+        'eBay item specifics are in a structured table — click the VALUE cell, not the label',
+        'Description may be in an iframe — you may need a "Navigate to iframe" action in Browse.ai',
+        'Set monitor interval to 60 minutes — eBay rate limits aggressive scraping',
+        'For auction listings, capture bid_count and end_date for time-sensitive deal scoring'
+      ]
+    }
   },
 
   AUTOTRADER: {
@@ -387,7 +547,55 @@ const ROBOT_REGISTRY = {
         'private seller', 'for sale by owner', 'fsbo', 'individual'
       ]
     },
-    listingIdPattern: /\/(\d{9,})/
+    listingIdPattern: /\/(\d{9,})/,
+    trainingGuide: {
+      startUrl: 'https://www.autotrader.com/cars-for-sale/all-cars?listingTypes=USED&zip=63101&searchRadius=75&startYear=2005&minPrice=1000&maxPrice=20000&sortBy=derivedpriceDESC&numRecords=25',
+      robotType: 'Extract data from a list of elements on a page',
+      steps: [
+        'Navigate to AutoTrader > Used Cars with your ZIP, radius, and price filters',
+        'When Browse.ai asks "What data?", choose "Data from a list"',
+        'Click the FIRST listing card in the results',
+        'Confirm Browse.ai highlights all listing cards on the page',
+        'Label the card-level fields (title, price, mileage, dealer name)',
+        'Click into a listing to train the detail page (VIN, features, price history)',
+        'Set pagination: Click the "Next" or page number buttons at the bottom'
+      ],
+      fieldTraining: {
+        title:       'Click the vehicle title (e.g. "2018 Toyota Camry SE"). Name it: title',
+        price:       'Click the price. AutoTrader may show "Internet Price" and "MSRP" — grab the main price. Name it: price',
+        location:    'Click the dealer location (city, state). Name it: location',
+        url:         'Auto-captured from the card link. Name it: url',
+        mileage:     'Click the mileage text on the card (e.g. "45,230 miles"). Name it: mileage',
+        sellerInfo:  'Click the dealer name on the card. Name it: seller',
+        images:      'On the detail page, grab photo count or gallery. Name it: images',
+        description: 'On the detail page, find seller notes / vehicle description. Name it: description',
+        condition:   'On the detail page, note "Used" or "Certified Pre-Owned". Name it: condition',
+        vin:         'On the detail page, find VIN in the vehicle details section. Name it: vin',
+        transmission:'On the detail page, find "Transmission" in specs. Name it: transmission',
+        fuelType:    'On the detail page, find "Fuel Type" or MPG. Name it: fuel_type',
+        bodyStyle:   'On the detail page, find "Body Style" in specs. Name it: body_style',
+        exteriorColor:'On the detail page, find "Exterior Color" in specs. Name it: color',
+        interiorColor:'On the detail page, find "Interior Color" in specs. Name it: interior_color',
+        drivetrain:  'On the detail page, find "Drivetrain" in specs. Name it: drivetrain',
+        engine:      'On the detail page, find "Engine" in specs. Name it: engine',
+        trim:        'On the detail page, find trim level (SE, XLE, etc.). Name it: trim',
+        features:    'On the detail page, grab the features/highlights list. Name it: features',
+        accidents:   'On the detail page, find "Accidents reported" from vehicle history. Name it: accidents',
+        owners:      'On the detail page, find "Owner count" from vehicle history. Name it: owners',
+        dealerPhone: 'On the detail page, find the dealer phone number. Name it: phone',
+        dealerRating:'On the detail page, find dealer star rating. Name it: dealer_rating',
+        priceHistory:'On the detail page, find "Price Drop" or "Days on market" badge. Name it: price_drop'
+      },
+      paginationMethod: 'click_next',
+      paginationNotes: 'Click "Next" or page numbers at the bottom. 25 results per page. Max 5 pages.',
+      importantNotes: [
+        'AutoTrader is mostly dealer listings — results default to sellerType=Dealer',
+        'The "Best Deal" sort (derivedpriceDESC) surfaces underpriced vehicles first',
+        'AutoTrader shows a "Great Deal" / "Good Deal" badge — capture this as deal_rating if visible',
+        'Vehicle history (accidents, owners) comes from AutoCheck — not all listings have it',
+        'Some detail pages lazy-load sections — add a 2-second wait in Browse.ai before extraction'
+      ]
+    }
   },
 
   CARSCOM: {
@@ -456,7 +664,55 @@ const ROBOT_REGISTRY = {
         'private seller', 'individual', 'for sale by owner'
       ]
     },
-    listingIdPattern: /\/vehicledetail\/(\d+)/
+    listingIdPattern: /\/vehicledetail\/(\d+)/,
+    trainingGuide: {
+      startUrl: 'https://www.cars.com/shopping/results/?stock_type=used&zip=63101&maximum_distance=75&year_min=2005&list_price_min=1000&list_price_max=20000&sort=best_deal_desc&per_page=20',
+      robotType: 'Extract data from a list of elements on a page',
+      steps: [
+        'Navigate to Cars.com > Used Cars with your ZIP, radius, and price filters',
+        'When Browse.ai asks "What data?", choose "Data from a list"',
+        'Click the FIRST vehicle listing card',
+        'Confirm all listing cards are highlighted in the repeating pattern',
+        'Label card fields: title, price, mileage, dealer, deal rating badge',
+        'Click into a listing for detail-page fields (VIN, features, etc.)',
+        'Set pagination: Click "Next" or page number links at the bottom'
+      ],
+      fieldTraining: {
+        title:       'Click the vehicle title (e.g. "2019 Honda Accord Sport"). Name it: title',
+        price:       'Click the listed price. Name it: price',
+        location:    'Click the dealer city/distance text. Name it: location',
+        url:         'Auto-captured from the card link. Name it: url',
+        mileage:     'Click the mileage on the card. Name it: mileage',
+        sellerInfo:  'Click the dealer name on the card. Name it: seller',
+        dealValue:   'Click the "Great Deal" / "Good Deal" / "Fair Deal" badge. Name it: deal_rating',
+        images:      'On the detail page, grab photo count. Name it: images',
+        description: 'On the detail page, find seller notes. Name it: description',
+        vin:         'On the detail page, find VIN in vehicle details. Name it: vin',
+        transmission:'On the detail page, find "Transmission" in specs. Name it: transmission',
+        fuelType:    'On the detail page, find "Fuel type" or MPG. Name it: fuel_type',
+        bodyStyle:   'On the detail page, find "Body style" in specs. Name it: body_style',
+        exteriorColor:'On the detail page, find "Exterior color". Name it: color',
+        interiorColor:'On the detail page, find "Interior color". Name it: interior_color',
+        drivetrain:  'On the detail page, find "Drivetrain". Name it: drivetrain',
+        engine:      'On the detail page, find "Engine". Name it: engine',
+        trim:        'On the detail page, find trim level. Name it: trim',
+        features:    'On the detail page, grab features/highlights list. Name it: features',
+        accidents:   'On the detail page, find accident history. Name it: accidents',
+        owners:      'On the detail page, find owner count. Name it: owners',
+        dealerPhone: 'On the detail page, find dealer phone. Name it: phone',
+        dealerRating:'On the detail page, find dealer review stars. Name it: dealer_rating',
+        homeDelivery:'On the card or detail page, find "Home Delivery" badge. Name it: home_delivery'
+      },
+      paginationMethod: 'click_next',
+      paginationNotes: 'Click "Next" at the bottom. 20 results per page. Max 5 pages.',
+      importantNotes: [
+        'Cars.com "Best Deal" sort is their own price analysis — great for finding underpriced cars',
+        'The deal_rating badge (Great/Good/Fair/High) is very useful for scoring — always capture it',
+        'Cars.com has a "Home Delivery" filter — capture this badge if present for convenience scoring',
+        'Most listings are dealer — private seller listings are rare on Cars.com',
+        'Some detail pages use accordions — you may need "Click to expand" actions for full specs'
+      ]
+    }
   },
 
   // =======================================================
@@ -522,7 +778,41 @@ const ROBOT_REGISTRY = {
         'private', 'owner', 'personal', 'selling my'
       ]
     },
-    listingIdPattern: /\/listing\/(\d+)/
+    listingIdPattern: /\/listing\/(\d+)/,
+    trainingGuide: {
+      startUrl: 'https://www.atvtrader.com/atvs-for-sale?zip=63101&radius=150&price=500%2C15000&sort=create_date%3Adesc',
+      robotType: 'Extract data from a list of elements on a page',
+      steps: [
+        'Navigate to ATV Trader with your ZIP, radius, and price filters',
+        'Choose "Data from a list" and click the first listing card',
+        'Confirm all listing cards are highlighted',
+        'Label card fields (title, price, location, dealer name)',
+        'Click into a listing for detail-page fields',
+        'Set pagination: Click "Next" at the bottom'
+      ],
+      fieldTraining: {
+        title:       'Click the ATV/UTV title. Name it: title',
+        price:       'Click the price. Name it: price',
+        location:    'Click the dealer location. Name it: location',
+        url:         'Auto-captured from card link. Name it: url',
+        mileage:     'On the detail page, find "Miles" or "Hours". Name it: miles (or hours)',
+        description: 'On the detail page, find the description text. Name it: description',
+        sellerInfo:  'Click the dealer/seller name. Name it: seller',
+        engineSize:  'On the detail page, find engine displacement/CC. Name it: engine_size',
+        vehicleType: 'On the detail page, find type (ATV, Side By Side, UTV). Name it: type',
+        drivetrain:  'On the detail page, find 4WD/2WD. Name it: drivetrain',
+        condition:   'On the detail page, find condition. Name it: condition',
+        vin:         'On the detail page, find VIN. Name it: vin'
+      },
+      paginationMethod: 'click_next',
+      paginationNotes: 'Click "Next" at the bottom. Max 5 pages.',
+      importantNotes: [
+        'ATV Trader uses the same platform as Cycle Trader — similar page structure',
+        'Many listings show "Hours" instead of "Miles" — capture whichever is shown',
+        'Wider search radius (150+ miles) recommended since inventory is sparser',
+        'Set monitor to 120 minutes — powersports inventory moves slower than cars'
+      ]
+    }
   },
 
   CYCLE_TRADER: {
@@ -584,7 +874,38 @@ const ROBOT_REGISTRY = {
         'private', 'owner', 'personal'
       ]
     },
-    listingIdPattern: /\/listing\/(\d+)/
+    listingIdPattern: /\/listing\/(\d+)/,
+    trainingGuide: {
+      startUrl: 'https://www.cycletrader.com/motorcycles-for-sale?zip=63101&radius=150&price=500%2C15000&sort=create_date%3Adesc',
+      robotType: 'Extract data from a list of elements on a page',
+      steps: [
+        'Navigate to Cycle Trader with your filters',
+        'Choose "Data from a list" and click the first listing card',
+        'Confirm all listing cards are highlighted',
+        'Label card fields, then click into a listing for details',
+        'Set pagination: Click "Next" at the bottom'
+      ],
+      fieldTraining: {
+        title:       'Click the motorcycle title. Name it: title',
+        price:       'Click the price. Name it: price',
+        location:    'Click the dealer location. Name it: location',
+        url:         'Auto-captured from card link. Name it: url',
+        mileage:     'On the detail page, find mileage. Name it: mileage',
+        description: 'On the detail page, click the description. Name it: description',
+        sellerInfo:  'Click the dealer/seller name. Name it: seller',
+        engineSize:  'On the detail page, find displacement/CC. Name it: engine_size',
+        vehicleType: 'On the detail page, find type (Cruiser, Sportbike, etc.). Name it: type',
+        condition:   'On the detail page, find condition. Name it: condition',
+        vin:         'On the detail page, find VIN. Name it: vin'
+      },
+      paginationMethod: 'click_next',
+      paginationNotes: 'Click "Next" at the bottom. Max 5 pages.',
+      importantNotes: [
+        'Same platform as ATV Trader — page structure is nearly identical',
+        'Harley-Davidson listings dominate — consider filtering by make if needed',
+        'Set monitor to 120 minutes for powersports pace'
+      ]
+    }
   },
 
   TRACTOR_HOUSE: {
@@ -646,7 +967,39 @@ const ROBOT_REGISTRY = {
         'private', 'owner', 'farm sale', 'estate'
       ]
     },
-    listingIdPattern: /\/listings\/(\d+)/
+    listingIdPattern: /\/listings\/(\d+)/,
+    trainingGuide: {
+      startUrl: 'https://www.tractorhouse.com/listings/atvs-utvs?sort=newest',
+      robotType: 'Extract data from a list of elements on a page',
+      steps: [
+        'Navigate to TractorHouse > ATVs/UTVs or Machinery Trader',
+        'Choose "Data from a list" and click the first listing',
+        'Confirm pattern detection, label fields',
+        'Click into a listing for detail fields',
+        'Set pagination via "Next" button'
+      ],
+      fieldTraining: {
+        title:       'Click the listing title. Name it: title',
+        price:       'Click the price (may say "Call for Price"). Name it: price',
+        location:    'Click dealer location/state. Name it: location',
+        url:         'Auto-captured. Name it: url',
+        hours:       'On detail page, find engine hours. Name it: hours',
+        description: 'On detail page, click description. Name it: description',
+        sellerInfo:  'Click dealer/company name. Name it: seller',
+        serialNumber:'On detail page, find serial number. Name it: serial',
+        engineSize:  'On detail page, find horsepower/HP. Name it: engine',
+        vehicleType: 'On detail page, find category (ATV, UTV, etc.). Name it: type',
+        condition:   'On detail page, find condition. Name it: condition'
+      },
+      paginationMethod: 'click_next',
+      paginationNotes: 'Click "Next" at the bottom. Max 3 pages.',
+      importantNotes: [
+        'TractorHouse often uses "Hours" instead of "Miles" — capture engine hours',
+        'Many listings say "Call for Price" — these import as empty price fields',
+        'Uses serial numbers instead of VINs — mapped to serialNumber field',
+        'Set monitor to 180 minutes — equipment inventory changes slowly'
+      ]
+    }
   },
 
   POWERSPORTS_LISTINGS: {
@@ -715,7 +1068,38 @@ const ROBOT_REGISTRY = {
         'private', 'owner', 'personal'
       ]
     },
-    listingIdPattern: /\/listing\/(\d+)/
+    listingIdPattern: /\/listing\/(\d+)/,
+    trainingGuide: {
+      startUrl: 'https://www.pwctrader.com/',
+      robotType: 'Extract data from a list of elements on a page',
+      steps: [
+        'Navigate to PWC Trader, Sled Trader, or Boat Trader with your filters',
+        'Choose "Data from a list" and click the first listing',
+        'Confirm pattern, label fields, then train detail page',
+        'Set pagination via "Next" button'
+      ],
+      fieldTraining: {
+        title:       'Click the listing title. Name it: title',
+        price:       'Click the price. Name it: price',
+        location:    'Click dealer location. Name it: location',
+        url:         'Auto-captured. Name it: url',
+        hours:       'On detail page, find engine hours. Name it: hours',
+        description: 'On detail page, click description. Name it: description',
+        sellerInfo:  'Click dealer/seller name. Name it: seller',
+        engineSize:  'On detail page, find displacement/HP. Name it: engine_size',
+        vehicleType: 'On detail page, find type (Jet Ski, Snowmobile, etc.). Name it: type',
+        vin:         'On detail page, find VIN or HIN (Hull ID for watercraft). Name it: vin',
+        condition:   'On detail page, find condition. Name it: condition'
+      },
+      paginationMethod: 'click_next',
+      paginationNotes: 'Click "Next" at the bottom. Max 3 pages.',
+      importantNotes: [
+        'Create separate robots for each sub-platform (PWC Trader, Sled Trader, Boat Trader)',
+        'Watercraft use HIN (Hull Identification Number) instead of VIN — same field',
+        'These sites share the Trader Interactive platform — similar page structure',
+        'Set monitor to 120 minutes for powersports pace'
+      ]
+    }
   }
 };
 
@@ -835,54 +1219,170 @@ function getRobotSearchConfig(platform) {
  */
 function buildRobotSetupInstructions(config) {
   const sc = config.searchConfig;
-  const lines = [
-    `=== Browse.ai Robot Setup: ${config.displayName} ===`,
-    '',
-    `1. Go to Browse.ai and create a new "Monitor" robot`,
-    `2. Target URL: ${sc.baseUrl}`,
-    `3. Location: Use home ZIP ${QUANTUM_CONFIG.HOME_ZIP} with ${sc.defaultRadius} mile radius`,
-    `4. Price range: $${sc.defaultMinPrice} - $${sc.defaultMaxPrice}`,
-    `5. Year range: ${sc.defaultMinYear}+`,
-    `6. Sort by: ${sc.sortBy}`,
-    `7. Set monitor schedule: Every ${sc.refreshInterval} minutes`,
-    `8. Export destination: Google Sheets (new spreadsheet)`,
-    '',
-    'Fields to capture (train the robot on these):',
-  ];
+  const tg = config.trainingGuide;
+  const lines = [];
 
-  const fieldNames = Object.keys(config.columnMap).filter(k => k !== 'jobLink');
-  for (const field of fieldNames) {
-    lines.push(`  - ${field}`);
-  }
-
+  // ── HEADER ──
+  lines.push(`${'='.repeat(60)}`);
+  lines.push(`  Browse.ai Robot Setup: ${config.displayName}`);
+  lines.push(`  Category: ${config.category}`);
+  lines.push(`${'='.repeat(60)}`);
   lines.push('');
-  lines.push('After setup:');
-  lines.push('  1. Copy the Google Sheet ID from the export sheet URL');
-  lines.push('  2. Run registerBrowseAIRobot() in CarHawk to register it');
-  lines.push(`  3. Set platform to "${config.platform}" in the integration notes`);
 
+  // ── PART 1: CREATE THE ROBOT ──
+  lines.push('PART 1: CREATE THE ROBOT IN BROWSE.AI');
+  lines.push('-'.repeat(40));
+  lines.push('');
+  lines.push('1. Log into browse.ai and click "+ New Robot"');
+  lines.push(`2. Choose robot type: "${tg ? tg.robotType : 'Extract data from a list of elements on a page'}"`);
+  lines.push(`3. Paste this starting URL into the address bar:`);
+  lines.push(`   ${tg ? tg.startUrl : sc.baseUrl}`);
+  lines.push('4. Browse.ai will load the page in its built-in browser');
+  lines.push('');
+
+  // ── PART 2: SEARCH FILTERS ──
+  lines.push('PART 2: SEARCH FILTERS (apply before training)');
+  lines.push('-'.repeat(40));
+  lines.push('');
+  lines.push(`  Location:   ZIP ${QUANTUM_CONFIG.HOME_ZIP} / ${sc.defaultRadius} mile radius`);
+  lines.push(`  Price:      $${sc.defaultMinPrice} - $${sc.defaultMaxPrice}`);
+  if (sc.defaultMinYear) {
+    lines.push(`  Year:       ${sc.defaultMinYear}+`);
+  }
+  lines.push(`  Sort by:    ${sc.sortBy}`);
+  lines.push('');
   if (sc.searchKeywords && sc.searchKeywords.length > 0) {
-    lines.push('');
-    lines.push('Recommended search keywords:');
+    lines.push('  Useful search keywords:');
     for (const kw of sc.searchKeywords) {
-      lines.push(`  - "${kw}"`);
+      lines.push(`    - "${kw}"`);
     }
+    lines.push('');
   }
-
   if (sc.vehicleTypes && sc.vehicleTypes.length > 0) {
-    lines.push('');
-    lines.push('Vehicle types to monitor:');
+    lines.push('  Vehicle types to filter for:');
     for (const vt of sc.vehicleTypes) {
-      lines.push(`  - ${vt}`);
+      lines.push(`    - ${vt}`);
     }
+    lines.push('');
+  }
+  if (sc.topMakes && sc.topMakes.length > 0) {
+    lines.push('  Top makes to watch:');
+    for (const make of sc.topMakes) {
+      lines.push(`    - ${make}`);
+    }
+    lines.push('');
   }
 
-  if (sc.topMakes && sc.topMakes.length > 0) {
+  // ── PART 3: TRAINING THE ROBOT ──
+  lines.push('PART 3: TRAINING — TELL BROWSE.AI WHAT TO EXTRACT');
+  lines.push('-'.repeat(40));
+  lines.push('');
+
+  if (tg && tg.steps) {
+    lines.push('Follow these steps in the Browse.ai trainer:');
     lines.push('');
-    lines.push('Top makes to watch:');
-    for (const make of sc.topMakes) {
-      lines.push(`  - ${make}`);
+    for (let i = 0; i < tg.steps.length; i++) {
+      lines.push(`  ${i + 1}. ${tg.steps[i]}`);
     }
+    lines.push('');
+  }
+
+  // ── PART 4: FIELD-BY-FIELD TRAINING ──
+  if (tg && tg.fieldTraining) {
+    lines.push('PART 4: FIELD-BY-FIELD TRAINING GUIDE');
+    lines.push('-'.repeat(40));
+    lines.push('');
+    lines.push('For each field below, click the matching element on the page');
+    lines.push('and assign it the specified name. USE THESE EXACT NAMES so');
+    lines.push('CarHawk can auto-map them to the correct columns.');
+    lines.push('');
+
+    // Group into required (core) and optional fields
+    const coreFields = ['title', 'price', 'location', 'url', 'mileage', 'description', 'sellerInfo', 'postedDate', 'images'];
+    const trainingEntries = Object.entries(tg.fieldTraining);
+    const core = trainingEntries.filter(([k]) => coreFields.includes(k));
+    const extra = trainingEntries.filter(([k]) => !coreFields.includes(k));
+
+    lines.push('  REQUIRED FIELDS (always train these):');
+    for (const [field, instruction] of core) {
+      lines.push(`    [${field}]`);
+      lines.push(`      ${instruction}`);
+    }
+    lines.push('');
+    lines.push('  OPTIONAL FIELDS (train if visible on the page):');
+    for (const [field, instruction] of extra) {
+      lines.push(`    [${field}]`);
+      lines.push(`      ${instruction}`);
+    }
+    lines.push('');
+  } else {
+    // Fallback: just list columnMap keys
+    lines.push('PART 4: FIELDS TO CAPTURE');
+    lines.push('-'.repeat(40));
+    lines.push('');
+    lines.push('Train the robot to extract these fields (use these names):');
+    const fieldNames = Object.keys(config.columnMap).filter(k => k !== 'jobLink');
+    for (const field of fieldNames) {
+      const aliases = config.columnMap[field];
+      lines.push(`  - ${field}  (accepted names: ${aliases.slice(0, 3).join(', ')})`);
+    }
+    lines.push('');
+  }
+
+  // ── PART 5: PAGINATION ──
+  lines.push('PART 5: PAGINATION');
+  lines.push('-'.repeat(40));
+  lines.push('');
+  if (tg) {
+    if (tg.paginationMethod === 'infinite_scroll') {
+      lines.push('  Method: Infinite Scroll');
+      lines.push('  In Browse.ai trainer, enable "Scroll to load more" and set:');
+    } else {
+      lines.push('  Method: Click "Next" Button');
+      lines.push('  In Browse.ai trainer, click the "Next" navigation element and set:');
+    }
+    lines.push(`  ${tg.paginationNotes}`);
+  } else {
+    lines.push(`  Set max pages: ${sc.maxPages}`);
+  }
+  lines.push('');
+
+  // ── PART 6: SCHEDULING ──
+  lines.push('PART 6: MONITOR SCHEDULE');
+  lines.push('-'.repeat(40));
+  lines.push('');
+  lines.push(`  Set the robot to run every ${sc.refreshInterval} minutes`);
+  lines.push('  Recommended schedule: During business hours (6 AM - 10 PM)');
+  lines.push('  This ensures fresh listings without burning API credits overnight');
+  lines.push('');
+
+  // ── PART 7: EXPORT + CONNECT TO CARHAWK ──
+  lines.push('PART 7: CONNECT TO CARHAWK');
+  lines.push('-'.repeat(40));
+  lines.push('');
+  lines.push('  Option A — Google Sheets export (simple):');
+  lines.push('    1. In Browse.ai, set export to "Google Sheets" (new spreadsheet)');
+  lines.push('    2. Copy the Sheet ID from the URL (the long string between /d/ and /edit)');
+  lines.push('    3. In CarHawk, run: registerBrowseAIRobot()');
+  lines.push(`    4. Set platform to "${config.platform}"`);
+  lines.push('    5. Paste the Sheet ID when prompted');
+  lines.push('');
+  lines.push('  Option B — API + Webhook (automated):');
+  lines.push('    1. In CarHawk, run: setBrowseAIApiKeyUI() and enter your Browse.ai API key');
+  lines.push('    2. Run: linkBrowseAIRobotUI() to connect the robot');
+  lines.push('    3. Browse.ai will push data to CarHawk automatically via API');
+  lines.push('    4. Optionally run: deployRobotUI() to trigger an immediate bulk scrape');
+  lines.push('');
+
+  // ── IMPORTANT NOTES ──
+  if (tg && tg.importantNotes && tg.importantNotes.length > 0) {
+    lines.push('IMPORTANT NOTES');
+    lines.push('-'.repeat(40));
+    lines.push('');
+    for (const note of tg.importantNotes) {
+      lines.push(`  ⚠ ${note}`);
+    }
+    lines.push('');
   }
 
   return lines.join('\n');

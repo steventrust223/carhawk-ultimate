@@ -71,6 +71,21 @@ function createQuantumMenu() {
       .addItem('🎯 ROI Optimizer', 'runROIOptimizer')
       .addItem('💰 Closed Deals Report', 'generateClosedDealsReport'))
 
+    // Browse.ai Robots
+    .addSubMenu(ui.createMenu('🤖 Browse.ai Robots')
+      .addItem('🔑 Set API Key', 'setBrowseAIApiKeyUI')
+      .addItem('📋 View My Robots', 'showBrowseAIRobotsUI')
+      .addSeparator()
+      .addItem('🔗 Link Robot to Marketplace', 'linkBrowseAIRobotUI')
+      .addItem('📝 Register Robot (Sheet-based)', 'registerRobotUI')
+      .addItem('📖 Robot Setup Guide', 'showRobotSetupGuide')
+      .addSeparator()
+      .addItem('🚀 Deploy Robot', 'deployRobotUI')
+      .addItem('📥 Fetch & Import Data', 'fetchAndImportBrowseAIDataUI')
+      .addItem('📥 Import from Sheets', 'importFromBrowseAI')
+      .addSeparator()
+      .addItem('📊 Robot Status', 'showRobotStatusUI'))
+
     // Tools & Utilities
     .addSubMenu(ui.createMenu('🛠️ Tools & Utilities')
       .addItem('🚗 Quantum VIN Decoder', 'openQuantumVINDecoder')
