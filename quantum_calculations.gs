@@ -75,13 +75,19 @@ function calculateQuantumMetrics(parsed) {
 function calculateQuantumDistance(targetZip) {
   if (!targetZip) return 999; // Unknown location
 
+  // Use real Google Maps distance via quantum_maps.gs
+  try {
+    const result = calculateRealDistance(targetZip);
+    if (result && result.method === 'google_maps') {
+      return result.miles;
+    }
+  } catch (e) {
+    // Fall through to approximation
+  }
+
+  // Fallback: simplified ZIP-based distance approximation
   const homeZip = getQuantumSetting('HOME_ZIP') || '63101';
-
-  // Simplified distance calculation
-  // In production, use Maps API for accurate distance
   const zipDiff = Math.abs(parseInt(homeZip) - parseInt(targetZip));
-
-  // Rough approximation: 1 ZIP difference ≈ 10 miles
   return Math.min(zipDiff * 0.1, 500);
 }
 

@@ -86,11 +86,16 @@ function createQuantumMenu() {
       .addSeparator()
       .addItem('📊 Robot Status', 'showRobotStatusUI'))
 
+    // Maps & Location
+    .addSubMenu(ui.createMenu('📍 Maps & Location')
+      .addItem('🗺️ Market Heat Map', 'openMarketHeatMap')
+      .addItem('📌 Deal Map', 'openDealMap')
+      .addItem('📡 Browse.AI Coverage Map', 'openCoverageMap'))
+
     // Tools & Utilities
     .addSubMenu(ui.createMenu('🛠️ Tools & Utilities')
       .addItem('🚗 Quantum VIN Decoder', 'openQuantumVINDecoder')
       .addItem('💰 Deal Calculator Pro', 'openDealCalculatorPro')
-      .addItem('📍 Market Heat Map', 'generateMarketHeatMap')
       .addItem('📚 Knowledge Base', 'openKnowledgeBase')
       .addSeparator()
       .addItem('🔧 System Diagnostics', 'runSystemDiagnostics')

@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #1a1a2e; color: #eee; }
+
+    .toolbar {
+      display: flex; align-items: center; gap: 10px;
+      background: #16213e; padding: 10px 15px; border-bottom: 1px solid #333;
+    }
+    .toolbar h2 { font-size: 16px; color: #00d4ff; margin-right: auto; }
+    .tab-btn {
+      padding: 6px 14px; border: 1px solid #444; border-radius: 5px;
+      background: transparent; color: #aaa; cursor: pointer; font-size: 13px;
+    }
+    .tab-btn.active { background: #00d4ff; color: #000; border-color: #00d4ff; }
+    .tab-btn:hover { border-color: #00d4ff; color: #eee; }
+
+    #map-container { width: 100%; height: calc(100vh - 140px); position: relative; }
+    #map { width: 100%; height: 100%; }
+
+    .info-panel {
+      position: absolute; top: 10px; right: 10px; width: 280px;
+      background: rgba(22, 33, 62, 0.95); border-radius: 10px;
+      padding: 12px; max-height: calc(100vh - 180px); overflow-y: auto;
+      border: 1px solid #333;
+    }
+    .info-panel h3 { color: #00d4ff; font-size: 14px; margin-bottom: 8px; }
+
+    .stat-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; border-bottom: 1px solid #2a2a4a; }
+    .stat-row .label { color: #888; }
+    .stat-row .value { color: #eee; font-weight: bold; }
+    .stat-row .value.green { color: #4caf50; }
+    .stat-row .value.red { color: #f44336; }
+    .stat-row .value.blue { color: #00d4ff; }
+
+    .area-card {
+      background: #1a1a3e; border-radius: 6px; padding: 8px; margin-bottom: 6px;
+      border-left: 3px solid #00d4ff; cursor: pointer;
+    }
+    .area-card:hover { background: #222255; }
+    .area-card.hot { border-left-color: #ff6b35; }
+    .area-card .area-name { font-size: 13px; font-weight: bold; }
+    .area-card .area-stats { font-size: 11px; color: #888; margin-top: 3px; }
+
+    .robot-card {
+      background: #1a1a3e; border-radius: 6px; padding: 8px; margin-bottom: 6px;
+      border-left: 3px solid #4caf50;
+    }
+    .robot-card .robot-name { font-size: 13px; font-weight: bold; }
+    .robot-card .robot-platform { font-size: 11px; color: #00d4ff; }
+    .robot-card .robot-status { font-size: 11px; color: #4caf50; }
+
+    .legend {
+      position: absolute; bottom: 10px; left: 10px;
+      background: rgba(22, 33, 62, 0.95); border-radius: 8px; padding: 10px;
+      border: 1px solid #333; font-size: 12px;
+    }
+    .legend-item { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+    .legend-dot { width: 12px; height: 12px; border-radius: 50%; }
+
+    .loading {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      text-align: center; color: #00d4ff;
+    }
+    .loading .spinner { font-size: 32px; animation: spin 1s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .status-bar {
+      background: #16213e; padding: 8px 15px; font-size: 12px; color: #888;
+      border-top: 1px solid #333; display: flex; justify-content: space-between;
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <h2 id="mapTitle">Market Heat Map</h2>
+    <button class="tab-btn active" onclick="switchMode('heatmap')" id="btn-heatmap">Heat Map</button>
+    <button class="tab-btn" onclick="switchMode('deals')" id="btn-deals">Deal Pins</button>
+    <button class="tab-btn" onclick="switchMode('coverage')" id="btn-coverage">Robot Coverage</button>
+  </div>
+
+  <div id="map-container">
+    <div id="map"></div>
+
+    <div class="loading" id="loading">
+      <div class="spinner">&#9881;</div>
+      <div style="margin-top:10px">Loading map data...</div>
+    </div>
+
+    <div class="info-panel" id="infoPanel" style="display:none"></div>
+
+    <div class="legend" id="legend" style="display:none"></div>
+  </div>
+
+  <div class="status-bar">
+    <span id="statusText">Loading...</span>
+    <span id="statusCount"></span>
+  </div>
+
+  <script>
+    var currentMode = <?!= JSON.stringify(mode || 'heatmap') ?>;
+    var map, markers = [], circles = [], infoWindows = [];
+    var mapData = null, coverageData = null;
+
+    function initMap() {
+      // Default center: St. Louis
+      map = new google.maps.Map(document.getElementById('map'), {
+        zoom: 8,
+        center: { lat: 38.627, lng: -90.199 },
+        mapTypeId: 'roadmap',
+        styles: [
+          { elementType: 'geometry', stylers: [{ color: '#1a1a2e' }] },
+          { elementType: 'labels.text.stroke', stylers: [{ color: '#1a1a2e' }] },
+          { elementType: 'labels.text.fill', stylers: [{ color: '#746855' }] },
+          { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#2a2a4a' }] },
+          { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#9ca5b3' }] },
+          { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0e1626' }] },
+          { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] }
+        ]
+      });
+
+      loadData();
+    }
+
+    function loadData() {
+      document.getElementById('loading').style.display = 'block';
+
+      if (currentMode === 'coverage') {
+        google.script.run
+          .withSuccessHandler(function(data) {
+            coverageData = data;
+            renderCoverageMap();
+          })
+          .withFailureHandler(handleError)
+          .getCoverageMapData();
+      } else {
+        google.script.run
+          .withSuccessHandler(function(data) {
+            mapData = data;
+            if (data.home) {
+              map.setCenter({ lat: data.home.lat, lng: data.home.lng });
+            }
+            if (currentMode === 'heatmap') renderHeatMap();
+            else renderDealPins();
+          })
+          .withFailureHandler(handleError)
+          .getMapViewData();
+      }
+    }
+
+    function handleError(err) {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('statusText').textContent = 'Error: ' + err.message;
+    }
+
+    function clearMap() {
+      markers.forEach(function(m) { m.setMap(null); });
+      circles.forEach(function(c) { c.setMap(null); });
+      infoWindows.forEach(function(w) { w.close(); });
+      markers = []; circles = []; infoWindows = [];
+    }
+
+    function switchMode(mode) {
+      currentMode = mode;
+      document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+      document.getElementById('btn-' + mode).classList.add('active');
+
+      var titles = { heatmap: 'Market Heat Map', deals: 'Deal Locations', coverage: 'Browse.AI Robot Coverage' };
+      document.getElementById('mapTitle').textContent = titles[mode] || 'Map';
+
+      clearMap();
+      loadData();
+    }
+
+    // ===== HEAT MAP MODE =====
+    function renderHeatMap() {
+      document.getElementById('loading').style.display = 'none';
+      if (!mapData || !mapData.areas) return;
+
+      // Add home marker
+      if (mapData.home) {
+        var homeMarker = new google.maps.Marker({
+          position: { lat: mapData.home.lat, lng: mapData.home.lng },
+          map: map,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 12, fillColor: '#00d4ff', fillOpacity: 1,
+            strokeColor: '#fff', strokeWeight: 3
+          },
+          title: 'Home Base',
+          zIndex: 999
+        });
+        markers.push(homeMarker);
+      }
+
+      // Add heat circles for areas
+      var maxDeals = Math.max.apply(null, mapData.areas.map(function(a) { return a.dealCount; })) || 1;
+
+      mapData.areas.forEach(function(area) {
+        if (!area.lat || !area.lng) return;
+
+        var intensity = area.dealCount / maxDeals;
+        var color = area.avgROI > 30 ? '#4caf50' : area.avgROI > 15 ? '#ff9800' : '#f44336';
+        var radius = 5000 + (intensity * 25000); // 5-30km radius
+
+        var circle = new google.maps.Circle({
+          center: { lat: area.lat, lng: area.lng },
+          radius: radius,
+          fillColor: color,
+          fillOpacity: 0.25 + (intensity * 0.3),
+          strokeColor: color,
+          strokeOpacity: 0.6,
+          strokeWeight: 1,
+          map: map
+        });
+        circles.push(circle);
+
+        // Add center marker
+        var marker = new google.maps.Marker({
+          position: { lat: area.lat, lng: area.lng },
+          map: map,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 6 + (intensity * 8),
+            fillColor: color, fillOpacity: 0.9,
+            strokeColor: '#fff', strokeWeight: 1
+          },
+          title: area.location
+        });
+
+        var infoContent =
+          '<div style="color:#000;max-width:200px">' +
+          '<strong>' + area.location + '</strong><br>' +
+          'Deals: ' + area.dealCount + '<br>' +
+          'Hot Deals: ' + area.hotDeals + '<br>' +
+          'Avg ROI: ' + area.avgROI + '%<br>' +
+          'Total Profit: $' + area.totalProfit.toLocaleString() +
+          '</div>';
+
+        var infoWindow = new google.maps.InfoWindow({ content: infoContent });
+        marker.addListener('click', function() {
+          infoWindows.forEach(function(w) { w.close(); });
+          infoWindow.open(map, marker);
+        });
+
+        markers.push(marker);
+        infoWindows.push(infoWindow);
+      });
+
+      // Update info panel
+      renderHeatMapPanel();
+
+      // Update legend
+      document.getElementById('legend').style.display = 'block';
+      document.getElementById('legend').innerHTML =
+        '<strong>Profitability</strong>' +
+        '<div class="legend-item"><div class="legend-dot" style="background:#4caf50"></div> High ROI (>30%)</div>' +
+        '<div class="legend-item"><div class="legend-dot" style="background:#ff9800"></div> Medium ROI (15-30%)</div>' +
+        '<div class="legend-item"><div class="legend-dot" style="background:#f44336"></div> Low ROI (<15%)</div>' +
+        '<div class="legend-item"><div class="legend-dot" style="background:#00d4ff"></div> Home Base</div>';
+
+      document.getElementById('statusText').textContent = 'Showing ' + mapData.areas.length + ' market areas';
+      document.getElementById('statusCount').textContent = mapData.totalDeals + ' total deals';
+    }
+
+    function renderHeatMapPanel() {
+      var panel = document.getElementById('infoPanel');
+      panel.style.display = 'block';
+
+      var html = '<h3>Top Market Areas</h3>';
+
+      mapData.areas.slice(0, 15).forEach(function(area) {
+        var isHot = area.hotDeals > 0;
+        html +=
+          '<div class="area-card' + (isHot ? ' hot' : '') + '" onclick="panTo(' + area.lat + ',' + area.lng + ')">' +
+          '<div class="area-name">' + (area.location || area.zip) + '</div>' +
+          '<div class="area-stats">' +
+          area.dealCount + ' deals &bull; ' +
+          area.hotDeals + ' hot &bull; ' +
+          'ROI: ' + area.avgROI + '% &bull; ' +
+          '$' + area.totalProfit.toLocaleString() +
+          '</div></div>';
+      });
+
+      panel.innerHTML = html;
+    }
+
+    // ===== DEAL PINS MODE =====
+    function renderDealPins() {
+      document.getElementById('loading').style.display = 'none';
+      if (!mapData || !mapData.deals) return;
+
+      // Home marker
+      if (mapData.home) {
+        var homeMarker = new google.maps.Marker({
+          position: { lat: mapData.home.lat, lng: mapData.home.lng },
+          map: map,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 12, fillColor: '#00d4ff', fillOpacity: 1,
+            strokeColor: '#fff', strokeWeight: 3
+          },
+          title: 'Home Base',
+          zIndex: 999
+        });
+        markers.push(homeMarker);
+      }
+
+      // Deal markers
+      var pinCount = 0;
+      mapData.deals.forEach(function(deal) {
+        if (!deal.lat || !deal.lng) return;
+        pinCount++;
+
+        var isHot = deal.verdict && deal.verdict.indexOf('HOT') > -1;
+        var isSolid = deal.verdict && deal.verdict.indexOf('SOLID') > -1;
+        var color = isHot ? '#ff6b35' : isSolid ? '#4caf50' : '#888';
+
+        var marker = new google.maps.Marker({
+          position: { lat: deal.lat, lng: deal.lng },
+          map: map,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: isHot ? 9 : 6,
+            fillColor: color, fillOpacity: 0.9,
+            strokeColor: '#fff', strokeWeight: 1
+          },
+          title: deal.title
+        });
+
+        var infoContent =
+          '<div style="color:#000;max-width:220px">' +
+          '<strong>' + deal.title + '</strong><br>' +
+          '<span style="color:#666">' + deal.platform + '</span><br>' +
+          'Price: $' + deal.price.toLocaleString() + '<br>' +
+          'Profit: <span style="color:green">$' + deal.profit.toLocaleString() + '</span><br>' +
+          'ROI: ' + deal.roi + '% &bull; ' + deal.distance + ' mi<br>' +
+          '<strong>' + deal.verdict + '</strong>' +
+          '</div>';
+
+        var infoWindow = new google.maps.InfoWindow({ content: infoContent });
+        marker.addListener('click', function() {
+          infoWindows.forEach(function(w) { w.close(); });
+          infoWindow.open(map, marker);
+        });
+
+        markers.push(marker);
+        infoWindows.push(infoWindow);
+      });
+
+      // Deal list panel
+      renderDealListPanel();
+
+      // Legend
+      document.getElementById('legend').style.display = 'block';
+      document.getElementById('legend').innerHTML =
+        '<strong>Deal Status</strong>' +
+        '<div class="legend-item"><div class="legend-dot" style="background:#ff6b35"></div> Hot Deal</div>' +
+        '<div class="legend-item"><div class="legend-dot" style="background:#4caf50"></div> Solid Deal</div>' +
+        '<div class="legend-item"><div class="legend-dot" style="background:#888"></div> Other</div>' +
+        '<div class="legend-item"><div class="legend-dot" style="background:#00d4ff"></div> Home Base</div>';
+
+      document.getElementById('statusText').textContent = pinCount + ' deals mapped';
+      document.getElementById('statusCount').textContent = mapData.totalDeals + ' total deals';
+    }
+
+    function renderDealListPanel() {
+      var panel = document.getElementById('infoPanel');
+      panel.style.display = 'block';
+
+      // Show top deals sorted by profit
+      var sorted = mapData.deals.filter(function(d) { return d.lat && d.lng; })
+        .sort(function(a, b) { return b.profit - a.profit; });
+
+      var html = '<h3>Top Deals on Map</h3>';
+
+      sorted.slice(0, 20).forEach(function(deal) {
+        var isHot = deal.verdict && deal.verdict.indexOf('HOT') > -1;
+        html +=
+          '<div class="area-card' + (isHot ? ' hot' : '') + '" onclick="panTo(' + deal.lat + ',' + deal.lng + ')">' +
+          '<div class="area-name">' + deal.title + '</div>' +
+          '<div class="area-stats">' +
+          '$' + deal.price.toLocaleString() + ' &bull; ' +
+          deal.platform + ' &bull; ' +
+          deal.distance + ' mi<br>' +
+          'Profit: $' + deal.profit.toLocaleString() + ' &bull; ROI: ' + deal.roi + '%' +
+          '</div></div>';
+      });
+
+      panel.innerHTML = html;
+    }
+
+    // ===== COVERAGE MAP MODE =====
+    function renderCoverageMap() {
+      document.getElementById('loading').style.display = 'none';
+      if (!coverageData) return;
+
+      // Home marker
+      if (coverageData.home) {
+        map.setCenter({ lat: coverageData.home.lat, lng: coverageData.home.lng });
+
+        var homeMarker = new google.maps.Marker({
+          position: { lat: coverageData.home.lat, lng: coverageData.home.lng },
+          map: map,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 12, fillColor: '#00d4ff', fillOpacity: 1,
+            strokeColor: '#fff', strokeWeight: 3
+          },
+          title: 'Home Base',
+          zIndex: 999
+        });
+        markers.push(homeMarker);
+      }
+
+      // Platform colors
+      var platformColors = {
+        'facebook_marketplace': '#1877F2',
+        'craigslist': '#800080',
+        'offerup': '#00C169',
+        'ebay_motors': '#E53238',
+        'autotrader': '#E26312',
+        'cars_com': '#333',
+        'atv_trader': '#8B4513',
+        'cycle_trader': '#FF4500'
+      };
+
+      var robotCount = 0;
+      coverageData.robots.forEach(function(robot) {
+        var color = platformColors[robot.platform] || '#00d4ff';
+
+        if (robot.geoRegions && robot.geoRegions.length > 0) {
+          robot.geoRegions.forEach(function(region) {
+            robotCount++;
+
+            var circle = new google.maps.Circle({
+              center: { lat: region.lat, lng: region.lng },
+              radius: 80000, // ~50 mile coverage radius
+              fillColor: color,
+              fillOpacity: 0.15,
+              strokeColor: color,
+              strokeOpacity: 0.5,
+              strokeWeight: 2,
+              map: map
+            });
+            circles.push(circle);
+
+            var marker = new google.maps.Marker({
+              position: { lat: region.lat, lng: region.lng },
+              map: map,
+              icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 8, fillColor: color, fillOpacity: 0.9,
+                strokeColor: '#fff', strokeWeight: 2
+              },
+              title: robot.name + ' - ' + region.name
+            });
+
+            var infoContent =
+              '<div style="color:#000;max-width:200px">' +
+              '<strong>' + robot.name + '</strong><br>' +
+              'Region: ' + region.name + '<br>' +
+              'Platform: ' + robot.platform + '<br>' +
+              'Refresh: ' + (robot.refreshInterval || 'N/A') + '<br>' +
+              'Status: ' + (robot.status || 'active') +
+              '</div>';
+
+            var infoWindow = new google.maps.InfoWindow({ content: infoContent });
+            marker.addListener('click', function() {
+              infoWindows.forEach(function(w) { w.close(); });
+              infoWindow.open(map, marker);
+            });
+
+            markers.push(marker);
+            infoWindows.push(infoWindow);
+          });
+        }
+      });
+
+      // Robot list panel
+      renderCoveragePanel();
+
+      // Legend
+      var legendHTML = '<strong>Platforms</strong>';
+      for (var p in platformColors) {
+        var displayName = p.replace(/_/g, ' ').replace(/\b\w/g, function(l) { return l.toUpperCase(); });
+        legendHTML += '<div class="legend-item"><div class="legend-dot" style="background:' + platformColors[p] + '"></div> ' + displayName + '</div>';
+      }
+      document.getElementById('legend').style.display = 'block';
+      document.getElementById('legend').innerHTML = legendHTML;
+
+      document.getElementById('statusText').textContent = coverageData.robots.length + ' robots configured';
+      document.getElementById('statusCount').textContent = robotCount + ' coverage regions';
+    }
+
+    function renderCoveragePanel() {
+      var panel = document.getElementById('infoPanel');
+      panel.style.display = 'block';
+
+      var html = '<h3>Active Robots</h3>';
+
+      if (coverageData.robots.length === 0) {
+        html += '<div style="color:#888;font-size:13px;padding:10px">No robots configured yet. Use the Browse.ai Robots menu to set up robots.</div>';
+      }
+
+      coverageData.robots.forEach(function(robot) {
+        html +=
+          '<div class="robot-card">' +
+          '<div class="robot-name">' + robot.name + '</div>' +
+          '<div class="robot-platform">' + robot.platform + '</div>' +
+          '<div class="robot-status">' + (robot.status || 'active') +
+          (robot.geoRegions ? ' &bull; ' + robot.geoRegions.length + ' regions' : '') +
+          '</div></div>';
+      });
+
+      panel.innerHTML = html;
+    }
+
+    // ===== UTILITY =====
+    function panTo(lat, lng) {
+      map.panTo({ lat: lat, lng: lng });
+      map.setZoom(12);
+    }
+  </script>
+
+  <script async defer
+    src="https://maps.googleapis.com/maps/api/js?callback=initMap">
+  </script>
+</body>
+</html>

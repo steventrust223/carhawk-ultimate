@@ -294,17 +294,7 @@ function openDealCalculatorPro() {
 }
 
 function generateMarketHeatMap() {
-  SpreadsheetApp.getUi().alert(
-    'Market Heat Map',
-    'Generating location-based profitability analysis...\n\n' +
-    'This feature will show:\n' +
-    '• Hot zones for deals\n' +
-    '• Average profit by area\n' +
-    '• Competition density\n' +
-    '• Travel time optimization\n\n' +
-    'Coming soon!',
-    SpreadsheetApp.getUi().ButtonSet.OK
-  );
+  openMarketHeatMap();
 }
 
 function openKnowledgeBase() {

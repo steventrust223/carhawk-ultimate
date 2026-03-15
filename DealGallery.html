@@ -50,6 +50,11 @@
       <div class="value" id="avgROI">0%</div>
       <div class="label">Avg ROI</div>
     </div>
+    <div class="stat" style="display:flex;align-items:center">
+      <button class="btn btn-primary" onclick="openMap('deals')" style="padding:8px 16px;font-size:13px">
+        📍 Deal Map
+      </button>
+    </div>
   </div>
 
   <div class="deals-grid" id="dealsGrid">
@@ -107,6 +112,10 @@
           alert('Error: ' + err.message);
         })
         .processDealAction(action, dealId);
+    }
+
+    function openMap(mode) {
+      google.script.run.openDealMap();
     }
 
     init();
