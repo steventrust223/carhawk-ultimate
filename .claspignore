@@ -3,3 +3,4 @@
 .clasp.json
 .claspignore
 .git/**
+appsscript.json
