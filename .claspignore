@@ -3,4 +3,4 @@
 .clasp.json
 .claspignore
 .git/**
-appsscript.json
+node_modules/**
