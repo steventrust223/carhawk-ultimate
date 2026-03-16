@@ -1,17 +1,4 @@
 {
   "scriptId": "1ADcSB1q2e4uWjBaujXtkv_sbWCR_Y51FPHGLUT123rr_fxj9YzAocRSn",
-  "rootDir": ".",
-  "scriptExtensions": [".gs", ".js"],
-  "htmlExtensions": [".html"],
-  "filePushOrder": [
-    "quantum_config.gs",
-    "quantum_core.gs",
-    "quantum_utilities.gs",
-    "quantum_headers.gs",
-    "quantum_setup.gs",
-    "quantum_menu.gs",
-    "quantum_formulas.gs",
-    "quantum_fallback.gs",
-    "main.gs"
-  ]
+  "rootDir": "."
 }
