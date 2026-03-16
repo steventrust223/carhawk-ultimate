@@ -30,6 +30,7 @@
     "quantum_dashboard.gs",
     "quantum_testing.gs",
     "quantum_reports.gs",
+    "quantum_maps.gs",
     "quantum_menu_handlers.gs",
     "quantum_triggers.gs",
     "quantum_setup_html.gs",
@@ -60,6 +61,7 @@
     "SMSConversations.html",
     "SpeedToLead.html",
     "VINDecoder.html",
+    "MarketMap.html",
     "main.gs"
   ]
 }
