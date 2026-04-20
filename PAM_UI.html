@@ -742,3 +742,162 @@
         </div>
       </div>
     </div><!-- /modal-purchase -->
+
+    <!-- ══════════════ TAB 4: RUN ENGINE ════════════ -->
+    <div class="panel" id="panel-engine">
+      <div class="section-label">Execution Control</div>
+
+      <!-- Action buttons -->
+      <div class="engine-btns">
+        <button class="btn btn-outline btn-lg btn-pulse" id="btn-logic" onclick="runEngine('logic')">
+          ▶ Run Logic Engine
+        </button>
+        <button class="btn btn-blue btn-lg btn-pulse" id="btn-ai" onclick="runEngine('ai')"
+          style="border-color:var(--blue);">
+          🧠 Run AI Evaluation
+        </button>
+        <button class="btn btn-ghost btn-lg btn-pulse" id="btn-cycle" onclick="runEngine('cycle')"
+          style="border-color:var(--gold);color:var(--gold);">
+          🔄 Full Cycle (Logic → AI)
+        </button>
+      </div>
+
+      <!-- Last run + settings preview row -->
+      <div style="display:grid;grid-template-columns:1fr 280px;gap:16px;margin-bottom:16px;" class="engine-meta-grid">
+
+        <!-- Log console -->
+        <div>
+          <div class="section-label">Execution Log</div>
+          <div class="log-console" id="log-console">
+            <div class="log-line">
+              <span class="log-ts">--:--:--</span>
+              <span class="log-cat cat-info">[INFO]</span>
+              <span class="log-msg">PAM Engine ready. Press a button above to start.</span>
+            </div>
+          </div>
+          <div class="flex-center gap-8" style="margin-top:8px;">
+            <span class="text-muted fs-11" id="last-run-label">Last run: never</span>
+            <button class="btn btn-ghost" style="padding:3px 10px;font-size:11px;" onclick="clearLog()">Clear log</button>
+          </div>
+        </div>
+
+        <!-- Settings preview panel -->
+        <div>
+          <div class="section-label">Current Settings</div>
+          <div class="card" style="padding:12px 14px;">
+            <div id="engine-settings-preview">
+              <div class="loading-row" style="padding:10px 0;"><span class="spinner"></span> Loading…</div>
+            </div>
+            <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+              <button class="btn btn-ghost" style="width:100%;font-size:11px;padding:6px;"
+                onclick="switchTab('settings')">⚙ Edit Settings</button>
+            </div>
+          </div>
+          <div style="margin-top:10px;">
+            <div class="section-label">Safety</div>
+            <button class="btn btn-ghost" style="width:100%;font-size:11px;padding:7px;"
+              onclick="runInitSheets()">
+              ⚡ Initialize / Repair PAM Sheets
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- /panel-engine -->
+
+    <!-- ══════════════ TAB 5: SETTINGS ═══════════════ -->
+    <div class="panel" id="panel-settings">
+      <div class="section-label">PAM Configuration</div>
+
+      <!-- Source Sheet -->
+      <div class="settings-section">
+        <div class="settings-section-title">Data Source</div>
+        <div class="form-grid cols-2" style="max-width:480px;">
+          <div class="form-group">
+            <label>Source Sheet Name</label>
+            <input type="text" id="cfg-source" placeholder="Master DB">
+          </div>
+          <div class="form-group">
+            <label>OpenAI API Key Cell</label>
+            <input type="text" id="cfg-apikey-cell" placeholder="Settings!B2" readonly
+              style="color:var(--text-muted);cursor:default;" title="Key is read from this cell — never stored here">
+          </div>
+        </div>
+      </div>
+
+      <!-- Scoring Weights -->
+      <div class="settings-section">
+        <div class="settings-section-title">
+          Scoring Weights &nbsp;
+          <span class="weight-sum-display" id="weight-sum-display">Sum: 100</span>
+        </div>
+        <div class="form-grid" style="max-width:640px;">
+          <div class="form-group">
+            <label>Keyword Match</label>
+            <input type="number" id="cfg-kw"   min="0" max="100" step="1" value="40" oninput="updateWeightSum()">
+          </div>
+          <div class="form-group">
+            <label>Category Match</label>
+            <input type="number" id="cfg-cat"  min="0" max="100" step="1" value="20" oninput="updateWeightSum()">
+          </div>
+          <div class="form-group">
+            <label>Price vs Target</label>
+            <input type="number" id="cfg-price" min="0" max="100" step="1" value="20" oninput="updateWeightSum()">
+          </div>
+          <div class="form-group">
+            <label>Brand / Model Bonus</label>
+            <input type="number" id="cfg-brand" min="0" max="100" step="1" value="10" oninput="updateWeightSum()">
+          </div>
+          <div class="form-group">
+            <label>Distance Score</label>
+            <input type="number" id="cfg-dist"  min="0" max="100" step="1" value="5"  oninput="updateWeightSum()">
+          </div>
+          <div class="form-group">
+            <label>Condition Clue</label>
+            <input type="number" id="cfg-cond"  min="0" max="100" step="1" value="5"  oninput="updateWeightSum()">
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Settings -->
+      <div class="settings-section">
+        <div class="settings-section-title">AI Evaluation</div>
+        <div class="form-grid" style="max-width:640px;">
+          <div class="form-group" style="grid-column:1/-1;">
+            <label>AI Score Threshold: <span id="threshold-val" style="color:var(--gold);">60</span></label>
+            <input type="range" id="cfg-threshold" min="0" max="100" step="1" value="60"
+              oninput="document.getElementById('threshold-val').textContent=this.value;updateThresholdPreview()">
+            <div class="threshold-preview" id="threshold-preview"></div>
+          </div>
+          <div class="form-group">
+            <label>AI Model</label>
+            <select id="cfg-model">
+              <option value="gpt-4o-mini" selected>gpt-4o-mini (default)</option>
+              <option value="gpt-4o">gpt-4o</option>
+              <option value="gpt-4-turbo">gpt-4-turbo</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Max AI Calls Per Run</label>
+            <input type="number" id="cfg-max-ai" min="1" max="200" step="1" value="20">
+          </div>
+          <div class="form-group">
+            <label>Distance Radius (miles)</label>
+            <input type="number" id="cfg-radius" min="1" max="500" step="1" value="30">
+          </div>
+        </div>
+      </div>
+
+      <!-- Save / Reset -->
+      <div class="flex-center gap-8">
+        <button class="btn btn-gold" onclick="saveSettings()">Save Settings</button>
+        <button class="btn btn-ghost" onclick="resetSettings()">Reset to Defaults</button>
+      </div>
+
+    </div><!-- /panel-settings -->
+
+  </div><!-- /panels -->
+</div><!-- /app -->
+
+<!-- Toast area -->
+<div id="toast-area"></div>
