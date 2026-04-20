@@ -640,3 +640,105 @@
         <div class="loading-row"><span class="spinner"></span> Loading needs…</div>
       </div>
     </div><!-- /panel-needs -->
+
+    <!-- ══════════════ TAB 3: MATCHES ═══════════════ -->
+    <div class="panel" id="panel-matches">
+      <div class="flex-center gap-12 mb-16" style="justify-content:space-between;flex-wrap:wrap;">
+        <div class="section-label" style="margin-bottom:0">Match Intelligence</div>
+        <button class="btn btn-ghost fs-11" onclick="loadMatches()">↺ Refresh</button>
+      </div>
+
+      <!-- Stats bar -->
+      <div class="stats-row" id="match-stats">
+        <div class="stat-chip"><div class="val" id="stat-m-total">—</div><div class="lbl">Total Matches</div></div>
+        <div class="stat-chip"><div class="val" id="stat-m-strong" style="color:var(--green)">—</div><div class="lbl">Strong</div></div>
+        <div class="stat-chip"><div class="val" id="stat-m-ai" style="color:var(--amber)">—</div><div class="lbl">Awaiting AI</div></div>
+        <div class="stat-chip"><div class="val" id="stat-m-acted" style="color:var(--blue)">—</div><div class="lbl">Acted Today</div></div>
+      </div>
+
+      <!-- Filter bar -->
+      <div class="filter-bar">
+        <select id="m-filter-project" onchange="filterMatches()" style="min-width:140px;">
+          <option value="">All Projects</option>
+        </select>
+        <select id="m-filter-tier" onchange="filterMatches()">
+          <option value="">All Tiers</option>
+          <option>Strong</option><option>Good</option><option>Weak</option>
+        </select>
+        <select id="m-filter-verdict" onchange="filterMatches()">
+          <option value="">All AI Verdicts</option>
+          <option>Perfect Fit</option><option>Likely Fit</option>
+          <option>Possible Fit</option><option>Not Recommended</option>
+        </select>
+        <select id="m-filter-status" onchange="filterMatches()">
+          <option value="">All Statuses</option>
+          <option>New</option><option>Reviewed</option>
+          <option>Acted On</option><option>Dismissed</option>
+        </select>
+      </div>
+
+      <!-- Match cards container -->
+      <div id="matches-list">
+        <div class="loading-row"><span class="spinner"></span> Loading matches…</div>
+      </div>
+    </div><!-- /panel-matches -->
+
+    <!-- Purchase Quick-Add Modal (shared, opened from match action buttons) -->
+    <div class="modal-overlay" id="modal-purchase">
+      <div class="modal-box">
+        <div class="modal-title">Record Purchase</div>
+        <input type="hidden" id="pur-match-id">
+        <input type="hidden" id="pur-need-id">
+        <div class="form-grid cols-2">
+          <div class="form-group" style="grid-column:1/-1;">
+            <label>Item Bought *</label>
+            <input type="text" id="pur-item" placeholder="Describe the item purchased">
+          </div>
+          <div class="form-group">
+            <label>Project *</label>
+            <select id="pur-project">
+              <option value="">Select project…</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Purchase Price ($) *</label>
+            <input type="number" id="pur-price" placeholder="0" min="0" step="0.01">
+          </div>
+          <div class="form-group">
+            <label>Platform / Source</label>
+            <input type="text" id="pur-platform" placeholder="e.g. Facebook Marketplace">
+          </div>
+          <div class="form-group">
+            <label>Seller</label>
+            <input type="text" id="pur-seller" placeholder="Seller name or handle">
+          </div>
+          <div class="form-group">
+            <label>Date Bought</label>
+            <input type="date" id="pur-date">
+          </div>
+          <div class="form-group">
+            <label>Condition</label>
+            <select id="pur-condition">
+              <option>New</option><option>Like New</option>
+              <option selected>Good</option><option>Fair</option><option>Poor</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Listing URL</label>
+            <input type="url" id="pur-url" placeholder="https://…">
+          </div>
+          <div class="form-group">
+            <label>Est. Resale Value ($)</label>
+            <input type="number" id="pur-resale" placeholder="0" min="0">
+          </div>
+          <div class="form-group" style="grid-column:1/-1;">
+            <label>Notes</label>
+            <textarea id="pur-notes" placeholder="Any notes about this purchase…" style="min-height:44px;"></textarea>
+          </div>
+        </div>
+        <div class="form-actions" style="margin-top:14px;">
+          <button class="btn btn-ghost" onclick="closeModal('modal-purchase')">Cancel</button>
+          <button class="btn btn-green" onclick="submitPurchase()">Record Purchase</button>
+        </div>
+      </div>
+    </div><!-- /modal-purchase -->
