@@ -1261,4 +1261,394 @@ function filterMatches() {
     return true;
   });
   renderMatches(filtered);
-}</script>
+}
+
+// ── RENDER: Engine preview panel ──────────────────────────
+function renderEnginePreview(s) {
+  const el = document.getElementById('engine-settings-preview');
+  if (!s) { el.innerHTML = '<div class="text-muted fs-11">Settings unavailable.</div>'; return; }
+  const rows = [
+    ['Source Sheet',   s.PAM_SourceSheet  || 'Master DB'],
+    ['AI Model',       s.PAM_AIModel      || 'gpt-4o-mini'],
+    ['AI Threshold',   (s.PAM_AIThreshold || 60) + ' pts'],
+    ['Max AI / Run',   s.PAM_MaxAIPerRun  || 20],
+    ['Radius',         (s.PAM_DistanceRadius || 30) + ' mi'],
+    ['Keyword Wt.',    (s.PAM_KeywordWeight || 40) + ' pts'],
+    ['Category Wt.',   (s.PAM_CategoryWeight || 20) + ' pts'],
+    ['Price Wt.',      (s.PAM_PriceWeight   || 20) + ' pts'],
+  ];
+  el.innerHTML = rows.map(([k,v]) =>
+    `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-size:11px;">
+      <span class="text-muted">${esc(k)}</span>
+      <span class="text-mono" style="color:var(--text)">${esc(String(v))}</span>
+    </div>`
+  ).join('');
+}
+
+// ── RENDER: Settings form ─────────────────────────────────
+function renderSettings(s) {
+  if (!s) return;
+  document.getElementById('cfg-source').value       = s.PAM_SourceSheet    || 'Master DB';
+  document.getElementById('cfg-apikey-cell').value  = s.PAM_APIKeyCell     || 'Settings!B2';
+  document.getElementById('cfg-kw').value           = s.PAM_KeywordWeight  || 40;
+  document.getElementById('cfg-cat').value          = s.PAM_CategoryWeight || 20;
+  document.getElementById('cfg-price').value        = s.PAM_PriceWeight    || 20;
+  document.getElementById('cfg-brand').value        = s.PAM_BrandWeight    || 10;
+  document.getElementById('cfg-dist').value         = s.PAM_DistanceWeight || 5;
+  document.getElementById('cfg-cond').value         = s.PAM_ConditionWeight|| 5;
+  document.getElementById('cfg-threshold').value    = s.PAM_AIThreshold    || 60;
+  document.getElementById('threshold-val').textContent = s.PAM_AIThreshold || 60;
+  document.getElementById('cfg-model').value        = s.PAM_AIModel        || 'gpt-4o-mini';
+  document.getElementById('cfg-max-ai').value       = s.PAM_MaxAIPerRun    || 20;
+  document.getElementById('cfg-radius').value       = s.PAM_DistanceRadius || 30;
+  updateWeightSum();
+  updateThresholdPreview();
+}
+
+function updateWeightSum() {
+  const ids  = ['cfg-kw','cfg-cat','cfg-price','cfg-brand','cfg-dist','cfg-cond'];
+  const sum  = ids.reduce((t,id) => t + (parseInt(document.getElementById(id).value)||0), 0);
+  const el   = document.getElementById('weight-sum-display');
+  el.textContent = 'Sum: ' + sum;
+  el.className   = 'weight-sum-display ' + (sum === 100 ? 'weight-sum-ok' : 'weight-sum-bad');
+}
+
+function updateThresholdPreview() {
+  const val = parseInt(document.getElementById('cfg-threshold').value) || 60;
+  const tiers = [
+    { label:'Strong (80–100)', min:80, cls:'badge-green' },
+    { label:'Good (60–79)',    min:60, cls:'badge-blue'  },
+    { label:'Weak (40–59)',    min:40, cls:'badge-amber' },
+    { label:'No Match (<40)', min:0,  cls:'badge-slate' }
+  ];
+  document.getElementById('threshold-preview').innerHTML = tiers.map(t => {
+    const active = val <= t.min || (t.min === 0 && val < 40);
+    const op = t.min >= val || (t.min === 0) ? '1' : '0.3';
+    return `<span class="threshold-tier badge ${t.cls}" style="opacity:${op};" title="${t.min>=val?'Gets AI':'Below threshold'}">${esc(t.label)}</span>`;
+  }).join('');
+}
+
+// ── Data loaders ──────────────────────────────────────────
+function loadProjects() {
+  google.script.run
+    .withSuccessHandler(res => {
+      if (res.success) { APP.projects = res.data; renderProjects(res.data); }
+      else toast('Error loading projects: ' + res.error, 'error');
+    })
+    .withFailureHandler(err => toast('Projects load failed: ' + err.toString(), 'error'))
+    .getPAMProjects();
+  google.script.run
+    .withSuccessHandler(ids => { APP.nextIds = ids; })
+    .getPAMNextIds();
+}
+
+function loadNeeds() {
+  if (!APP.projects.length) {
+    google.script.run.withSuccessHandler(r => { if(r.success) APP.projects = r.data; }).getPAMProjects();
+  }
+  google.script.run
+    .withSuccessHandler(res => {
+      if (res.success) { APP.needs = res.data; renderNeeds(res.data); }
+      else toast('Error loading needs: ' + res.error, 'error');
+    })
+    .withFailureHandler(err => toast('Needs load failed: ' + err.toString(), 'error'))
+    .getPAMNeeds(null);
+}
+
+function loadMatches() {
+  document.getElementById('matches-list').innerHTML =
+    '<div class="loading-row"><span class="spinner"></span> Loading matches…</div>';
+  google.script.run
+    .withSuccessHandler(res => {
+      if (res.success) { APP.matches = res.data; renderMatches(res.data); }
+      else toast('Error loading matches: ' + res.error, 'error');
+    })
+    .withFailureHandler(err => toast('Matches load failed: ' + err.toString(), 'error'))
+    .getPAMMatches(null);
+  google.script.run
+    .withSuccessHandler(res => {
+      if (!res.success) return;
+      document.getElementById('stat-m-total').textContent  = res.total;
+      document.getElementById('stat-m-strong').textContent = res.strong;
+      document.getElementById('stat-m-ai').textContent     = res.awaitingAI;
+      document.getElementById('stat-m-acted').textContent  = res.actedToday;
+    })
+    .getPAMStats();
+}
+
+function loadEnginePreview() {
+  google.script.run
+    .withSuccessHandler(res => {
+      if (res.success) { APP.settings = res.settings; renderEnginePreview(res.settings); }
+    })
+    .getPAMSettings();
+}
+
+function loadSettings() {
+  google.script.run
+    .withSuccessHandler(res => {
+      if (res.success) { APP.settings = res.settings; renderSettings(res.settings); }
+      else toast('Could not load settings.', 'error');
+    })
+    .getPAMSettings();
+}
+
+// ── Form submits ──────────────────────────────────────────
+function submitNewProject() {
+  const name   = document.getElementById('np-name').value.trim();
+  const type   = document.getElementById('np-type').value;
+  const budget = parseFloat(document.getElementById('np-budget').value) || 0;
+  if (!name)   { toast('Project name is required.', 'error'); return; }
+  if (!type)   { toast('Project type is required.', 'error'); return; }
+  if (!budget) { toast('Budget must be greater than 0.', 'error'); return; }
+  const data = {
+    name, type, budget,
+    category:    document.getElementById('np-category').value.trim(),
+    description: document.getElementById('np-desc').value.trim(),
+    priority:    document.getElementById('np-priority').value,
+    status:      document.getElementById('np-status').value,
+    startDate:   document.getElementById('np-start').value,
+    targetDate:  document.getElementById('np-target').value
+  };
+  google.script.run
+    .withSuccessHandler(res => {
+      if (res.success) {
+        toast('Project ' + res.id + ' created.', 'success');
+        toggleForm('form-new-project');
+        loadProjects();
+      } else toast('Error: ' + res.error, 'error');
+    })
+    .withFailureHandler(err => toast(err.toString(), 'error'))
+    .addProject(data);
+}
+
+function submitNewNeed() {
+  const item      = document.getElementById('nn-item').value.trim();
+  const projectId = document.getElementById('nn-project').value;
+  const keywords  = document.getElementById('nn-keywords').value.trim();
+  if (!item)      { toast('Item name is required.', 'error'); return; }
+  if (!projectId) { toast('Select a project.', 'error'); return; }
+  if (!keywords)  { toast('Keyword set is required for matching.', 'error'); return; }
+  const data = {
+    item, projectId, keywords,
+    category:    document.getElementById('nn-category').value,
+    targetPrice: parseFloat(document.getElementById('nn-target-price').value) || 0,
+    maxPrice:    parseFloat(document.getElementById('nn-max-price').value)    || 0,
+    qtyNeeded:   parseInt(document.getElementById('nn-qty').value)            || 1,
+    condition:   document.getElementById('nn-condition').value,
+    priority:    document.getElementById('nn-priority').value,
+    brand:       document.getElementById('nn-brand').value.trim(),
+    model:       document.getElementById('nn-model').value.trim(),
+    status:      document.getElementById('nn-status').value,
+    notes:       document.getElementById('nn-notes').value.trim()
+  };
+  google.script.run
+    .withSuccessHandler(res => {
+      if (res.success) {
+        toast('Need ' + res.id + ' added.', 'success');
+        toggleForm('form-new-need');
+        loadNeeds();
+      } else toast('Error: ' + res.error, 'error');
+    })
+    .withFailureHandler(err => toast(err.toString(), 'error'))
+    .addNeed(data);
+}
+
+function buyForProject(matchId, needId, title, platform, price) {
+  document.getElementById('pur-match-id').value  = matchId;
+  document.getElementById('pur-need-id').value   = needId;
+  document.getElementById('pur-item').value      = title;
+  document.getElementById('pur-platform').value  = platform;
+  document.getElementById('pur-price').value     = price || '';
+  document.getElementById('pur-date').value      = new Date().toISOString().split('T')[0];
+  const sel = document.getElementById('pur-project');
+  sel.innerHTML = '<option value="">Select project…</option>' +
+    APP.projects.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
+  // Pre-select project from match
+  const match = APP.matches.find(m => m.id === matchId);
+  if (match) sel.value = match.projectId;
+  openModal('modal-purchase');
+}
+
+function submitPurchase() {
+  const item  = document.getElementById('pur-item').value.trim();
+  const proj  = document.getElementById('pur-project').value;
+  const price = parseFloat(document.getElementById('pur-price').value) || 0;
+  if (!item)  { toast('Item description is required.', 'error'); return; }
+  if (!proj)  { toast('Select a project.', 'error'); return; }
+  if (!price) { toast('Purchase price is required.', 'error'); return; }
+  const data = {
+    item, price,
+    projectId:   proj,
+    needId:      document.getElementById('pur-need-id').value,
+    matchId:     document.getElementById('pur-match-id').value,
+    platform:    document.getElementById('pur-platform').value.trim(),
+    seller:      document.getElementById('pur-seller').value.trim(),
+    dateBought:  document.getElementById('pur-date').value,
+    condition:   document.getElementById('pur-condition').value,
+    listingUrl:  document.getElementById('pur-url').value.trim(),
+    resaleValue: parseFloat(document.getElementById('pur-resale').value) || 0,
+    notes:       document.getElementById('pur-notes').value.trim()
+  };
+  google.script.run
+    .withSuccessHandler(res => {
+      if (res.success) {
+        toast('Purchase ' + res.id + ' recorded.', 'success');
+        closeModal('modal-purchase');
+        loadMatches();
+      } else toast('Error: ' + res.error, 'error');
+    })
+    .withFailureHandler(err => toast(err.toString(), 'error'))
+    .recordPurchase(data);
+}
+
+function setMatchStatus(matchId, status) {
+  google.script.run
+    .withSuccessHandler(res => {
+      if (res.success) { toast('Match marked as ' + status + '.', 'success'); loadMatches(); }
+      else toast('Error: ' + res.error, 'error');
+    })
+    .withFailureHandler(err => toast(err.toString(), 'error'))
+    .updateMatchStatus(matchId, status);
+}
+
+// ── Engine controls ───────────────────────────────────────
+function runEngine(mode) {
+  if (APP.runningEngine) { toast('Engine already running.', 'info'); return; }
+  APP.runningEngine = true;
+  const btnMap = { logic:'btn-logic', ai:'btn-ai', cycle:'btn-cycle' };
+  const btn = document.getElementById(btnMap[mode]);
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Running…'; }
+  logLine('Engine started (' + mode + ' mode)…', 'START');
+
+  const fnMap = { logic:'runPAMLogicEngine', ai:'runPAMAIEvaluation', cycle:'runPAMFullCycle' };
+  google.script.run
+    .withSuccessHandler(res => {
+      APP.runningEngine = false;
+      if (btn) { btn.disabled = false; btn.textContent = btn.getAttribute('data-label') || btn.textContent.replace('⏳ Running…',''); }
+      const log = res.log || (res.logic && res.logic.log ? res.logic.log.concat(res.ai&&res.ai.log||[]) : []);
+      log.forEach(entry => logLine(entry.msg, entry.cat));
+      if (res.success) {
+        const sum = res.summary || (res.logic && res.logic.summary ? res.logic.summary + ' | ' + (res.ai&&res.ai.summary||'') : '');
+        logLine(sum || 'Complete.', 'DONE');
+        document.getElementById('last-run-label').textContent = 'Last run: ' + new Date().toLocaleString();
+        toast('Engine complete.', 'success');
+        if (mode !== 'ai') loadMatches();
+      } else {
+        logLine(res.error || 'Unknown error.', 'ERROR');
+        toast('Engine error — see log.', 'error');
+      }
+    })
+    .withFailureHandler(err => {
+      APP.runningEngine = false;
+      if (btn) { btn.disabled = false; }
+      logLine('Fatal error: ' + err.toString(), 'ERROR');
+      toast('Engine failed: ' + err.toString(), 'error');
+    })
+    [fnMap[mode]]();
+}
+
+function runInitSheets() {
+  toast('Initializing PAM sheets…', 'info');
+  google.script.run
+    .withSuccessHandler(() => toast('PAM sheets initialized.', 'success'))
+    .withFailureHandler(err => toast(err.toString(), 'error'))
+    .initializePAMSheets();
+}
+
+function clearLog() {
+  document.getElementById('log-console').innerHTML =
+    '<div class="log-line"><span class="log-ts">--:--:--</span>' +
+    '<span class="log-cat cat-info">[INFO]</span>' +
+    '<span class="log-msg">Log cleared.</span></div>';
+}
+
+function logLine(msg, cat) {
+  const console_ = document.getElementById('log-console');
+  const catClass = { START:'cat-start', SCAN:'cat-scan', EVAL:'cat-eval', OK:'cat-ok',
+                     DONE:'cat-done', ERROR:'cat-error', WARN:'cat-warn', INFO:'cat-info' };
+  const div = document.createElement('div');
+  div.className = 'log-line';
+  const ts = new Date().toLocaleTimeString('en-US', {hour12:false});
+  div.innerHTML =
+    `<span class="log-ts">${ts}</span>` +
+    `<span class="log-cat ${catClass[cat]||'cat-info'}">[${esc(cat||'LOG')}]</span>` +
+    `<span class="log-msg">${esc(msg)}</span>`;
+  console_.appendChild(div);
+  console_.scrollTop = console_.scrollHeight;
+}
+
+// ── Settings save / reset ─────────────────────────────────
+function saveSettings() {
+  const sum = ['cfg-kw','cfg-cat','cfg-price','cfg-brand','cfg-dist','cfg-cond']
+    .reduce((t,id) => t + (parseInt(document.getElementById(id).value)||0), 0);
+  if (sum !== 100) { toast('Scoring weights must sum to 100 (currently ' + sum + ').', 'error'); return; }
+  const data = {
+    PAM_SourceSheet:    document.getElementById('cfg-source').value.trim() || 'Master DB',
+    PAM_KeywordWeight:  parseInt(document.getElementById('cfg-kw').value)    || 40,
+    PAM_CategoryWeight: parseInt(document.getElementById('cfg-cat').value)   || 20,
+    PAM_PriceWeight:    parseInt(document.getElementById('cfg-price').value) || 20,
+    PAM_BrandWeight:    parseInt(document.getElementById('cfg-brand').value) || 10,
+    PAM_DistanceWeight: parseInt(document.getElementById('cfg-dist').value)  || 5,
+    PAM_ConditionWeight:parseInt(document.getElementById('cfg-cond').value)  || 5,
+    PAM_AIThreshold:    parseInt(document.getElementById('cfg-threshold').value) || 60,
+    PAM_AIModel:        document.getElementById('cfg-model').value || 'gpt-4o-mini',
+    PAM_MaxAIPerRun:    parseInt(document.getElementById('cfg-max-ai').value) || 20,
+    PAM_DistanceRadius: parseInt(document.getElementById('cfg-radius').value) || 30
+  };
+  google.script.run
+    .withSuccessHandler(res => {
+      if (res.success) { APP.settings = data; toast('Settings saved.', 'success'); }
+      else toast('Save error: ' + res.error, 'error');
+    })
+    .withFailureHandler(err => toast(err.toString(), 'error'))
+    .savePAMSettings(data);
+}
+
+function resetSettings() {
+  if (!confirm('Reset all PAM settings to defaults?')) return;
+  const defaults = {
+    PAM_SourceSheet:'Master DB', PAM_KeywordWeight:40, PAM_CategoryWeight:20,
+    PAM_PriceWeight:20, PAM_BrandWeight:10, PAM_DistanceWeight:5, PAM_ConditionWeight:5,
+    PAM_AIThreshold:60, PAM_AIModel:'gpt-4o-mini', PAM_MaxAIPerRun:20, PAM_DistanceRadius:30
+  };
+  renderSettings(defaults);
+  toast('Defaults restored — click Save to apply.', 'info');
+}
+
+// ── Modal helpers ─────────────────────────────────────────
+function openModal(id)  { const el = document.getElementById(id); if(el) el.classList.add('open'); }
+function closeModal(id) { const el = document.getElementById(id); if(el) el.classList.remove('open'); }
+
+// ── Toast system ──────────────────────────────────────────
+function toast(msg, type) {
+  const area = document.getElementById('toast-area');
+  const div  = document.createElement('div');
+  div.className = 'toast toast-' + (type || 'info');
+  div.textContent = msg;
+  area.appendChild(div);
+  setTimeout(() => { div.style.opacity = '0'; div.style.transition = 'opacity 0.3s'; }, 3200);
+  setTimeout(() => div.remove(), 3600);
+}
+
+// ── Init ──────────────────────────────────────────────────
+function init() {
+  // Store original button labels before any run
+  ['btn-logic','btn-ai','btn-cycle'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.setAttribute('data-label', el.textContent.trim());
+  });
+  updateWeightSum();
+  updateThresholdPreview();
+  loadProjects();
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+});
+
+window.addEventListener('load', init);
+</script>
+</body>
+</html>
