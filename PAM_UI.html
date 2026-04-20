@@ -1,0 +1,1654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PAM — Project Arbitrage Module</title>
+  <base target="_top">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ── Tokens ─────────────────────────────────────────── */
+    :root {
+      --bg:          #0A0A0C;
+      --surface:     #141418;
+      --surface2:    #1A1A20;
+      --border:      #1E1E24;
+      --border-gold: rgba(201,168,76,0.18);
+      --gold:        #C9A84C;
+      --gold-dim:    rgba(201,168,76,0.12);
+      --blue:        #4080C4;
+      --blue-dim:    rgba(64,128,196,0.15);
+      --green:       #40A060;
+      --green-dim:   rgba(64,160,96,0.15);
+      --amber:       #C48840;
+      --amber-dim:   rgba(196,136,64,0.15);
+      --red:         #C44040;
+      --red-dim:     rgba(196,64,64,0.15);
+      --slate:       #5A5A6E;
+      --slate-dim:   rgba(90,90,110,0.15);
+      --text:        #E8E6E1;
+      --text-muted:  #8B8B9E;
+      --text-dark:   #0A0A0C;
+      --mono:        'SF Mono','Cascadia Code','JetBrains Mono','Consolas',monospace;
+      --serif:       'Playfair Display','Georgia','Times New Roman',serif;
+      --sans:        'Segoe UI','SF Pro Display',-apple-system,sans-serif;
+      --radius:      8px;
+      --radius-lg:   12px;
+      --shadow:      0 4px 24px rgba(0,0,0,0.5);
+      --glow-gold:   0 0 20px rgba(201,168,76,0.10);
+      --glow-blue:   0 0 20px rgba(64,128,196,0.12);
+      --transition:  0.18s ease;
+    }
+
+    /* ── Reset ──────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 13px;
+      line-height: 1.5;
+      position: relative;
+    }
+
+    /* Noise overlay */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+      opacity: 0.028;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Layout ─────────────────────────────────────────── */
+    #app { display: flex; flex-direction: column; height: 100vh; position: relative; z-index: 1; }
+
+    /* ── Top Bar ────────────────────────────────────────── */
+    #topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 20px; height: 48px; flex-shrink: 0;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border-gold);
+    }
+    #topbar .logo {
+      font-family: var(--serif); font-size: 15px; font-weight: 700;
+      color: var(--gold); letter-spacing: 0.04em;
+    }
+    #topbar .ver {
+      font-family: var(--mono); font-size: 9px; color: var(--text-muted);
+      background: var(--border); padding: 2px 8px; border-radius: 20px;
+      letter-spacing: 0.1em; text-transform: uppercase;
+    }
+
+    /* ── Tab Nav ────────────────────────────────────────── */
+    #tabnav {
+      display: flex; flex-shrink: 0;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px; gap: 4px;
+    }
+    .tab-btn {
+      padding: 10px 16px; border: none; background: none; cursor: pointer;
+      color: var(--text-muted); font-family: var(--sans); font-size: 12px;
+      font-weight: 500; letter-spacing: 0.03em;
+      border-bottom: 2px solid transparent; margin-bottom: -1px;
+      transition: color var(--transition), border-color var(--transition);
+    }
+    .tab-btn:hover  { color: var(--text); }
+    .tab-btn.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+    /* ── Tab Panels ─────────────────────────────────────── */
+    #panels { flex: 1; overflow: hidden; position: relative; }
+    .panel {
+      position: absolute; inset: 0; overflow-y: auto;
+      padding: 20px; opacity: 0; transform: translateY(6px);
+      pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+    .panel.active { opacity: 1; transform: translateY(0); pointer-events: all; }
+
+    /* ── Section Label ──────────────────────────────────── */
+    .section-label {
+      font-family: var(--mono); font-size: 10px; color: var(--gold);
+      letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 10px;
+    }
+
+    /* ── Stats Row ──────────────────────────────────────── */
+    .stats-row {
+      display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;
+    }
+    .stat-chip {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 8px 14px;
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .stat-chip .val { font-size: 20px; font-weight: 700; color: var(--gold); line-height: 1; }
+    .stat-chip .lbl { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; }
+
+    /* ── Cards / Rows ───────────────────────────────────── */
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 14px 16px; margin-bottom: 8px;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+    .card:hover { border-color: var(--border-gold); box-shadow: var(--glow-gold); }
+
+    /* Project / Need table-row style */
+    .row-card {
+      display: grid; align-items: center;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 10px 14px; margin-bottom: 4px;
+      cursor: pointer; transition: border-color var(--transition), box-shadow var(--transition);
+    }
+    .row-card:hover { border-color: var(--border-gold); box-shadow: var(--glow-gold); }
+    .row-card.expanded { border-color: var(--border-gold); background: var(--surface2); }
+
+    /* ── Budget Bar ─────────────────────────────────────── */
+    .budget-bar-wrap { background: var(--border); border-radius: 3px; height: 5px; width: 80px; overflow: hidden; }
+    .budget-bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
+    .bar-green  { background: var(--green); }
+    .bar-amber  { background: var(--amber); }
+    .bar-red    { background: var(--red); }
+
+    /* Qty mini-bar */
+    .qty-bar-wrap { background: var(--border); border-radius: 3px; height: 4px; width: 50px; overflow: hidden; }
+    .qty-bar-fill { height: 100%; border-radius: 3px; background: var(--blue); }
+
+    /* ── Badges ─────────────────────────────────────────── */
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 20px;
+      font-size: 10px; font-weight: 600; letter-spacing: 0.06em;
+      text-transform: uppercase; white-space: nowrap;
+    }
+    .badge-green  { background: var(--green-dim);  color: var(--green); }
+    .badge-amber  { background: var(--amber-dim);  color: var(--amber); }
+    .badge-blue   { background: var(--blue-dim);   color: var(--blue); }
+    .badge-red    { background: var(--red-dim);    color: var(--red); }
+    .badge-slate  { background: var(--slate-dim);  color: var(--slate); }
+    .badge-gold   { background: var(--gold-dim);   color: var(--gold); }
+
+    /* Score badge (large) */
+    .score-badge {
+      display: flex; align-items: center; justify-content: center;
+      width: 52px; height: 52px; border-radius: 50%; flex-shrink: 0;
+      font-size: 18px; font-weight: 700; font-family: var(--mono);
+      border: 2px solid;
+    }
+    .score-strong { color: var(--green); border-color: var(--green); background: var(--green-dim); }
+    .score-good   { color: var(--blue);  border-color: var(--blue);  background: var(--blue-dim); }
+    .score-weak   { color: var(--amber); border-color: var(--amber); background: var(--amber-dim); }
+    .score-none   { color: var(--slate); border-color: var(--slate); background: var(--slate-dim); }
+
+    /* ── Buttons ────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 16px; border-radius: var(--radius); border: 1px solid;
+      font-family: var(--sans); font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: opacity var(--transition), transform var(--transition), box-shadow var(--transition);
+      white-space: nowrap;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-gold    { background: var(--gold); border-color: var(--gold); color: var(--text-dark); }
+    .btn-gold:hover { box-shadow: 0 0 14px rgba(201,168,76,0.35); }
+    .btn-outline { background: transparent; border-color: var(--gold); color: var(--gold); }
+    .btn-outline:hover { background: var(--gold-dim); }
+    .btn-blue    { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .btn-blue:hover { box-shadow: var(--glow-blue); }
+    .btn-green   { background: var(--green); border-color: var(--green); color: #fff; }
+    .btn-amber   { background: var(--amber); border-color: var(--amber); color: #fff; }
+    .btn-slate   { background: transparent; border-color: var(--slate); color: var(--text-muted); }
+    .btn-ghost   { background: transparent; border-color: var(--border); color: var(--text-muted); }
+    .btn-ghost:hover { border-color: var(--text-muted); color: var(--text); }
+    .btn-lg {
+      padding: 14px 28px; font-size: 14px; border-radius: var(--radius-lg);
+    }
+    .btn-pulse:hover { animation: pulse-glow 1.2s ease-in-out infinite; }
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 10px rgba(201,168,76,0.2); }
+      50%       { box-shadow: 0 0 28px rgba(201,168,76,0.55); }
+    }
+
+    /* ── Forms ──────────────────────────────────────────── */
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px,1fr)); gap: 10px; margin-top: 12px; }
+    .form-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+    .form-group { display: flex; flex-direction: column; gap: 4px; }
+    .form-group label { font-size: 10px; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; }
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text); font-family: var(--sans);
+      font-size: 12px; padding: 7px 10px; outline: none;
+      transition: border-color var(--transition);
+    }
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus { border-color: var(--gold); }
+    .form-group textarea { resize: vertical; min-height: 60px; }
+    .form-group select option { background: var(--surface); }
+    .form-actions { display: flex; gap: 8px; margin-top: 14px; justify-content: flex-end; }
+
+    /* Inline expand form */
+    .inline-form {
+      background: var(--surface2); border: 1px solid var(--border-gold);
+      border-radius: var(--radius-lg); padding: 16px; margin-top: 8px;
+      display: none;
+    }
+    .inline-form.open { display: block; }
+    .inline-form-title { font-family: var(--serif); font-size: 13px; color: var(--gold); margin-bottom: 10px; }
+
+    /* Filter bar */
+    .filter-bar {
+      display: flex; gap: 8px; align-items: center; margin-bottom: 14px; flex-wrap: wrap;
+    }
+    .filter-bar input, .filter-bar select {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text); font-size: 12px;
+      padding: 6px 10px; outline: none; transition: border-color var(--transition);
+    }
+    .filter-bar input:focus, .filter-bar select:focus { border-color: var(--gold); }
+    .filter-bar select option { background: var(--surface); }
+
+    /* ── Group Header (Needs) ───────────────────────────── */
+    .group-header {
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 10px 14px; margin-bottom: 4px;
+      cursor: pointer; transition: border-color var(--transition);
+    }
+    .group-header:hover { border-color: var(--border-gold); }
+    .group-header .g-title { font-weight: 600; color: var(--text); font-size: 13px; }
+    .group-header .g-count { font-size: 10px; color: var(--text-muted); background: var(--border); border-radius: 20px; padding: 2px 8px; }
+    .group-header .g-chevron { color: var(--text-muted); transition: transform var(--transition); }
+    .group-header.collapsed .g-chevron { transform: rotate(-90deg); }
+    .group-body { margin-bottom: 12px; padding-left: 8px; }
+    .group-body.hidden { display: none; }
+
+    /* ── Match Card ─────────────────────────────────────── */
+    .match-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); margin-bottom: 10px; overflow: hidden;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+    .match-card:hover { border-color: var(--border-gold); box-shadow: var(--glow-gold); }
+    .match-card-top {
+      display: grid; grid-template-columns: 64px 1fr auto;
+      gap: 14px; align-items: center; padding: 14px 16px; cursor: pointer;
+    }
+    .match-card-center .m-title { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+    .match-card-center .m-sub   { font-size: 11px; color: var(--text-muted); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .match-card-right { text-align: right; }
+    .match-card-right .m-price { font-family: var(--mono); font-size: 18px; font-weight: 700; color: var(--text); }
+    .match-card-right .m-verdict { margin-top: 4px; }
+    .match-detail {
+      border-top: 1px solid var(--border); padding: 14px 16px;
+      display: none; background: var(--surface2);
+    }
+    .match-detail.open { display: block; }
+    .match-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 12px; }
+    .detail-block .db-label { font-size: 10px; color: var(--gold); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; font-family: var(--mono); }
+    .detail-block .db-val   { font-size: 12px; color: var(--text); line-height: 1.5; }
+    .match-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    /* ── Log Console ────────────────────────────────────── */
+    .log-console {
+      background: #060608; border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 12px 14px;
+      font-family: var(--mono); font-size: 11px; color: #7A8A9A;
+      height: 220px; overflow-y: auto; line-height: 1.7;
+    }
+    .log-line { display: flex; gap: 8px; }
+    .log-line .log-ts   { color: var(--slate); flex-shrink: 0; }
+    .log-line .log-cat  { flex-shrink: 0; }
+    .log-line .log-msg  { color: #B0BEC5; }
+    .cat-start  { color: var(--gold); }
+    .cat-scan   { color: var(--blue); }
+    .cat-eval   { color: var(--amber); }
+    .cat-ok     { color: var(--green); }
+    .cat-done   { color: var(--green); font-weight: 700; }
+    .cat-error  { color: var(--red); }
+    .cat-warn   { color: var(--amber); }
+    .cat-info   { color: var(--text-muted); }
+
+    /* ── Engine Buttons Row ─────────────────────────────── */
+    .engine-btns { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+
+    /* ── Settings Form ──────────────────────────────────── */
+    .settings-section { margin-bottom: 22px; }
+    .settings-section-title {
+      font-family: var(--mono); font-size: 10px; color: var(--gold);
+      letter-spacing: 0.2em; text-transform: uppercase;
+      padding-bottom: 6px; border-bottom: 1px solid var(--border-gold); margin-bottom: 12px;
+    }
+    .weight-sum-display {
+      font-family: var(--mono); font-size: 12px; padding: 6px 12px;
+      border-radius: var(--radius); border: 1px solid var(--border); display: inline-block;
+    }
+    .weight-sum-ok  { color: var(--green); border-color: var(--green); }
+    .weight-sum-bad { color: var(--red);   border-color: var(--red); }
+    input[type="range"] {
+      -webkit-appearance: none; width: 100%; height: 4px;
+      background: var(--border); border-radius: 2px; outline: none; cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 14px; height: 14px;
+      border-radius: 50%; background: var(--gold); cursor: pointer;
+    }
+    .threshold-preview { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+    .threshold-tier {
+      font-size: 10px; padding: 2px 8px; border-radius: 20px;
+      font-family: var(--mono); transition: opacity 0.2s;
+    }
+
+    /* ── Modal overlay ──────────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+      display: none; align-items: center; justify-content: center; z-index: 100;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: var(--surface); border: 1px solid var(--border-gold);
+      border-radius: var(--radius-lg); padding: 22px; width: 480px; max-width: 95vw;
+      box-shadow: var(--shadow);
+    }
+    .modal-title { font-family: var(--serif); font-size: 15px; color: var(--gold); margin-bottom: 14px; }
+
+    /* ── Toast ──────────────────────────────────────────── */
+    #toast-area { position: fixed; top: 16px; right: 16px; z-index: 200; display: flex; flex-direction: column; gap: 8px; }
+    .toast {
+      background: var(--surface2); border-radius: var(--radius); padding: 10px 16px;
+      font-size: 12px; min-width: 220px; max-width: 340px;
+      box-shadow: var(--shadow); border-left: 3px solid;
+      animation: toast-in 0.22s ease;
+    }
+    .toast-success { border-color: var(--green); color: var(--green); }
+    .toast-error   { border-color: var(--red);   color: var(--red); }
+    .toast-info    { border-color: var(--blue);  color: var(--blue); }
+    @keyframes toast-in { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+
+    /* ── Loading spinner ────────────────────────────────── */
+    .spinner {
+      display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+      background: var(--gold); animation: spin-pulse 0.9s ease-in-out infinite;
+    }
+    @keyframes spin-pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.3;transform:scale(0.5)} }
+    .loading-row { display: flex; align-items: center; gap: 8px; color: var(--text-muted); padding: 20px 0; }
+
+    /* ── Empty state ────────────────────────────────────── */
+    .empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); }
+    .empty-state .empty-icon { font-size: 32px; margin-bottom: 10px; }
+    .empty-state .empty-msg  { font-size: 13px; margin-bottom: 14px; }
+
+    /* ── Scrollbar ──────────────────────────────────────── */
+    ::-webkit-scrollbar       { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--slate); }
+
+    /* ── Utilities ──────────────────────────────────────── */
+    .text-gold    { color: var(--gold); }
+    .text-muted   { color: var(--text-muted); }
+    .text-mono    { font-family: var(--mono); }
+    .text-right   { text-align: right; }
+    .flex         { display: flex; }
+    .flex-center  { display: flex; align-items: center; }
+    .gap-8        { gap: 8px; }
+    .gap-12       { gap: 12px; }
+    .mb-8         { margin-bottom: 8px; }
+    .mb-16        { margin-bottom: 16px; }
+    .fw-600       { font-weight: 600; }
+    .fs-11        { font-size: 11px; }
+    .fs-12        { font-size: 12px; }
+    .truncate     { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ── Responsive ─────────────────────────────────────── */
+    @media (max-width: 700px) {
+      .match-card-top { grid-template-columns: 52px 1fr; }
+      .match-card-right { display: none; }
+      .match-detail-grid { grid-template-columns: 1fr; }
+      .form-grid { grid-template-columns: 1fr; }
+      .engine-btns { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ── Top Bar ─────────────────────────────────────── -->
+  <div id="topbar">
+    <span class="logo">⚡ PROJECT ARBITRAGE MODULE</span>
+    <span class="ver">PAM v1.0 · Quantum Ecosystem</span>
+  </div>
+
+  <!-- ── Tab Nav ─────────────────────────────────────── -->
+  <div id="tabnav">
+    <button class="tab-btn active" onclick="switchTab('projects')">Projects</button>
+    <button class="tab-btn"        onclick="switchTab('needs')">Needs</button>
+    <button class="tab-btn"        onclick="switchTab('matches')">Matches</button>
+    <button class="tab-btn"        onclick="switchTab('engine')">Run Engine</button>
+    <button class="tab-btn"        onclick="switchTab('settings')">Settings</button>
+  </div>
+
+  <!-- ── Panels ──────────────────────────────────────── -->
+  <div id="panels">
+
+    <!-- ══════════════ TAB 1: PROJECTS ══════════════ -->
+    <div class="panel active" id="panel-projects">
+      <div class="flex-center gap-12 mb-16" style="justify-content:space-between;flex-wrap:wrap;">
+        <div class="section-label" style="margin-bottom:0">Active Projects</div>
+        <div class="flex-center gap-8">
+          <input id="proj-search" type="text" placeholder="Search projects…"
+            style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+                   color:var(--text);font-size:12px;padding:6px 10px;outline:none;width:180px;"
+            oninput="filterProjects()">
+          <button class="btn btn-outline" onclick="toggleForm('form-new-project')">+ New Project</button>
+        </div>
+      </div>
+
+      <!-- Stats row -->
+      <div class="stats-row" id="proj-stats">
+        <div class="stat-chip"><div class="val" id="stat-proj-total">—</div><div class="lbl">Projects</div></div>
+        <div class="stat-chip"><div class="val" id="stat-proj-active">—</div><div class="lbl">Active</div></div>
+        <div class="stat-chip"><div class="val" id="stat-proj-budget">—</div><div class="lbl">Total Budget</div></div>
+        <div class="stat-chip"><div class="val" id="stat-proj-spent">—</div><div class="lbl">Total Spent</div></div>
+      </div>
+
+      <!-- New Project inline form -->
+      <div class="inline-form" id="form-new-project">
+        <div class="inline-form-title">+ New Project</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Project ID</label>
+            <input type="text" id="np-id" placeholder="Auto (P001…)" readonly
+              style="color:var(--text-muted);cursor:default;">
+          </div>
+          <div class="form-group">
+            <label>Project Name *</label>
+            <input type="text" id="np-name" placeholder="e.g. Berkeley House Rebuild">
+          </div>
+          <div class="form-group">
+            <label>Project Type *</label>
+            <select id="np-type">
+              <option value="">Select type…</option>
+              <option>Vehicle Flip</option><option>Vehicle Build</option>
+              <option>Property Rehab</option><option>ATV/Powersports Build</option>
+              <option>Solar/Off-Grid</option><option>Electronics Bundle</option>
+              <option>General Arbitrage</option><option>Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Category</label>
+            <input type="text" id="np-category" placeholder="e.g. Real Estate">
+          </div>
+          <div class="form-group">
+            <label>Budget ($) *</label>
+            <input type="number" id="np-budget" placeholder="0" min="0" step="100">
+          </div>
+          <div class="form-group">
+            <label>Priority</label>
+            <select id="np-priority">
+              <option>Critical</option><option>High</option>
+              <option selected>Medium</option><option>Low</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select id="np-status">
+              <option selected>Planning</option><option>Active</option>
+              <option>Paused</option><option>Complete</option><option>Cancelled</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Start Date</label>
+            <input type="date" id="np-start">
+          </div>
+          <div class="form-group">
+            <label>Target Completion</label>
+            <input type="date" id="np-target">
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:10px;">
+          <label>Description</label>
+          <textarea id="np-desc" placeholder="Brief scope description…" style="min-height:50px;"></textarea>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-ghost" onclick="toggleForm('form-new-project')">Cancel</button>
+          <button class="btn btn-gold" onclick="submitNewProject()">Save Project</button>
+        </div>
+      </div>
+
+      <!-- Projects list -->
+      <div id="projects-list">
+        <div class="loading-row"><span class="spinner"></span> Loading projects…</div>
+      </div>
+    </div><!-- /panel-projects -->
+
+    <!-- ══════════════ TAB 2: NEEDS ══════════════════ -->
+    <div class="panel" id="panel-needs">
+      <div class="flex-center gap-12 mb-16" style="justify-content:space-between;flex-wrap:wrap;">
+        <div class="section-label" style="margin-bottom:0">Open Needs</div>
+        <button class="btn btn-outline" onclick="toggleForm('form-new-need')">+ Add Need</button>
+      </div>
+
+      <!-- Filter bar -->
+      <div class="filter-bar">
+        <input id="needs-search" type="text" placeholder="Search items or keywords…"
+          style="flex:1;min-width:160px;" oninput="filterNeeds()">
+        <select id="needs-filter-priority" onchange="filterNeeds()">
+          <option value="">All Priorities</option>
+          <option>Critical</option><option>Important</option><option>Nice to Have</option>
+        </select>
+        <select id="needs-filter-status" onchange="filterNeeds()">
+          <option value="">All Statuses</option>
+          <option>Open</option><option>Partially Filled</option>
+          <option>Fulfilled</option><option>Cancelled</option>
+        </select>
+      </div>
+
+      <!-- Add Need inline form -->
+      <div class="inline-form" id="form-new-need">
+        <div class="inline-form-title">+ Add Need</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Need ID</label>
+            <input type="text" id="nn-id" placeholder="Auto (N001…)" readonly
+              style="color:var(--text-muted);cursor:default;">
+          </div>
+          <div class="form-group">
+            <label>Project *</label>
+            <select id="nn-project">
+              <option value="">Select project…</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Item Needed *</label>
+            <input type="text" id="nn-item" placeholder="e.g. Mini Split AC">
+          </div>
+          <div class="form-group">
+            <label>Category</label>
+            <select id="nn-category">
+              <option value="">Select…</option>
+              <option>HVAC</option><option>Electrical</option><option>Plumbing</option>
+              <option>Body/Cosmetic</option><option>Drivetrain</option><option>Engine</option>
+              <option>Suspension</option><option>Wheels/Tires</option><option>Interior</option>
+              <option>Exterior</option><option>Appliance</option><option>Flooring</option>
+              <option>Solar</option><option>Battery</option><option>Electronics</option>
+              <option>Tools</option><option>Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Target Price ($)</label>
+            <input type="number" id="nn-target-price" placeholder="0" min="0">
+          </div>
+          <div class="form-group">
+            <label>Max Price ($)</label>
+            <input type="number" id="nn-max-price" placeholder="0" min="0">
+          </div>
+          <div class="form-group">
+            <label>Qty Needed</label>
+            <input type="number" id="nn-qty" placeholder="1" min="1" value="1">
+          </div>
+          <div class="form-group">
+            <label>Condition Needed</label>
+            <select id="nn-condition">
+              <option>Any</option><option>New</option><option>Like New</option>
+              <option>Good</option><option>Fair</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Priority</label>
+            <select id="nn-priority">
+              <option>Critical</option><option selected>Important</option>
+              <option>Nice to Have</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Preferred Brand</label>
+            <input type="text" id="nn-brand" placeholder="e.g. Mitsubishi, MrCool">
+          </div>
+          <div class="form-group">
+            <label>Preferred Model</label>
+            <input type="text" id="nn-model" placeholder="Optional">
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select id="nn-status">
+              <option selected>Open</option><option>Partially Filled</option>
+              <option>Fulfilled</option><option>Cancelled</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:10px;">
+          <label>Keyword Set (comma-separated)</label>
+          <textarea id="nn-keywords" placeholder="mini split, ductless, heat pump, condenser, air handler…"></textarea>
+        </div>
+        <div class="form-group" style="margin-top:8px;">
+          <label>Notes</label>
+          <textarea id="nn-notes" placeholder="Optional notes…" style="min-height:44px;"></textarea>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-ghost" onclick="toggleForm('form-new-need')">Cancel</button>
+          <button class="btn btn-gold" onclick="submitNewNeed()">Save Need</button>
+        </div>
+      </div>
+
+      <!-- Needs grouped list -->
+      <div id="needs-list">
+        <div class="loading-row"><span class="spinner"></span> Loading needs…</div>
+      </div>
+    </div><!-- /panel-needs -->
+
+    <!-- ══════════════ TAB 3: MATCHES ═══════════════ -->
+    <div class="panel" id="panel-matches">
+      <div class="flex-center gap-12 mb-16" style="justify-content:space-between;flex-wrap:wrap;">
+        <div class="section-label" style="margin-bottom:0">Match Intelligence</div>
+        <button class="btn btn-ghost fs-11" onclick="loadMatches()">↺ Refresh</button>
+      </div>
+
+      <!-- Stats bar -->
+      <div class="stats-row" id="match-stats">
+        <div class="stat-chip"><div class="val" id="stat-m-total">—</div><div class="lbl">Total Matches</div></div>
+        <div class="stat-chip"><div class="val" id="stat-m-strong" style="color:var(--green)">—</div><div class="lbl">Strong</div></div>
+        <div class="stat-chip"><div class="val" id="stat-m-ai" style="color:var(--amber)">—</div><div class="lbl">Awaiting AI</div></div>
+        <div class="stat-chip"><div class="val" id="stat-m-acted" style="color:var(--blue)">—</div><div class="lbl">Acted Today</div></div>
+      </div>
+
+      <!-- Filter bar -->
+      <div class="filter-bar">
+        <select id="m-filter-project" onchange="filterMatches()" style="min-width:140px;">
+          <option value="">All Projects</option>
+        </select>
+        <select id="m-filter-tier" onchange="filterMatches()">
+          <option value="">All Tiers</option>
+          <option>Strong</option><option>Good</option><option>Weak</option>
+        </select>
+        <select id="m-filter-verdict" onchange="filterMatches()">
+          <option value="">All AI Verdicts</option>
+          <option>Perfect Fit</option><option>Likely Fit</option>
+          <option>Possible Fit</option><option>Not Recommended</option>
+        </select>
+        <select id="m-filter-status" onchange="filterMatches()">
+          <option value="">All Statuses</option>
+          <option>New</option><option>Reviewed</option>
+          <option>Acted On</option><option>Dismissed</option>
+        </select>
+      </div>
+
+      <!-- Match cards container -->
+      <div id="matches-list">
+        <div class="loading-row"><span class="spinner"></span> Loading matches…</div>
+      </div>
+    </div><!-- /panel-matches -->
+
+    <!-- Purchase Quick-Add Modal (shared, opened from match action buttons) -->
+    <div class="modal-overlay" id="modal-purchase">
+      <div class="modal-box">
+        <div class="modal-title">Record Purchase</div>
+        <input type="hidden" id="pur-match-id">
+        <input type="hidden" id="pur-need-id">
+        <div class="form-grid cols-2">
+          <div class="form-group" style="grid-column:1/-1;">
+            <label>Item Bought *</label>
+            <input type="text" id="pur-item" placeholder="Describe the item purchased">
+          </div>
+          <div class="form-group">
+            <label>Project *</label>
+            <select id="pur-project">
+              <option value="">Select project…</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Purchase Price ($) *</label>
+            <input type="number" id="pur-price" placeholder="0" min="0" step="0.01">
+          </div>
+          <div class="form-group">
+            <label>Platform / Source</label>
+            <input type="text" id="pur-platform" placeholder="e.g. Facebook Marketplace">
+          </div>
+          <div class="form-group">
+            <label>Seller</label>
+            <input type="text" id="pur-seller" placeholder="Seller name or handle">
+          </div>
+          <div class="form-group">
+            <label>Date Bought</label>
+            <input type="date" id="pur-date">
+          </div>
+          <div class="form-group">
+            <label>Condition</label>
+            <select id="pur-condition">
+              <option>New</option><option>Like New</option>
+              <option selected>Good</option><option>Fair</option><option>Poor</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Listing URL</label>
+            <input type="url" id="pur-url" placeholder="https://…">
+          </div>
+          <div class="form-group">
+            <label>Est. Resale Value ($)</label>
+            <input type="number" id="pur-resale" placeholder="0" min="0">
+          </div>
+          <div class="form-group" style="grid-column:1/-1;">
+            <label>Notes</label>
+            <textarea id="pur-notes" placeholder="Any notes about this purchase…" style="min-height:44px;"></textarea>
+          </div>
+        </div>
+        <div class="form-actions" style="margin-top:14px;">
+          <button class="btn btn-ghost" onclick="closeModal('modal-purchase')">Cancel</button>
+          <button class="btn btn-green" onclick="submitPurchase()">Record Purchase</button>
+        </div>
+      </div>
+    </div><!-- /modal-purchase -->
+
+    <!-- ══════════════ TAB 4: RUN ENGINE ════════════ -->
+    <div class="panel" id="panel-engine">
+      <div class="section-label">Execution Control</div>
+
+      <!-- Action buttons -->
+      <div class="engine-btns">
+        <button class="btn btn-outline btn-lg btn-pulse" id="btn-logic" onclick="runEngine('logic')">
+          ▶ Run Logic Engine
+        </button>
+        <button class="btn btn-blue btn-lg btn-pulse" id="btn-ai" onclick="runEngine('ai')"
+          style="border-color:var(--blue);">
+          🧠 Run AI Evaluation
+        </button>
+        <button class="btn btn-ghost btn-lg btn-pulse" id="btn-cycle" onclick="runEngine('cycle')"
+          style="border-color:var(--gold);color:var(--gold);">
+          🔄 Full Cycle (Logic → AI)
+        </button>
+      </div>
+
+      <!-- Last run + settings preview row -->
+      <div style="display:grid;grid-template-columns:1fr 280px;gap:16px;margin-bottom:16px;" class="engine-meta-grid">
+
+        <!-- Log console -->
+        <div>
+          <div class="section-label">Execution Log</div>
+          <div class="log-console" id="log-console">
+            <div class="log-line">
+              <span class="log-ts">--:--:--</span>
+              <span class="log-cat cat-info">[INFO]</span>
+              <span class="log-msg">PAM Engine ready. Press a button above to start.</span>
+            </div>
+          </div>
+          <div class="flex-center gap-8" style="margin-top:8px;">
+            <span class="text-muted fs-11" id="last-run-label">Last run: never</span>
+            <button class="btn btn-ghost" style="padding:3px 10px;font-size:11px;" onclick="clearLog()">Clear log</button>
+          </div>
+        </div>
+
+        <!-- Settings preview panel -->
+        <div>
+          <div class="section-label">Current Settings</div>
+          <div class="card" style="padding:12px 14px;">
+            <div id="engine-settings-preview">
+              <div class="loading-row" style="padding:10px 0;"><span class="spinner"></span> Loading…</div>
+            </div>
+            <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+              <button class="btn btn-ghost" style="width:100%;font-size:11px;padding:6px;"
+                onclick="switchTab('settings')">⚙ Edit Settings</button>
+            </div>
+          </div>
+          <div style="margin-top:10px;">
+            <div class="section-label">Safety</div>
+            <button class="btn btn-ghost" style="width:100%;font-size:11px;padding:7px;"
+              onclick="runInitSheets()">
+              ⚡ Initialize / Repair PAM Sheets
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- /panel-engine -->
+
+    <!-- ══════════════ TAB 5: SETTINGS ═══════════════ -->
+    <div class="panel" id="panel-settings">
+      <div class="section-label">PAM Configuration</div>
+
+      <!-- Source Sheet -->
+      <div class="settings-section">
+        <div class="settings-section-title">Data Source</div>
+        <div class="form-grid cols-2" style="max-width:480px;">
+          <div class="form-group">
+            <label>Source Sheet Name</label>
+            <input type="text" id="cfg-source" placeholder="Master DB">
+          </div>
+          <div class="form-group">
+            <label>OpenAI API Key Cell</label>
+            <input type="text" id="cfg-apikey-cell" placeholder="Settings!B2" readonly
+              style="color:var(--text-muted);cursor:default;" title="Key is read from this cell — never stored here">
+          </div>
+        </div>
+      </div>
+
+      <!-- Scoring Weights -->
+      <div class="settings-section">
+        <div class="settings-section-title">
+          Scoring Weights &nbsp;
+          <span class="weight-sum-display" id="weight-sum-display">Sum: 100</span>
+        </div>
+        <div class="form-grid" style="max-width:640px;">
+          <div class="form-group">
+            <label>Keyword Match</label>
+            <input type="number" id="cfg-kw"   min="0" max="100" step="1" value="40" oninput="updateWeightSum()">
+          </div>
+          <div class="form-group">
+            <label>Category Match</label>
+            <input type="number" id="cfg-cat"  min="0" max="100" step="1" value="20" oninput="updateWeightSum()">
+          </div>
+          <div class="form-group">
+            <label>Price vs Target</label>
+            <input type="number" id="cfg-price" min="0" max="100" step="1" value="20" oninput="updateWeightSum()">
+          </div>
+          <div class="form-group">
+            <label>Brand / Model Bonus</label>
+            <input type="number" id="cfg-brand" min="0" max="100" step="1" value="10" oninput="updateWeightSum()">
+          </div>
+          <div class="form-group">
+            <label>Distance Score</label>
+            <input type="number" id="cfg-dist"  min="0" max="100" step="1" value="5"  oninput="updateWeightSum()">
+          </div>
+          <div class="form-group">
+            <label>Condition Clue</label>
+            <input type="number" id="cfg-cond"  min="0" max="100" step="1" value="5"  oninput="updateWeightSum()">
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Settings -->
+      <div class="settings-section">
+        <div class="settings-section-title">AI Evaluation</div>
+        <div class="form-grid" style="max-width:640px;">
+          <div class="form-group" style="grid-column:1/-1;">
+            <label>AI Score Threshold: <span id="threshold-val" style="color:var(--gold);">60</span></label>
+            <input type="range" id="cfg-threshold" min="0" max="100" step="1" value="60"
+              oninput="document.getElementById('threshold-val').textContent=this.value;updateThresholdPreview()">
+            <div class="threshold-preview" id="threshold-preview"></div>
+          </div>
+          <div class="form-group">
+            <label>AI Model</label>
+            <select id="cfg-model">
+              <option value="gpt-4o-mini" selected>gpt-4o-mini (default)</option>
+              <option value="gpt-4o">gpt-4o</option>
+              <option value="gpt-4-turbo">gpt-4-turbo</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Max AI Calls Per Run</label>
+            <input type="number" id="cfg-max-ai" min="1" max="200" step="1" value="20">
+          </div>
+          <div class="form-group">
+            <label>Distance Radius (miles)</label>
+            <input type="number" id="cfg-radius" min="1" max="500" step="1" value="30">
+          </div>
+        </div>
+      </div>
+
+      <!-- Save / Reset -->
+      <div class="flex-center gap-8">
+        <button class="btn btn-gold" onclick="saveSettings()">Save Settings</button>
+        <button class="btn btn-ghost" onclick="resetSettings()">Reset to Defaults</button>
+      </div>
+
+    </div><!-- /panel-settings -->
+
+  </div><!-- /panels -->
+</div><!-- /app -->
+
+<!-- Toast area -->
+<div id="toast-area"></div>
+
+<script>
+// ── APP State ─────────────────────────────────────────────
+const APP = {
+  projects:    [],
+  needs:       [],
+  matches:     [],
+  settings:    {},
+  nextIds:     {},
+  currentTab:  'projects',
+  runningEngine: false
+};
+
+// ── Tab Router ────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+    const tabs = ['projects','needs','matches','engine','settings'];
+    btn.classList.toggle('active', tabs[i] === name);
+  });
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  const target = document.getElementById('panel-' + name);
+  if (target) target.classList.add('active');
+  APP.currentTab = name;
+  if (name === 'projects' && !APP.projects.length) loadProjects();
+  if (name === 'needs'    && !APP.needs.length)    loadNeeds();
+  if (name === 'matches')                          loadMatches();
+  if (name === 'engine')                           loadEnginePreview();
+  if (name === 'settings' && !APP.settings.PAM_SourceSheet) loadSettings();
+}
+
+// ── Safety: XSS escape ───────────────────────────────────
+function esc(str) {
+  return String(str ?? '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
+// ── Formatters ────────────────────────────────────────────
+function fmtCurrency(val) {
+  const n = parseFloat(val) || 0;
+  return '$' + n.toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0});
+}
+function fmtDate(str) {
+  if (!str) return '—';
+  const d = new Date(str);
+  if (isNaN(d.getTime())) return str;
+  return d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+}
+function scoreClass(s) {
+  if (s >= 80) return 'score-strong';
+  if (s >= 60) return 'score-good';
+  if (s >= 40) return 'score-weak';
+  return 'score-none';
+}
+function tierBadge(tier) {
+  const map = {Strong:'badge-green', Good:'badge-blue', Weak:'badge-amber'};
+  return `<span class="badge ${map[tier]||'badge-slate'}">${esc(tier)||'—'}</span>`;
+}
+function statusBadge(s) {
+  const map = {Active:'badge-green',Planning:'badge-amber',Paused:'badge-amber',
+               Complete:'badge-blue',Cancelled:'badge-slate',
+               Open:'badge-gold','Partially Filled':'badge-amber',
+               Fulfilled:'badge-green','Acted On':'badge-blue',
+               New:'badge-slate',Reviewed:'badge-amber',Dismissed:'badge-slate'};
+  return `<span class="badge ${map[s]||'badge-slate'}">${esc(s)}</span>`;
+}
+function priorityBadge(p) {
+  const map = {Critical:'badge-red',High:'badge-amber',Medium:'badge-blue',
+               Low:'badge-slate',Important:'badge-amber','Nice to Have':'badge-slate'};
+  return `<span class="badge ${map[p]||'badge-slate'}">${esc(p)}</span>`;
+}
+function verdictBadge(v) {
+  if (!v || v.startsWith('AI Error')) return `<span class="text-muted fs-11">⏳ Awaiting AI</span>`;
+  const map = {'Perfect Fit':'badge-green','Likely Fit':'badge-blue',
+               'Possible Fit':'badge-amber','Not Recommended':'badge-red'};
+  return `<span class="badge ${map[v]||'badge-slate'}">${esc(v)}</span>`;
+}
+function budgetBarHtml(spent, budget) {
+  const pct = budget > 0 ? Math.min(100, Math.round(spent / budget * 100)) : 0;
+  const cls  = pct < 50 ? 'bar-green' : pct < 75 ? 'bar-amber' : 'bar-red';
+  return `<div class="budget-bar-wrap"><div class="budget-bar-fill ${cls}" style="width:${pct}%"></div></div>`;
+}
+function qtyBarHtml(acquired, needed) {
+  const pct = needed > 0 ? Math.min(100, Math.round(acquired / needed * 100)) : 0;
+  return `<div style="display:flex;align-items:center;gap:5px;font-size:11px;">
+    <span style="color:var(--text-muted)">${acquired}/${needed}</span>
+    <div class="qty-bar-wrap"><div class="qty-bar-fill" style="width:${pct}%"></div></div>
+  </div>`;
+}
+
+// ── Toggle inline form ────────────────────────────────────
+function toggleForm(id) {
+  const el = document.getElementById(id);
+  el.classList.toggle('open');
+  if (el.classList.contains('open') && id === 'form-new-project') prefillProjectForm();
+  if (el.classList.contains('open') && id === 'form-new-need')    prefillNeedForm();
+}
+function prefillProjectForm() {
+  document.getElementById('np-id').value = APP.nextIds.projectId || '';
+}
+function prefillNeedForm() {
+  document.getElementById('nn-id').value = APP.nextIds.needId || '';
+  const sel = document.getElementById('nn-project');
+  sel.innerHTML = '<option value="">Select project…</option>' +
+    APP.projects.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
+}
+
+// ── RENDER: Projects ──────────────────────────────────────
+function renderProjects(list) {
+  const el = document.getElementById('projects-list');
+  if (!list.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div>
+      <div class="empty-msg">No projects yet.</div>
+      <button class="btn btn-outline" onclick="toggleForm('form-new-project')">+ Create Your First Project</button></div>`;
+    return;
+  }
+  const totalBudget = list.reduce((s,p) => s + p.budget, 0);
+  const totalSpent  = list.reduce((s,p) => s + p.spent,  0);
+  document.getElementById('stat-proj-total').textContent  = list.length;
+  document.getElementById('stat-proj-active').textContent = list.filter(p => p.status==='Active').length;
+  document.getElementById('stat-proj-budget').textContent = fmtCurrency(totalBudget);
+  document.getElementById('stat-proj-spent').textContent  = fmtCurrency(totalSpent);
+
+  el.innerHTML = list.map(p => {
+    const remPct = p.budget > 0 ? Math.round(p.remaining / p.budget * 100) : 0;
+    const remColor = remPct > 50 ? 'var(--green)' : remPct > 25 ? 'var(--amber)' : 'var(--red)';
+    return `
+    <div class="row-card" style="grid-template-columns:70px 1fr 110px 100px 120px 90px 80px 90px;"
+         onclick="toggleProjectExpand('${esc(p.id)}')">
+      <span class="text-mono fs-11 text-muted">${esc(p.id)}</span>
+      <span class="fw-600">${esc(p.name)}</span>
+      <span class="fs-11 text-muted truncate">${esc(p.type)}</span>
+      <span class="text-mono fs-11">${fmtCurrency(p.budget)}</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        ${budgetBarHtml(p.spent, p.budget)}
+        <span style="font-size:10px;color:${remColor}">${remPct}%</span>
+      </div>
+      ${priorityBadge(p.priority)}
+      ${statusBadge(p.status)}
+      <span class="fs-11 text-muted">${fmtDate(p.startDate)}</span>
+    </div>
+    <div class="card" id="expand-${esc(p.id)}" style="display:none;margin-bottom:8px;padding:10px 14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span class="section-label" style="margin:0;">Needs for ${esc(p.name)}</span>
+        <button class="btn btn-ghost" style="font-size:10px;padding:3px 8px;"
+          onclick="openAddNeedForProject('${esc(p.id)}')">+ Add Need</button>
+      </div>
+      <div id="needs-for-${esc(p.id)}"><div class="loading-row"><span class="spinner"></span></div></div>
+    </div>`;
+  }).join('');
+}
+
+function toggleProjectExpand(projectId) {
+  const el = document.getElementById('expand-' + projectId);
+  const isOpen = el.style.display !== 'none';
+  el.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) loadNeedsForProject(projectId);
+}
+
+function loadNeedsForProject(projectId) {
+  const container = document.getElementById('needs-for-' + projectId);
+  google.script.run
+    .withSuccessHandler(res => {
+      if (!res.success || !res.data.length) {
+        container.innerHTML = '<div class="text-muted fs-11" style="padding:6px 0;">No needs linked to this project yet.</div>';
+        return;
+      }
+      container.innerHTML = res.data.map(n =>
+        `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);">
+          <span class="text-mono fs-11 text-muted">${esc(n.id)}</span>
+          <span style="flex:1;font-size:12px;">${esc(n.item)}</span>
+          ${priorityBadge(n.priority)}
+          ${qtyBarHtml(n.qtyAcquired, n.qtyNeeded)}
+          <span class="fs-11 text-muted">${fmtCurrency(n.targetPrice)}</span>
+          ${statusBadge(n.status)}
+        </div>`
+      ).join('');
+    })
+    .withFailureHandler(err => { container.innerHTML = `<div class="text-muted fs-11">${esc(err.toString())}</div>`; })
+    .getPAMNeeds(projectId);
+}
+
+function openAddNeedForProject(projectId) {
+  switchTab('needs');
+  toggleForm('form-new-need');
+  setTimeout(() => {
+    const sel = document.getElementById('nn-project');
+    sel.value = projectId;
+  }, 200);
+}
+
+function filterProjects() {
+  const q = document.getElementById('proj-search').value.toLowerCase();
+  const filtered = APP.projects.filter(p =>
+    !q || p.name.toLowerCase().includes(q) || p.type.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)
+  );
+  renderProjects(filtered);
+}
+
+// ── RENDER: Needs ─────────────────────────────────────────
+function renderNeeds(list) {
+  const el = document.getElementById('needs-list');
+  if (!list.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">🎯</div>
+      <div class="empty-msg">No needs found.</div>
+      <button class="btn btn-outline" onclick="toggleForm('form-new-need')">+ Add Your First Need</button></div>`;
+    return;
+  }
+  // Group by project name
+  const groups = {};
+  list.forEach(n => {
+    const key = n.projectName || n.projectId || 'Unknown Project';
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(n);
+  });
+  el.innerHTML = Object.entries(groups).map(([proj, needs]) => `
+    <div class="group-header" onclick="toggleGroup('grp-${esc(proj).replace(/\s/g,'-')}', this)">
+      <span class="g-title">${esc(proj)}</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="g-count">${needs.length} need${needs.length!==1?'s':''}</span>
+        <span class="g-chevron">▾</span>
+      </div>
+    </div>
+    <div class="group-body" id="grp-${esc(proj).replace(/\s/g,'-')}">
+      ${needs.map(n => `
+        <div class="row-card" style="grid-template-columns:70px 1fr 90px 100px 110px 90px 90px;cursor:default;">
+          <span class="text-mono fs-11 text-muted">${esc(n.id)}</span>
+          <div>
+            <div class="fs-12 fw-600">${esc(n.item)}</div>
+            <div class="fs-11 text-muted truncate" style="max-width:220px;"
+              title="${esc(n.keywords)}">${esc(n.keywords.substring(0,50))}${n.keywords.length>50?'…':''}</div>
+          </div>
+          ${priorityBadge(n.priority)}
+          ${qtyBarHtml(n.qtyAcquired, n.qtyNeeded)}
+          <span class="fs-11">${fmtCurrency(n.targetPrice)} / ${fmtCurrency(n.maxPrice)}</span>
+          ${statusBadge(n.status)}
+          <span class="fs-11 text-muted">${esc(n.condition)}</span>
+        </div>`).join('')}
+    </div>`
+  ).join('');
+}
+
+function toggleGroup(id, header) {
+  const body = document.getElementById(id);
+  if (!body) return;
+  body.classList.toggle('hidden');
+  header.classList.toggle('collapsed');
+}
+
+function filterNeeds() {
+  const q   = document.getElementById('needs-search').value.toLowerCase();
+  const pri = document.getElementById('needs-filter-priority').value;
+  const sta = document.getElementById('needs-filter-status').value;
+  const filtered = APP.needs.filter(n => {
+    if (pri && n.priority !== pri) return false;
+    if (sta && n.status  !== sta) return false;
+    if (q && !n.item.toLowerCase().includes(q) && !n.keywords.toLowerCase().includes(q)) return false;
+    return true;
+  });
+  renderNeeds(filtered);
+}
+
+// ── RENDER: Matches ───────────────────────────────────────
+function renderMatches(list) {
+  const el = document.getElementById('matches-list');
+  if (!list.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div>
+      <div class="empty-msg">No matches found. Run the Logic Engine to generate matches.</div>
+      <button class="btn btn-outline" onclick="switchTab('engine')">▶ Go to Run Engine</button></div>`;
+    return;
+  }
+  // Populate project filter
+  const projFilter = document.getElementById('m-filter-project');
+  const projNames  = [...new Set(list.map(m => m.projectName).filter(Boolean))];
+  projFilter.innerHTML = '<option value="">All Projects</option>' +
+    projNames.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+
+  el.innerHTML = list.map(m => {
+    const sc = parseInt(m.matchScore) || 0;
+    return `
+    <div class="match-card" id="mc-${esc(m.id)}">
+      <div class="match-card-top" onclick="toggleMatchDetail('${esc(m.id)}')">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+          <div class="score-badge ${scoreClass(sc)}">${sc}</div>
+          ${tierBadge(m.matchTier)}
+        </div>
+        <div class="match-card-center">
+          <div class="m-title">${esc(m.title||'Untitled Listing')}</div>
+          <div class="m-sub">
+            <span class="badge badge-slate">${esc(m.platform||'Unknown')}</span>
+            <span class="text-muted">→</span>
+            <span>${esc(m.projectName||m.projectId)}</span>
+            <span style="color:var(--gold)">›</span>
+            <span>${esc(m.needItem||m.needId)}</span>
+            ${m.distance?`<span class="text-muted">· ${esc(m.distance)}</span>`:''}
+          </div>
+        </div>
+        <div class="match-card-right">
+          <div class="m-price">${fmtCurrency(m.askingPrice)}</div>
+          <div class="m-verdict">${verdictBadge(m.aiVerdict)}</div>
+          <div style="margin-top:4px;">${statusBadge(m.reviewStatus||'New')}</div>
+        </div>
+      </div>
+      <div class="match-detail" id="md-${esc(m.id)}">
+        <div class="match-detail-grid">
+          <div class="detail-block">
+            <div class="db-label">Listing Description</div>
+            <div class="db-val">${esc(m.description||'No description available.')}</div>
+          </div>
+          <div>
+            <div class="detail-block" style="margin-bottom:10px;">
+              <div class="db-label">AI Compatibility</div>
+              <div class="db-val">${esc(m.aiInsight||'—')}</div>
+            </div>
+            <div class="detail-block" style="margin-bottom:10px;">
+              <div class="db-label">Strategy</div>
+              <div class="db-val">${esc(m.aiStrategy||'—')}</div>
+            </div>
+            <div class="detail-block" style="margin-bottom:10px;">
+              <div class="db-label">Risk Flags</div>
+              <div class="db-val">${esc(m.aiRiskFlags||'—')}</div>
+            </div>
+            <div class="detail-block">
+              <div class="db-label">Negotiation Angle</div>
+              <div class="db-val">${esc(m.aiNegotiation||'—')}</div>
+            </div>
+          </div>
+        </div>
+        ${m.url ? `<div class="mb-8"><a href="${esc(m.url)}" target="_blank"
+          style="color:var(--blue);font-size:11px;text-decoration:none;">↗ View Listing</a></div>` : ''}
+        <div class="match-actions">
+          <button class="btn btn-green" onclick="buyForProject('${esc(m.id)}','${esc(m.needId)}','${esc(m.title||'')}','${esc(m.platform||'')}',${m.askingPrice||0})">Buy for Project</button>
+          <button class="btn btn-blue"  onclick="buyForProject('${esc(m.id)}','${esc(m.needId)}','${esc(m.title||'')}','${esc(m.platform||'')}',${m.askingPrice||0})">Buy + Flip</button>
+          <button class="btn btn-amber" onclick="setMatchStatus('${esc(m.id)}','Reviewed')">Watch</button>
+          <button class="btn btn-ghost" onclick="setMatchStatus('${esc(m.id)}','Dismissed')">Dismiss</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleMatchDetail(id) {
+  const el = document.getElementById('md-' + id);
+  if (el) el.classList.toggle('open');
+}
+
+function filterMatches() {
+  const proj    = document.getElementById('m-filter-project').value;
+  const tier    = document.getElementById('m-filter-tier').value;
+  const verdict = document.getElementById('m-filter-verdict').value;
+  const status  = document.getElementById('m-filter-status').value;
+  const filtered = APP.matches.filter(m => {
+    if (proj    && m.projectName  !== proj)    return false;
+    if (tier    && m.matchTier    !== tier)    return false;
+    if (verdict && m.aiVerdict    !== verdict) return false;
+    if (status  && m.reviewStatus !== status)  return false;
+    return true;
+  });
+  renderMatches(filtered);
+}
+
+// ── RENDER: Engine preview panel ──────────────────────────
+function renderEnginePreview(s) {
+  const el = document.getElementById('engine-settings-preview');
+  if (!s) { el.innerHTML = '<div class="text-muted fs-11">Settings unavailable.</div>'; return; }
+  const rows = [
+    ['Source Sheet',   s.PAM_SourceSheet  || 'Master DB'],
+    ['AI Model',       s.PAM_AIModel      || 'gpt-4o-mini'],
+    ['AI Threshold',   (s.PAM_AIThreshold || 60) + ' pts'],
+    ['Max AI / Run',   s.PAM_MaxAIPerRun  || 20],
+    ['Radius',         (s.PAM_DistanceRadius || 30) + ' mi'],
+    ['Keyword Wt.',    (s.PAM_KeywordWeight || 40) + ' pts'],
+    ['Category Wt.',   (s.PAM_CategoryWeight || 20) + ' pts'],
+    ['Price Wt.',      (s.PAM_PriceWeight   || 20) + ' pts'],
+  ];
+  el.innerHTML = rows.map(([k,v]) =>
+    `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-size:11px;">
+      <span class="text-muted">${esc(k)}</span>
+      <span class="text-mono" style="color:var(--text)">${esc(String(v))}</span>
+    </div>`
+  ).join('');
+}
+
+// ── RENDER: Settings form ─────────────────────────────────
+function renderSettings(s) {
+  if (!s) return;
+  document.getElementById('cfg-source').value       = s.PAM_SourceSheet    || 'Master DB';
+  document.getElementById('cfg-apikey-cell').value  = s.PAM_APIKeyCell     || 'Settings!B2';
+  document.getElementById('cfg-kw').value           = s.PAM_KeywordWeight  || 40;
+  document.getElementById('cfg-cat').value          = s.PAM_CategoryWeight || 20;
+  document.getElementById('cfg-price').value        = s.PAM_PriceWeight    || 20;
+  document.getElementById('cfg-brand').value        = s.PAM_BrandWeight    || 10;
+  document.getElementById('cfg-dist').value         = s.PAM_DistanceWeight || 5;
+  document.getElementById('cfg-cond').value         = s.PAM_ConditionWeight|| 5;
+  document.getElementById('cfg-threshold').value    = s.PAM_AIThreshold    || 60;
+  document.getElementById('threshold-val').textContent = s.PAM_AIThreshold || 60;
+  document.getElementById('cfg-model').value        = s.PAM_AIModel        || 'gpt-4o-mini';
+  document.getElementById('cfg-max-ai').value       = s.PAM_MaxAIPerRun    || 20;
+  document.getElementById('cfg-radius').value       = s.PAM_DistanceRadius || 30;
+  updateWeightSum();
+  updateThresholdPreview();
+}
+
+function updateWeightSum() {
+  const ids  = ['cfg-kw','cfg-cat','cfg-price','cfg-brand','cfg-dist','cfg-cond'];
+  const sum  = ids.reduce((t,id) => t + (parseInt(document.getElementById(id).value)||0), 0);
+  const el   = document.getElementById('weight-sum-display');
+  el.textContent = 'Sum: ' + sum;
+  el.className   = 'weight-sum-display ' + (sum === 100 ? 'weight-sum-ok' : 'weight-sum-bad');
+}
+
+function updateThresholdPreview() {
+  const val = parseInt(document.getElementById('cfg-threshold').value) || 60;
+  const tiers = [
+    { label:'Strong (80–100)', min:80, cls:'badge-green' },
+    { label:'Good (60–79)',    min:60, cls:'badge-blue'  },
+    { label:'Weak (40–59)',    min:40, cls:'badge-amber' },
+    { label:'No Match (<40)', min:0,  cls:'badge-slate' }
+  ];
+  document.getElementById('threshold-preview').innerHTML = tiers.map(t => {
+    const active = val <= t.min || (t.min === 0 && val < 40);
+    const op = t.min >= val || (t.min === 0) ? '1' : '0.3';
+    return `<span class="threshold-tier badge ${t.cls}" style="opacity:${op};" title="${t.min>=val?'Gets AI':'Below threshold'}">${esc(t.label)}</span>`;
+  }).join('');
+}
+
+// ── Data loaders ──────────────────────────────────────────
+function loadProjects() {
+  google.script.run
+    .withSuccessHandler(res => {
+      if (res.success) { APP.projects = res.data; renderProjects(res.data); }
+      else toast('Error loading projects: ' + res.error, 'error');
+    })
+    .withFailureHandler(err => toast('Projects load failed: ' + err.toString(), 'error'))
+    .getPAMProjects();
+  google.script.run
+    .withSuccessHandler(ids => { APP.nextIds = ids; })
+    .getPAMNextIds();
+}
+
+function loadNeeds() {
+  if (!APP.projects.length) {
+    google.script.run.withSuccessHandler(r => { if(r.success) APP.projects = r.data; }).getPAMProjects();
+  }
+  google.script.run
+    .withSuccessHandler(res => {
+      if (res.success) { APP.needs = res.data; renderNeeds(res.data); }
+      else toast('Error loading needs: ' + res.error, 'error');
+    })
+    .withFailureHandler(err => toast('Needs load failed: ' + err.toString(), 'error'))
+    .getPAMNeeds(null);
+}
+
+function loadMatches() {
+  document.getElementById('matches-list').innerHTML =
+    '<div class="loading-row"><span class="spinner"></span> Loading matches…</div>';
+  google.script.run
+    .withSuccessHandler(res => {
+      if (res.success) { APP.matches = res.data; renderMatches(res.data); }
+      else toast('Error loading matches: ' + res.error, 'error');
+    })
+    .withFailureHandler(err => toast('Matches load failed: ' + err.toString(), 'error'))
+    .getPAMMatches(null);
+  google.script.run
+    .withSuccessHandler(res => {
+      if (!res.success) return;
+      document.getElementById('stat-m-total').textContent  = res.total;
+      document.getElementById('stat-m-strong').textContent = res.strong;
+      document.getElementById('stat-m-ai').textContent     = res.awaitingAI;
+      document.getElementById('stat-m-acted').textContent  = res.actedToday;
+    })
+    .getPAMStats();
+}
+
+function loadEnginePreview() {
+  google.script.run
+    .withSuccessHandler(res => {
+      if (res.success) { APP.settings = res.settings; renderEnginePreview(res.settings); }
+    })
+    .getPAMSettings();
+}
+
+function loadSettings() {
+  google.script.run
+    .withSuccessHandler(res => {
+      if (res.success) { APP.settings = res.settings; renderSettings(res.settings); }
+      else toast('Could not load settings.', 'error');
+    })
+    .getPAMSettings();
+}
+
+// ── Form submits ──────────────────────────────────────────
+function submitNewProject() {
+  const name   = document.getElementById('np-name').value.trim();
+  const type   = document.getElementById('np-type').value;
+  const budget = parseFloat(document.getElementById('np-budget').value) || 0;
+  if (!name)   { toast('Project name is required.', 'error'); return; }
+  if (!type)   { toast('Project type is required.', 'error'); return; }
+  if (!budget) { toast('Budget must be greater than 0.', 'error'); return; }
+  const data = {
+    name, type, budget,
+    category:    document.getElementById('np-category').value.trim(),
+    description: document.getElementById('np-desc').value.trim(),
+    priority:    document.getElementById('np-priority').value,
+    status:      document.getElementById('np-status').value,
+    startDate:   document.getElementById('np-start').value,
+    targetDate:  document.getElementById('np-target').value
+  };
+  google.script.run
+    .withSuccessHandler(res => {
+      if (res.success) {
+        toast('Project ' + res.id + ' created.', 'success');
+        toggleForm('form-new-project');
+        loadProjects();
+      } else toast('Error: ' + res.error, 'error');
+    })
+    .withFailureHandler(err => toast(err.toString(), 'error'))
+    .addProject(data);
+}
+
+function submitNewNeed() {
+  const item      = document.getElementById('nn-item').value.trim();
+  const projectId = document.getElementById('nn-project').value;
+  const keywords  = document.getElementById('nn-keywords').value.trim();
+  if (!item)      { toast('Item name is required.', 'error'); return; }
+  if (!projectId) { toast('Select a project.', 'error'); return; }
+  if (!keywords)  { toast('Keyword set is required for matching.', 'error'); return; }
+  const data = {
+    item, projectId, keywords,
+    category:    document.getElementById('nn-category').value,
+    targetPrice: parseFloat(document.getElementById('nn-target-price').value) || 0,
+    maxPrice:    parseFloat(document.getElementById('nn-max-price').value)    || 0,
+    qtyNeeded:   parseInt(document.getElementById('nn-qty').value)            || 1,
+    condition:   document.getElementById('nn-condition').value,
+    priority:    document.getElementById('nn-priority').value,
+    brand:       document.getElementById('nn-brand').value.trim(),
+    model:       document.getElementById('nn-model').value.trim(),
+    status:      document.getElementById('nn-status').value,
+    notes:       document.getElementById('nn-notes').value.trim()
+  };
+  google.script.run
+    .withSuccessHandler(res => {
+      if (res.success) {
+        toast('Need ' + res.id + ' added.', 'success');
+        toggleForm('form-new-need');
+        loadNeeds();
+      } else toast('Error: ' + res.error, 'error');
+    })
+    .withFailureHandler(err => toast(err.toString(), 'error'))
+    .addNeed(data);
+}
+
+function buyForProject(matchId, needId, title, platform, price) {
+  document.getElementById('pur-match-id').value  = matchId;
+  document.getElementById('pur-need-id').value   = needId;
+  document.getElementById('pur-item').value      = title;
+  document.getElementById('pur-platform').value  = platform;
+  document.getElementById('pur-price').value     = price || '';
+  document.getElementById('pur-date').value      = new Date().toISOString().split('T')[0];
+  const sel = document.getElementById('pur-project');
+  sel.innerHTML = '<option value="">Select project…</option>' +
+    APP.projects.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
+  // Pre-select project from match
+  const match = APP.matches.find(m => m.id === matchId);
+  if (match) sel.value = match.projectId;
+  openModal('modal-purchase');
+}
+
+function submitPurchase() {
+  const item  = document.getElementById('pur-item').value.trim();
+  const proj  = document.getElementById('pur-project').value;
+  const price = parseFloat(document.getElementById('pur-price').value) || 0;
+  if (!item)  { toast('Item description is required.', 'error'); return; }
+  if (!proj)  { toast('Select a project.', 'error'); return; }
+  if (!price) { toast('Purchase price is required.', 'error'); return; }
+  const data = {
+    item, price,
+    projectId:   proj,
+    needId:      document.getElementById('pur-need-id').value,
+    matchId:     document.getElementById('pur-match-id').value,
+    platform:    document.getElementById('pur-platform').value.trim(),
+    seller:      document.getElementById('pur-seller').value.trim(),
+    dateBought:  document.getElementById('pur-date').value,
+    condition:   document.getElementById('pur-condition').value,
+    listingUrl:  document.getElementById('pur-url').value.trim(),
+    resaleValue: parseFloat(document.getElementById('pur-resale').value) || 0,
+    notes:       document.getElementById('pur-notes').value.trim()
+  };
+  google.script.run
+    .withSuccessHandler(res => {
+      if (res.success) {
+        toast('Purchase ' + res.id + ' recorded.', 'success');
+        closeModal('modal-purchase');
+        loadMatches();
+      } else toast('Error: ' + res.error, 'error');
+    })
+    .withFailureHandler(err => toast(err.toString(), 'error'))
+    .recordPurchase(data);
+}
+
+function setMatchStatus(matchId, status) {
+  google.script.run
+    .withSuccessHandler(res => {
+      if (res.success) { toast('Match marked as ' + status + '.', 'success'); loadMatches(); }
+      else toast('Error: ' + res.error, 'error');
+    })
+    .withFailureHandler(err => toast(err.toString(), 'error'))
+    .updateMatchStatus(matchId, status);
+}
+
+// ── Engine controls ───────────────────────────────────────
+function runEngine(mode) {
+  if (APP.runningEngine) { toast('Engine already running.', 'info'); return; }
+  APP.runningEngine = true;
+  const btnMap = { logic:'btn-logic', ai:'btn-ai', cycle:'btn-cycle' };
+  const btn = document.getElementById(btnMap[mode]);
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Running…'; }
+  logLine('Engine started (' + mode + ' mode)…', 'START');
+
+  const fnMap = { logic:'runPAMLogicEngine', ai:'runPAMAIEvaluation', cycle:'runPAMFullCycle' };
+  google.script.run
+    .withSuccessHandler(res => {
+      APP.runningEngine = false;
+      if (btn) { btn.disabled = false; btn.textContent = btn.getAttribute('data-label') || btn.textContent.replace('⏳ Running…',''); }
+      const log = res.log || (res.logic && res.logic.log ? res.logic.log.concat(res.ai&&res.ai.log||[]) : []);
+      log.forEach(entry => logLine(entry.msg, entry.cat));
+      if (res.success) {
+        const sum = res.summary || (res.logic && res.logic.summary ? res.logic.summary + ' | ' + (res.ai&&res.ai.summary||'') : '');
+        logLine(sum || 'Complete.', 'DONE');
+        document.getElementById('last-run-label').textContent = 'Last run: ' + new Date().toLocaleString();
+        toast('Engine complete.', 'success');
+        if (mode !== 'ai') loadMatches();
+      } else {
+        logLine(res.error || 'Unknown error.', 'ERROR');
+        toast('Engine error — see log.', 'error');
+      }
+    })
+    .withFailureHandler(err => {
+      APP.runningEngine = false;
+      if (btn) { btn.disabled = false; }
+      logLine('Fatal error: ' + err.toString(), 'ERROR');
+      toast('Engine failed: ' + err.toString(), 'error');
+    })
+    [fnMap[mode]]();
+}
+
+function runInitSheets() {
+  toast('Initializing PAM sheets…', 'info');
+  google.script.run
+    .withSuccessHandler(() => toast('PAM sheets initialized.', 'success'))
+    .withFailureHandler(err => toast(err.toString(), 'error'))
+    .initializePAMSheets();
+}
+
+function clearLog() {
+  document.getElementById('log-console').innerHTML =
+    '<div class="log-line"><span class="log-ts">--:--:--</span>' +
+    '<span class="log-cat cat-info">[INFO]</span>' +
+    '<span class="log-msg">Log cleared.</span></div>';
+}
+
+function logLine(msg, cat) {
+  const console_ = document.getElementById('log-console');
+  const catClass = { START:'cat-start', SCAN:'cat-scan', EVAL:'cat-eval', OK:'cat-ok',
+                     DONE:'cat-done', ERROR:'cat-error', WARN:'cat-warn', INFO:'cat-info' };
+  const div = document.createElement('div');
+  div.className = 'log-line';
+  const ts = new Date().toLocaleTimeString('en-US', {hour12:false});
+  div.innerHTML =
+    `<span class="log-ts">${ts}</span>` +
+    `<span class="log-cat ${catClass[cat]||'cat-info'}">[${esc(cat||'LOG')}]</span>` +
+    `<span class="log-msg">${esc(msg)}</span>`;
+  console_.appendChild(div);
+  console_.scrollTop = console_.scrollHeight;
+}
+
+// ── Settings save / reset ─────────────────────────────────
+function saveSettings() {
+  const sum = ['cfg-kw','cfg-cat','cfg-price','cfg-brand','cfg-dist','cfg-cond']
+    .reduce((t,id) => t + (parseInt(document.getElementById(id).value)||0), 0);
+  if (sum !== 100) { toast('Scoring weights must sum to 100 (currently ' + sum + ').', 'error'); return; }
+  const data = {
+    PAM_SourceSheet:    document.getElementById('cfg-source').value.trim() || 'Master DB',
+    PAM_KeywordWeight:  parseInt(document.getElementById('cfg-kw').value)    || 40,
+    PAM_CategoryWeight: parseInt(document.getElementById('cfg-cat').value)   || 20,
+    PAM_PriceWeight:    parseInt(document.getElementById('cfg-price').value) || 20,
+    PAM_BrandWeight:    parseInt(document.getElementById('cfg-brand').value) || 10,
+    PAM_DistanceWeight: parseInt(document.getElementById('cfg-dist').value)  || 5,
+    PAM_ConditionWeight:parseInt(document.getElementById('cfg-cond').value)  || 5,
+    PAM_AIThreshold:    parseInt(document.getElementById('cfg-threshold').value) || 60,
+    PAM_AIModel:        document.getElementById('cfg-model').value || 'gpt-4o-mini',
+    PAM_MaxAIPerRun:    parseInt(document.getElementById('cfg-max-ai').value) || 20,
+    PAM_DistanceRadius: parseInt(document.getElementById('cfg-radius').value) || 30
+  };
+  google.script.run
+    .withSuccessHandler(res => {
+      if (res.success) { APP.settings = data; toast('Settings saved.', 'success'); }
+      else toast('Save error: ' + res.error, 'error');
+    })
+    .withFailureHandler(err => toast(err.toString(), 'error'))
+    .savePAMSettings(data);
+}
+
+function resetSettings() {
+  if (!confirm('Reset all PAM settings to defaults?')) return;
+  const defaults = {
+    PAM_SourceSheet:'Master DB', PAM_KeywordWeight:40, PAM_CategoryWeight:20,
+    PAM_PriceWeight:20, PAM_BrandWeight:10, PAM_DistanceWeight:5, PAM_ConditionWeight:5,
+    PAM_AIThreshold:60, PAM_AIModel:'gpt-4o-mini', PAM_MaxAIPerRun:20, PAM_DistanceRadius:30
+  };
+  renderSettings(defaults);
+  toast('Defaults restored — click Save to apply.', 'info');
+}
+
+// ── Modal helpers ─────────────────────────────────────────
+function openModal(id)  { const el = document.getElementById(id); if(el) el.classList.add('open'); }
+function closeModal(id) { const el = document.getElementById(id); if(el) el.classList.remove('open'); }
+
+// ── Toast system ──────────────────────────────────────────
+function toast(msg, type) {
+  const area = document.getElementById('toast-area');
+  const div  = document.createElement('div');
+  div.className = 'toast toast-' + (type || 'info');
+  div.textContent = msg;
+  area.appendChild(div);
+  setTimeout(() => { div.style.opacity = '0'; div.style.transition = 'opacity 0.3s'; }, 3200);
+  setTimeout(() => div.remove(), 3600);
+}
+
+// ── Init ──────────────────────────────────────────────────
+function init() {
+  // Store original button labels before any run
+  ['btn-logic','btn-ai','btn-cycle'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.setAttribute('data-label', el.textContent.trim());
+  });
+  updateWeightSum();
+  updateThresholdPreview();
+  loadProjects();
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+});
+
+window.addEventListener('load', init);
+</script>
+</body>
+</html>
