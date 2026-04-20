@@ -901,3 +901,364 @@
 
 <!-- Toast area -->
 <div id="toast-area"></div>
+
+<script>
+// ── APP State ─────────────────────────────────────────────
+const APP = {
+  projects:    [],
+  needs:       [],
+  matches:     [],
+  settings:    {},
+  nextIds:     {},
+  currentTab:  'projects',
+  runningEngine: false
+};
+
+// ── Tab Router ────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+    const tabs = ['projects','needs','matches','engine','settings'];
+    btn.classList.toggle('active', tabs[i] === name);
+  });
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  const target = document.getElementById('panel-' + name);
+  if (target) target.classList.add('active');
+  APP.currentTab = name;
+  if (name === 'projects' && !APP.projects.length) loadProjects();
+  if (name === 'needs'    && !APP.needs.length)    loadNeeds();
+  if (name === 'matches')                          loadMatches();
+  if (name === 'engine')                           loadEnginePreview();
+  if (name === 'settings' && !APP.settings.PAM_SourceSheet) loadSettings();
+}
+
+// ── Safety: XSS escape ───────────────────────────────────
+function esc(str) {
+  return String(str ?? '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
+// ── Formatters ────────────────────────────────────────────
+function fmtCurrency(val) {
+  const n = parseFloat(val) || 0;
+  return '$' + n.toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0});
+}
+function fmtDate(str) {
+  if (!str) return '—';
+  const d = new Date(str);
+  if (isNaN(d.getTime())) return str;
+  return d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+}
+function scoreClass(s) {
+  if (s >= 80) return 'score-strong';
+  if (s >= 60) return 'score-good';
+  if (s >= 40) return 'score-weak';
+  return 'score-none';
+}
+function tierBadge(tier) {
+  const map = {Strong:'badge-green', Good:'badge-blue', Weak:'badge-amber'};
+  return `<span class="badge ${map[tier]||'badge-slate'}">${esc(tier)||'—'}</span>`;
+}
+function statusBadge(s) {
+  const map = {Active:'badge-green',Planning:'badge-amber',Paused:'badge-amber',
+               Complete:'badge-blue',Cancelled:'badge-slate',
+               Open:'badge-gold','Partially Filled':'badge-amber',
+               Fulfilled:'badge-green','Acted On':'badge-blue',
+               New:'badge-slate',Reviewed:'badge-amber',Dismissed:'badge-slate'};
+  return `<span class="badge ${map[s]||'badge-slate'}">${esc(s)}</span>`;
+}
+function priorityBadge(p) {
+  const map = {Critical:'badge-red',High:'badge-amber',Medium:'badge-blue',
+               Low:'badge-slate',Important:'badge-amber','Nice to Have':'badge-slate'};
+  return `<span class="badge ${map[p]||'badge-slate'}">${esc(p)}</span>`;
+}
+function verdictBadge(v) {
+  if (!v || v.startsWith('AI Error')) return `<span class="text-muted fs-11">⏳ Awaiting AI</span>`;
+  const map = {'Perfect Fit':'badge-green','Likely Fit':'badge-blue',
+               'Possible Fit':'badge-amber','Not Recommended':'badge-red'};
+  return `<span class="badge ${map[v]||'badge-slate'}">${esc(v)}</span>`;
+}
+function budgetBarHtml(spent, budget) {
+  const pct = budget > 0 ? Math.min(100, Math.round(spent / budget * 100)) : 0;
+  const cls  = pct < 50 ? 'bar-green' : pct < 75 ? 'bar-amber' : 'bar-red';
+  return `<div class="budget-bar-wrap"><div class="budget-bar-fill ${cls}" style="width:${pct}%"></div></div>`;
+}
+function qtyBarHtml(acquired, needed) {
+  const pct = needed > 0 ? Math.min(100, Math.round(acquired / needed * 100)) : 0;
+  return `<div style="display:flex;align-items:center;gap:5px;font-size:11px;">
+    <span style="color:var(--text-muted)">${acquired}/${needed}</span>
+    <div class="qty-bar-wrap"><div class="qty-bar-fill" style="width:${pct}%"></div></div>
+  </div>`;
+}
+
+// ── Toggle inline form ────────────────────────────────────
+function toggleForm(id) {
+  const el = document.getElementById(id);
+  el.classList.toggle('open');
+  if (el.classList.contains('open') && id === 'form-new-project') prefillProjectForm();
+  if (el.classList.contains('open') && id === 'form-new-need')    prefillNeedForm();
+}
+function prefillProjectForm() {
+  document.getElementById('np-id').value = APP.nextIds.projectId || '';
+}
+function prefillNeedForm() {
+  document.getElementById('nn-id').value = APP.nextIds.needId || '';
+  const sel = document.getElementById('nn-project');
+  sel.innerHTML = '<option value="">Select project…</option>' +
+    APP.projects.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
+}
+
+// ── RENDER: Projects ──────────────────────────────────────
+function renderProjects(list) {
+  const el = document.getElementById('projects-list');
+  if (!list.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div>
+      <div class="empty-msg">No projects yet.</div>
+      <button class="btn btn-outline" onclick="toggleForm('form-new-project')">+ Create Your First Project</button></div>`;
+    return;
+  }
+  const totalBudget = list.reduce((s,p) => s + p.budget, 0);
+  const totalSpent  = list.reduce((s,p) => s + p.spent,  0);
+  document.getElementById('stat-proj-total').textContent  = list.length;
+  document.getElementById('stat-proj-active').textContent = list.filter(p => p.status==='Active').length;
+  document.getElementById('stat-proj-budget').textContent = fmtCurrency(totalBudget);
+  document.getElementById('stat-proj-spent').textContent  = fmtCurrency(totalSpent);
+
+  el.innerHTML = list.map(p => {
+    const remPct = p.budget > 0 ? Math.round(p.remaining / p.budget * 100) : 0;
+    const remColor = remPct > 50 ? 'var(--green)' : remPct > 25 ? 'var(--amber)' : 'var(--red)';
+    return `
+    <div class="row-card" style="grid-template-columns:70px 1fr 110px 100px 120px 90px 80px 90px;"
+         onclick="toggleProjectExpand('${esc(p.id)}')">
+      <span class="text-mono fs-11 text-muted">${esc(p.id)}</span>
+      <span class="fw-600">${esc(p.name)}</span>
+      <span class="fs-11 text-muted truncate">${esc(p.type)}</span>
+      <span class="text-mono fs-11">${fmtCurrency(p.budget)}</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        ${budgetBarHtml(p.spent, p.budget)}
+        <span style="font-size:10px;color:${remColor}">${remPct}%</span>
+      </div>
+      ${priorityBadge(p.priority)}
+      ${statusBadge(p.status)}
+      <span class="fs-11 text-muted">${fmtDate(p.startDate)}</span>
+    </div>
+    <div class="card" id="expand-${esc(p.id)}" style="display:none;margin-bottom:8px;padding:10px 14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span class="section-label" style="margin:0;">Needs for ${esc(p.name)}</span>
+        <button class="btn btn-ghost" style="font-size:10px;padding:3px 8px;"
+          onclick="openAddNeedForProject('${esc(p.id)}')">+ Add Need</button>
+      </div>
+      <div id="needs-for-${esc(p.id)}"><div class="loading-row"><span class="spinner"></span></div></div>
+    </div>`;
+  }).join('');
+}
+
+function toggleProjectExpand(projectId) {
+  const el = document.getElementById('expand-' + projectId);
+  const isOpen = el.style.display !== 'none';
+  el.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) loadNeedsForProject(projectId);
+}
+
+function loadNeedsForProject(projectId) {
+  const container = document.getElementById('needs-for-' + projectId);
+  google.script.run
+    .withSuccessHandler(res => {
+      if (!res.success || !res.data.length) {
+        container.innerHTML = '<div class="text-muted fs-11" style="padding:6px 0;">No needs linked to this project yet.</div>';
+        return;
+      }
+      container.innerHTML = res.data.map(n =>
+        `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);">
+          <span class="text-mono fs-11 text-muted">${esc(n.id)}</span>
+          <span style="flex:1;font-size:12px;">${esc(n.item)}</span>
+          ${priorityBadge(n.priority)}
+          ${qtyBarHtml(n.qtyAcquired, n.qtyNeeded)}
+          <span class="fs-11 text-muted">${fmtCurrency(n.targetPrice)}</span>
+          ${statusBadge(n.status)}
+        </div>`
+      ).join('');
+    })
+    .withFailureHandler(err => { container.innerHTML = `<div class="text-muted fs-11">${esc(err.toString())}</div>`; })
+    .getPAMNeeds(projectId);
+}
+
+function openAddNeedForProject(projectId) {
+  switchTab('needs');
+  toggleForm('form-new-need');
+  setTimeout(() => {
+    const sel = document.getElementById('nn-project');
+    sel.value = projectId;
+  }, 200);
+}
+
+function filterProjects() {
+  const q = document.getElementById('proj-search').value.toLowerCase();
+  const filtered = APP.projects.filter(p =>
+    !q || p.name.toLowerCase().includes(q) || p.type.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)
+  );
+  renderProjects(filtered);
+}
+
+// ── RENDER: Needs ─────────────────────────────────────────
+function renderNeeds(list) {
+  const el = document.getElementById('needs-list');
+  if (!list.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">🎯</div>
+      <div class="empty-msg">No needs found.</div>
+      <button class="btn btn-outline" onclick="toggleForm('form-new-need')">+ Add Your First Need</button></div>`;
+    return;
+  }
+  // Group by project name
+  const groups = {};
+  list.forEach(n => {
+    const key = n.projectName || n.projectId || 'Unknown Project';
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(n);
+  });
+  el.innerHTML = Object.entries(groups).map(([proj, needs]) => `
+    <div class="group-header" onclick="toggleGroup('grp-${esc(proj).replace(/\s/g,'-')}', this)">
+      <span class="g-title">${esc(proj)}</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="g-count">${needs.length} need${needs.length!==1?'s':''}</span>
+        <span class="g-chevron">▾</span>
+      </div>
+    </div>
+    <div class="group-body" id="grp-${esc(proj).replace(/\s/g,'-')}">
+      ${needs.map(n => `
+        <div class="row-card" style="grid-template-columns:70px 1fr 90px 100px 110px 90px 90px;cursor:default;">
+          <span class="text-mono fs-11 text-muted">${esc(n.id)}</span>
+          <div>
+            <div class="fs-12 fw-600">${esc(n.item)}</div>
+            <div class="fs-11 text-muted truncate" style="max-width:220px;"
+              title="${esc(n.keywords)}">${esc(n.keywords.substring(0,50))}${n.keywords.length>50?'…':''}</div>
+          </div>
+          ${priorityBadge(n.priority)}
+          ${qtyBarHtml(n.qtyAcquired, n.qtyNeeded)}
+          <span class="fs-11">${fmtCurrency(n.targetPrice)} / ${fmtCurrency(n.maxPrice)}</span>
+          ${statusBadge(n.status)}
+          <span class="fs-11 text-muted">${esc(n.condition)}</span>
+        </div>`).join('')}
+    </div>`
+  ).join('');
+}
+
+function toggleGroup(id, header) {
+  const body = document.getElementById(id);
+  if (!body) return;
+  body.classList.toggle('hidden');
+  header.classList.toggle('collapsed');
+}
+
+function filterNeeds() {
+  const q   = document.getElementById('needs-search').value.toLowerCase();
+  const pri = document.getElementById('needs-filter-priority').value;
+  const sta = document.getElementById('needs-filter-status').value;
+  const filtered = APP.needs.filter(n => {
+    if (pri && n.priority !== pri) return false;
+    if (sta && n.status  !== sta) return false;
+    if (q && !n.item.toLowerCase().includes(q) && !n.keywords.toLowerCase().includes(q)) return false;
+    return true;
+  });
+  renderNeeds(filtered);
+}
+
+// ── RENDER: Matches ───────────────────────────────────────
+function renderMatches(list) {
+  const el = document.getElementById('matches-list');
+  if (!list.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div>
+      <div class="empty-msg">No matches found. Run the Logic Engine to generate matches.</div>
+      <button class="btn btn-outline" onclick="switchTab('engine')">▶ Go to Run Engine</button></div>`;
+    return;
+  }
+  // Populate project filter
+  const projFilter = document.getElementById('m-filter-project');
+  const projNames  = [...new Set(list.map(m => m.projectName).filter(Boolean))];
+  projFilter.innerHTML = '<option value="">All Projects</option>' +
+    projNames.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+
+  el.innerHTML = list.map(m => {
+    const sc = parseInt(m.matchScore) || 0;
+    return `
+    <div class="match-card" id="mc-${esc(m.id)}">
+      <div class="match-card-top" onclick="toggleMatchDetail('${esc(m.id)}')">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+          <div class="score-badge ${scoreClass(sc)}">${sc}</div>
+          ${tierBadge(m.matchTier)}
+        </div>
+        <div class="match-card-center">
+          <div class="m-title">${esc(m.title||'Untitled Listing')}</div>
+          <div class="m-sub">
+            <span class="badge badge-slate">${esc(m.platform||'Unknown')}</span>
+            <span class="text-muted">→</span>
+            <span>${esc(m.projectName||m.projectId)}</span>
+            <span style="color:var(--gold)">›</span>
+            <span>${esc(m.needItem||m.needId)}</span>
+            ${m.distance?`<span class="text-muted">· ${esc(m.distance)}</span>`:''}
+          </div>
+        </div>
+        <div class="match-card-right">
+          <div class="m-price">${fmtCurrency(m.askingPrice)}</div>
+          <div class="m-verdict">${verdictBadge(m.aiVerdict)}</div>
+          <div style="margin-top:4px;">${statusBadge(m.reviewStatus||'New')}</div>
+        </div>
+      </div>
+      <div class="match-detail" id="md-${esc(m.id)}">
+        <div class="match-detail-grid">
+          <div class="detail-block">
+            <div class="db-label">Listing Description</div>
+            <div class="db-val">${esc(m.description||'No description available.')}</div>
+          </div>
+          <div>
+            <div class="detail-block" style="margin-bottom:10px;">
+              <div class="db-label">AI Compatibility</div>
+              <div class="db-val">${esc(m.aiInsight||'—')}</div>
+            </div>
+            <div class="detail-block" style="margin-bottom:10px;">
+              <div class="db-label">Strategy</div>
+              <div class="db-val">${esc(m.aiStrategy||'—')}</div>
+            </div>
+            <div class="detail-block" style="margin-bottom:10px;">
+              <div class="db-label">Risk Flags</div>
+              <div class="db-val">${esc(m.aiRiskFlags||'—')}</div>
+            </div>
+            <div class="detail-block">
+              <div class="db-label">Negotiation Angle</div>
+              <div class="db-val">${esc(m.aiNegotiation||'—')}</div>
+            </div>
+          </div>
+        </div>
+        ${m.url ? `<div class="mb-8"><a href="${esc(m.url)}" target="_blank"
+          style="color:var(--blue);font-size:11px;text-decoration:none;">↗ View Listing</a></div>` : ''}
+        <div class="match-actions">
+          <button class="btn btn-green" onclick="buyForProject('${esc(m.id)}','${esc(m.needId)}','${esc(m.title||'')}','${esc(m.platform||'')}',${m.askingPrice||0})">Buy for Project</button>
+          <button class="btn btn-blue"  onclick="buyForProject('${esc(m.id)}','${esc(m.needId)}','${esc(m.title||'')}','${esc(m.platform||'')}',${m.askingPrice||0})">Buy + Flip</button>
+          <button class="btn btn-amber" onclick="setMatchStatus('${esc(m.id)}','Reviewed')">Watch</button>
+          <button class="btn btn-ghost" onclick="setMatchStatus('${esc(m.id)}','Dismissed')">Dismiss</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleMatchDetail(id) {
+  const el = document.getElementById('md-' + id);
+  if (el) el.classList.toggle('open');
+}
+
+function filterMatches() {
+  const proj    = document.getElementById('m-filter-project').value;
+  const tier    = document.getElementById('m-filter-tier').value;
+  const verdict = document.getElementById('m-filter-verdict').value;
+  const status  = document.getElementById('m-filter-status').value;
+  const filtered = APP.matches.filter(m => {
+    if (proj    && m.projectName  !== proj)    return false;
+    if (tier    && m.matchTier    !== tier)    return false;
+    if (verdict && m.aiVerdict    !== verdict) return false;
+    if (status  && m.reviewStatus !== status)  return false;
+    return true;
+  });
+  renderMatches(filtered);
+}</script>
