@@ -414,3 +414,229 @@
     }
   </style>
 </head>
+<body>
+<div id="app">
+
+  <!-- ── Top Bar ─────────────────────────────────────── -->
+  <div id="topbar">
+    <span class="logo">⚡ PROJECT ARBITRAGE MODULE</span>
+    <span class="ver">PAM v1.0 · Quantum Ecosystem</span>
+  </div>
+
+  <!-- ── Tab Nav ─────────────────────────────────────── -->
+  <div id="tabnav">
+    <button class="tab-btn active" onclick="switchTab('projects')">Projects</button>
+    <button class="tab-btn"        onclick="switchTab('needs')">Needs</button>
+    <button class="tab-btn"        onclick="switchTab('matches')">Matches</button>
+    <button class="tab-btn"        onclick="switchTab('engine')">Run Engine</button>
+    <button class="tab-btn"        onclick="switchTab('settings')">Settings</button>
+  </div>
+
+  <!-- ── Panels ──────────────────────────────────────── -->
+  <div id="panels">
+
+    <!-- ══════════════ TAB 1: PROJECTS ══════════════ -->
+    <div class="panel active" id="panel-projects">
+      <div class="flex-center gap-12 mb-16" style="justify-content:space-between;flex-wrap:wrap;">
+        <div class="section-label" style="margin-bottom:0">Active Projects</div>
+        <div class="flex-center gap-8">
+          <input id="proj-search" type="text" placeholder="Search projects…"
+            style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+                   color:var(--text);font-size:12px;padding:6px 10px;outline:none;width:180px;"
+            oninput="filterProjects()">
+          <button class="btn btn-outline" onclick="toggleForm('form-new-project')">+ New Project</button>
+        </div>
+      </div>
+
+      <!-- Stats row -->
+      <div class="stats-row" id="proj-stats">
+        <div class="stat-chip"><div class="val" id="stat-proj-total">—</div><div class="lbl">Projects</div></div>
+        <div class="stat-chip"><div class="val" id="stat-proj-active">—</div><div class="lbl">Active</div></div>
+        <div class="stat-chip"><div class="val" id="stat-proj-budget">—</div><div class="lbl">Total Budget</div></div>
+        <div class="stat-chip"><div class="val" id="stat-proj-spent">—</div><div class="lbl">Total Spent</div></div>
+      </div>
+
+      <!-- New Project inline form -->
+      <div class="inline-form" id="form-new-project">
+        <div class="inline-form-title">+ New Project</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Project ID</label>
+            <input type="text" id="np-id" placeholder="Auto (P001…)" readonly
+              style="color:var(--text-muted);cursor:default;">
+          </div>
+          <div class="form-group">
+            <label>Project Name *</label>
+            <input type="text" id="np-name" placeholder="e.g. Berkeley House Rebuild">
+          </div>
+          <div class="form-group">
+            <label>Project Type *</label>
+            <select id="np-type">
+              <option value="">Select type…</option>
+              <option>Vehicle Flip</option><option>Vehicle Build</option>
+              <option>Property Rehab</option><option>ATV/Powersports Build</option>
+              <option>Solar/Off-Grid</option><option>Electronics Bundle</option>
+              <option>General Arbitrage</option><option>Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Category</label>
+            <input type="text" id="np-category" placeholder="e.g. Real Estate">
+          </div>
+          <div class="form-group">
+            <label>Budget ($) *</label>
+            <input type="number" id="np-budget" placeholder="0" min="0" step="100">
+          </div>
+          <div class="form-group">
+            <label>Priority</label>
+            <select id="np-priority">
+              <option>Critical</option><option>High</option>
+              <option selected>Medium</option><option>Low</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select id="np-status">
+              <option selected>Planning</option><option>Active</option>
+              <option>Paused</option><option>Complete</option><option>Cancelled</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Start Date</label>
+            <input type="date" id="np-start">
+          </div>
+          <div class="form-group">
+            <label>Target Completion</label>
+            <input type="date" id="np-target">
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:10px;">
+          <label>Description</label>
+          <textarea id="np-desc" placeholder="Brief scope description…" style="min-height:50px;"></textarea>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-ghost" onclick="toggleForm('form-new-project')">Cancel</button>
+          <button class="btn btn-gold" onclick="submitNewProject()">Save Project</button>
+        </div>
+      </div>
+
+      <!-- Projects list -->
+      <div id="projects-list">
+        <div class="loading-row"><span class="spinner"></span> Loading projects…</div>
+      </div>
+    </div><!-- /panel-projects -->
+
+    <!-- ══════════════ TAB 2: NEEDS ══════════════════ -->
+    <div class="panel" id="panel-needs">
+      <div class="flex-center gap-12 mb-16" style="justify-content:space-between;flex-wrap:wrap;">
+        <div class="section-label" style="margin-bottom:0">Open Needs</div>
+        <button class="btn btn-outline" onclick="toggleForm('form-new-need')">+ Add Need</button>
+      </div>
+
+      <!-- Filter bar -->
+      <div class="filter-bar">
+        <input id="needs-search" type="text" placeholder="Search items or keywords…"
+          style="flex:1;min-width:160px;" oninput="filterNeeds()">
+        <select id="needs-filter-priority" onchange="filterNeeds()">
+          <option value="">All Priorities</option>
+          <option>Critical</option><option>Important</option><option>Nice to Have</option>
+        </select>
+        <select id="needs-filter-status" onchange="filterNeeds()">
+          <option value="">All Statuses</option>
+          <option>Open</option><option>Partially Filled</option>
+          <option>Fulfilled</option><option>Cancelled</option>
+        </select>
+      </div>
+
+      <!-- Add Need inline form -->
+      <div class="inline-form" id="form-new-need">
+        <div class="inline-form-title">+ Add Need</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Need ID</label>
+            <input type="text" id="nn-id" placeholder="Auto (N001…)" readonly
+              style="color:var(--text-muted);cursor:default;">
+          </div>
+          <div class="form-group">
+            <label>Project *</label>
+            <select id="nn-project">
+              <option value="">Select project…</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Item Needed *</label>
+            <input type="text" id="nn-item" placeholder="e.g. Mini Split AC">
+          </div>
+          <div class="form-group">
+            <label>Category</label>
+            <select id="nn-category">
+              <option value="">Select…</option>
+              <option>HVAC</option><option>Electrical</option><option>Plumbing</option>
+              <option>Body/Cosmetic</option><option>Drivetrain</option><option>Engine</option>
+              <option>Suspension</option><option>Wheels/Tires</option><option>Interior</option>
+              <option>Exterior</option><option>Appliance</option><option>Flooring</option>
+              <option>Solar</option><option>Battery</option><option>Electronics</option>
+              <option>Tools</option><option>Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Target Price ($)</label>
+            <input type="number" id="nn-target-price" placeholder="0" min="0">
+          </div>
+          <div class="form-group">
+            <label>Max Price ($)</label>
+            <input type="number" id="nn-max-price" placeholder="0" min="0">
+          </div>
+          <div class="form-group">
+            <label>Qty Needed</label>
+            <input type="number" id="nn-qty" placeholder="1" min="1" value="1">
+          </div>
+          <div class="form-group">
+            <label>Condition Needed</label>
+            <select id="nn-condition">
+              <option>Any</option><option>New</option><option>Like New</option>
+              <option>Good</option><option>Fair</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Priority</label>
+            <select id="nn-priority">
+              <option>Critical</option><option selected>Important</option>
+              <option>Nice to Have</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Preferred Brand</label>
+            <input type="text" id="nn-brand" placeholder="e.g. Mitsubishi, MrCool">
+          </div>
+          <div class="form-group">
+            <label>Preferred Model</label>
+            <input type="text" id="nn-model" placeholder="Optional">
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select id="nn-status">
+              <option selected>Open</option><option>Partially Filled</option>
+              <option>Fulfilled</option><option>Cancelled</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:10px;">
+          <label>Keyword Set (comma-separated)</label>
+          <textarea id="nn-keywords" placeholder="mini split, ductless, heat pump, condenser, air handler…"></textarea>
+        </div>
+        <div class="form-group" style="margin-top:8px;">
+          <label>Notes</label>
+          <textarea id="nn-notes" placeholder="Optional notes…" style="min-height:44px;"></textarea>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-ghost" onclick="toggleForm('form-new-need')">Cancel</button>
+          <button class="btn btn-gold" onclick="submitNewNeed()">Save Need</button>
+        </div>
+      </div>
+
+      <!-- Needs grouped list -->
+      <div id="needs-list">
+        <div class="loading-row"><span class="spinner"></span> Loading needs…</div>
+      </div>
+    </div><!-- /panel-needs -->
