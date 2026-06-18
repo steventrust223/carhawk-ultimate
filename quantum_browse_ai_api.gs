@@ -226,17 +226,11 @@ function doPost(e) {
   try {
     const payload = JSON.parse(e.postData.contents);
 
-    // Extract task data from webhook
-    const robotId = payload.robot && payload.robot.id;
-    const taskId = payload.task && payload.task.id;
-    const capturedData = payload.task && payload.task.capturedTexts;
+    // Route through the chain-aware handler: a LIST robot completing kicks
+    // the DETAIL robot; a DETAIL/single robot completing imports its data.
+    const result = handleBrowseAIWebhook(payload);
 
-    if (capturedData) {
-      // Auto-import the scraped data
-      importWebhookData(robotId, taskId, capturedData);
-    }
-
-    return ContentService.createTextOutput(JSON.stringify({ status: 'ok' }))
+    return ContentService.createTextOutput(JSON.stringify({ status: 'ok', result: result }))
       .setMimeType(ContentService.MimeType.JSON);
 
   } catch (error) {
