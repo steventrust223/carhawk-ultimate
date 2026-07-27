@@ -1373,6 +1373,22 @@ function buildRobotSetupInstructions(config) {
   lines.push('    3. Browse.ai will push data to CarHawk automatically via API');
   lines.push('    4. Optionally run: deployRobotUI() to trigger an immediate bulk scrape');
   lines.push('');
+  lines.push('  Option C — Deep scraping with two robots (List + Detail):');
+  lines.push('    Most marketplaces need a LIST robot (search page -> listing URLs)');
+  lines.push('    plus a DETAIL robot (single listing -> full fields).');
+  lines.push('');
+  lines.push('    ► If you chain them in BROWSE.AI (Workflows / deep scraping):');
+  lines.push('        Browse.ai passes the list robot\'s "url" field into the detail');
+  lines.push('        robot automatically. In CarHawk you then link ONLY the DETAIL');
+  lines.push('        robot (Link Robot to Marketplace) — do NOT use "Link Robot Chain".');
+  lines.push('        CarHawk just imports the detail robot\'s finished output.');
+  lines.push('');
+  lines.push('    ► If you want CARHAWK to orchestrate the chain via API instead:');
+  lines.push('        Use "Link Robot Chain" (linkBrowseAIChainUI) and pick BOTH robots.');
+  lines.push('        CarHawk runs the list robot, harvests URLs, and bulk-runs the');
+  lines.push('        detail robot itself. Use this only if you are NOT using Browse.ai');
+  lines.push('        Workflows — pick one method, not both.');
+  lines.push('');
 
   // ── IMPORTANT NOTES ──
   if (tg && tg.importantNotes && tg.importantNotes.length > 0) {
