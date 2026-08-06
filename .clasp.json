@@ -23,6 +23,7 @@
     "quantum_crm_api.gs",
     "quantum_knowledge_base.gs",
     "quantum_integrations.gs",
+    "quantum_integration_manager.gs",
     "quantum_alerts.gs",
     "quantum_ui.gs",
     "quantum_dashboard.gs",

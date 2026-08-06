@@ -35,6 +35,7 @@ function createQuantumMenu() {
     .addSubMenu(ui.createMenu('🤝 CRM & Export')
       .addItem('📱 Export to SMS-iT', 'exportQuantumSMS')
       .addItem('🏢 Export to CompanyHub', 'exportQuantumCRM')
+      .addItem('📅 Sync OhMyLead Appointments', 'syncOhmyleadAppointmentsUI')
       .addItem('📧 Generate Campaigns', 'generateQuantumCampaigns')
       .addSeparator()
       .addItem('🔄 Sync CRM Status', 'syncQuantumCRM')

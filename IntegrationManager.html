@@ -6,82 +6,216 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #1a1a2e; color: #e0e0e0; font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; }
     h2 { color: #00d4ff; margin-bottom: 8px; }
-    p.desc { color: #aaa; font-size: 13px; margin-bottom: 20px; }
-    .card { background: #16213e; border-radius: 8px; padding: 16px; margin-bottom: 12px; border: 1px solid #00d4ff22; }
+    h3 { color: #00d4ff; font-size: 14px; margin: 18px 0 8px; }
+    p.desc { color: #aaa; font-size: 13px; margin-bottom: 16px; }
+    .card { background: #16213e; border-radius: 8px; padding: 14px 16px; margin-bottom: 10px; border: 1px solid #00d4ff22; }
     .integration { display: flex; justify-content: space-between; align-items: center; }
     .int-info { display: flex; align-items: center; gap: 12px; }
-    .int-icon { width: 40px; height: 40px; background: #00d4ff22; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+    .int-icon { width: 38px; height: 38px; background: #00d4ff22; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 19px; flex-shrink: 0; }
     .int-name { font-weight: 600; font-size: 14px; }
     .int-detail { color: #aaa; font-size: 12px; margin-top: 2px; }
-    .status { font-size: 11px; padding: 4px 10px; border-radius: 10px; font-weight: 600; }
+    .status { font-size: 11px; padding: 4px 10px; border-radius: 10px; font-weight: 600; white-space: nowrap; }
     .status.connected { background: #00e67622; color: #00e676; }
     .status.disconnected { background: #ff525222; color: #ff5252; }
     .status.pending { background: #ffc10722; color: #ffc107; }
-    .btn-row { display: flex; gap: 10px; margin-top: 16px; }
-    .btn { flex: 1; padding: 10px; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .btn-row { display: flex; gap: 10px; margin-top: 14px; }
+    .btn { flex: 1; padding: 9px; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
     .btn-primary { background: #00d4ff; color: #1a1a2e; }
     .btn-primary:hover { background: #00b8d9; }
+    .btn-secondary { background: #16213e; color: #00d4ff; border: 1px solid #00d4ff44; }
+    .btn-secondary:hover { border-color: #00d4ff; }
     .btn-close { background: #16213e; color: #e0e0e0; border: 1px solid #00d4ff44; }
     .btn-close:hover { border-color: #00d4ff; }
+    .btn:disabled { opacity: 0.5; cursor: wait; }
+    input, select { width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #00d4ff44; background: #0f1930; color: #e0e0e0; font-size: 13px; margin-bottom: 8px; }
+    input:focus, select:focus { outline: none; border-color: #00d4ff; }
+    label { font-size: 12px; color: #aaa; display: block; margin-bottom: 3px; }
+    #msg { margin: 10px 0; padding: 10px 12px; border-radius: 6px; font-size: 13px; display: none; }
+    #msg.ok { display: block; background: #00e67618; color: #00e676; border: 1px solid #00e67644; }
+    #msg.err { display: block; background: #ff525218; color: #ff5252; border: 1px solid #ff525244; }
+    .robot-row { font-size: 12px; color: #ccc; padding: 6px 0; border-bottom: 1px solid #00d4ff11; display: flex; justify-content: space-between; }
+    .robot-row:last-child { border-bottom: none; }
+    .muted { color: #777; font-size: 12px; }
+    .loading { color: #aaa; font-size: 13px; padding: 20px 0; text-align: center; }
+    details { margin-bottom: 10px; }
+    summary { cursor: pointer; color: #00d4ff; font-size: 13px; font-weight: 600; padding: 6px 0; }
   </style>
 </head>
 <body>
   <h2>Integration Manager</h2>
-  <p class="desc">Connect and manage third-party services including Browse.ai, SMS-iT, and more.</p>
+  <p class="desc">Live status of connected services. Data comes from your Integrations sheet and saved configuration.</p>
 
-  <div class="card">
-    <div class="integration">
-      <div class="int-info">
-        <div class="int-icon">&#x1F310;</div>
-        <div><div class="int-name">Browse.ai</div><div class="int-detail">Web scraping &amp; inventory monitoring</div></div>
-      </div>
-      <span class="status connected">Connected</span>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="integration">
-      <div class="int-info">
-        <div class="int-icon">&#x1F4AC;</div>
-        <div><div class="int-name">SMS-iT</div><div class="int-detail">SMS messaging &amp; automation</div></div>
-      </div>
-      <span class="status connected">Connected</span>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="integration">
-      <div class="int-info">
-        <div class="int-icon">&#x1F4DE;</div>
-        <div><div class="int-name">VoIP Provider</div><div class="int-detail">Call tracking &amp; recording</div></div>
-      </div>
-      <span class="status pending">Setup Required</span>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="integration">
-      <div class="int-info">
-        <div class="int-icon">&#x1F4E7;</div>
-        <div><div class="int-name">Email Service</div><div class="int-detail">Transactional &amp; marketing emails</div></div>
-      </div>
-      <span class="status disconnected">Disconnected</span>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="integration">
-      <div class="int-info">
-        <div class="int-icon">&#x1F4B3;</div>
-        <div><div class="int-name">Payment Gateway</div><div class="int-detail">Deposit &amp; payment processing</div></div>
-      </div>
-      <span class="status disconnected">Disconnected</span>
-    </div>
-  </div>
+  <div id="msg"></div>
+  <div id="content" class="loading">Loading integrations&hellip;</div>
 
   <div class="btn-row">
-    <button class="btn btn-primary" onclick="alert('Add integration coming soon')">Add Integration</button>
+    <button class="btn btn-secondary" onclick="loadData()">&#x21bb; Refresh</button>
     <button class="btn btn-close" onclick="google.script.host.close()">Close</button>
   </div>
+
+  <script>
+    function showMsg(text, isError) {
+      var el = document.getElementById('msg');
+      el.textContent = text;
+      el.className = isError ? 'err' : 'ok';
+    }
+    function clearMsg() {
+      var el = document.getElementById('msg');
+      el.className = ''; el.textContent = '';
+    }
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+
+    function loadData() {
+      clearMsg();
+      document.getElementById('content').innerHTML = '<div class="loading">Loading integrations&hellip;</div>';
+      google.script.run
+        .withSuccessHandler(render)
+        .withFailureHandler(function (e) { showMsg('Load failed: ' + e.message, true); })
+        .getIntegrationManagerData();
+    }
+
+    function render(data) {
+      var robots = data.integrations.filter(function (i) { return i.provider === 'Browse.ai'; });
+      var html = '';
+
+      // ---- Browse.ai card ----
+      html += '<div class="card"><div class="integration"><div class="int-info">' +
+        '<div class="int-icon">&#x1F916;</div>' +
+        '<div><div class="int-name">Browse.ai</div><div class="int-detail">Marketplace scraping robots</div></div></div>' +
+        statusBadge(data.config.browseAI || robots.length > 0) + '</div>';
+      if (robots.length) {
+        html += '<div style="margin-top:10px">';
+        robots.forEach(function (r) {
+          html += '<div class="robot-row"><span>' + esc(r.platform) + ' &mdash; ' + esc(r.name) +
+                  (r.chainMode ? ' <span class="muted">(chain)</span>' : '') +
+                  '</span><span class="muted">' + (r.lastSync ? 'synced ' + esc(r.lastSync).slice(0, 21) : 'never synced') + '</span></div>';
+        });
+        html += '</div>';
+      } else {
+        html += '<div class="muted" style="margin-top:8px">No robots registered yet.</div>';
+      }
+      html += '<div class="btn-row">' +
+        '<button class="btn btn-primary" id="importBtn" onclick="runImport()">&#x1F4E5; Import Now</button>' +
+        '</div>';
+
+      // Register robot form
+      html += '<details><summary>+ Register a sheet-based robot</summary>' +
+        '<label>Marketplace</label><select id="regPlatform">' +
+        data.platforms.map(function (p) {
+          return '<option value="' + esc(p.platform) + '">' + esc(p.displayName) + ' (' + esc(p.category) + ')</option>';
+        }).join('') +
+        '</select>' +
+        '<label>Browse.ai export Google Sheet ID (from the sheet URL, between /d/ and /edit)</label>' +
+        '<input id="regSheetId" placeholder="1AbC...XyZ">' +
+        '<label>Robot name (optional)</label>' +
+        '<input id="regName" placeholder="Facebook - Detail">' +
+        '<button class="btn btn-primary" id="regBtn" onclick="registerRobot()" style="width:100%">Register Robot</button>' +
+        '</details>';
+
+      // API key form
+      html += '<details><summary>' + (data.config.browseAI ? '&#x2713; API key saved &mdash; update' : 'Set Browse.ai API key') + '</summary>' +
+        '<label>API key (Browse.ai dashboard &rarr; API tab)</label>' +
+        '<input id="browseKey" type="password" placeholder="Paste API key">' +
+        '<button class="btn btn-primary" onclick="saveSetting(\'BROWSE_AI_API_KEY\', \'browseKey\')" style="width:100%">Save Key</button>' +
+        '</details>';
+      html += '</div>';
+
+      // ---- OhMyLead card ----
+      html += '<div class="card"><div class="integration"><div class="int-info">' +
+        '<div class="int-icon">&#x1F4C5;</div>' +
+        '<div><div class="int-name">OhMyLead</div><div class="int-detail">Appointment sync via webhook</div></div></div>' +
+        statusBadge(data.config.ohmylead) + '</div>';
+      html += '<div class="btn-row">' +
+        '<button class="btn btn-primary" id="omlBtn" onclick="syncOhmylead()"' + (data.config.ohmylead ? '' : ' disabled') + '>&#x1F504; Sync Appointments</button>' +
+        '</div>';
+      html += '<details><summary>' + (data.config.ohmylead ? '&#x2713; Webhook saved &mdash; update' : 'Set webhook URL') + '</summary>' +
+        '<label>OhMyLead webhook URL</label>' +
+        '<input id="omlUrl" placeholder="https://...">' +
+        '<button class="btn btn-primary" onclick="saveSetting(\'OHMYLEAD_WEBHOOK_URL\', \'omlUrl\')" style="width:100%">Save Webhook</button>' +
+        '</details>';
+      html += '</div>';
+
+      // ---- SMS-iT card ----
+      html += '<div class="card"><div class="integration"><div class="int-info">' +
+        '<div class="int-icon">&#x1F4AC;</div>' +
+        '<div><div class="int-name">SMS-iT</div><div class="int-detail">SMS messaging &amp; export</div></div></div>' +
+        statusBadge(data.config.smsit) + '</div>';
+      html += '<details><summary>' + (data.config.smsit ? '&#x2713; API key saved &mdash; update' : 'Set API key') + '</summary>' +
+        '<label>SMS-iT API key</label>' +
+        '<input id="smsitKey" type="password" placeholder="Paste API key">' +
+        '<button class="btn btn-primary" onclick="saveSetting(\'SMSIT_API_KEY\', \'smsitKey\')" style="width:100%">Save Key</button>' +
+        '</details>';
+      html += '</div>';
+
+      // ---- CompanyHub card ----
+      html += '<div class="card"><div class="integration"><div class="int-info">' +
+        '<div class="int-icon">&#x1F3E2;</div>' +
+        '<div><div class="int-name">CompanyHub</div><div class="int-detail">CSV export of recommended deals</div></div></div>' +
+        '<span class="status connected">CSV Export</span></div>' +
+        '<div class="muted" style="margin-top:8px">Run from the CarHawk menu: CRM &amp; Export &rarr; Export to CompanyHub (needs a confirmation prompt, so it lives in the menu).</div>' +
+        '</div>';
+
+      document.getElementById('content').innerHTML = html;
+    }
+
+    function statusBadge(on) {
+      return on
+        ? '<span class="status connected">Connected</span>'
+        : '<span class="status pending">Setup Required</span>';
+    }
+
+    function runImport() {
+      clearMsg();
+      var btn = document.getElementById('importBtn');
+      btn.disabled = true; btn.textContent = 'Importing…';
+      google.script.run
+        .withSuccessHandler(function (r) {
+          showMsg(r.message || ('Imported ' + r.totalImported + ' new listing(s): ' +
+            r.results.map(function (x) { return x.platform + ' ' + x.imported; }).join(', ')), false);
+          loadData();
+        })
+        .withFailureHandler(function (e) { showMsg('Import failed: ' + e.message, true); btn.disabled = false; btn.textContent = '📥 Import Now'; })
+        .imImportBrowseAI();
+    }
+
+    function registerRobot() {
+      clearMsg();
+      var platform = document.getElementById('regPlatform').value;
+      var sheetId = document.getElementById('regSheetId').value.trim();
+      var name = document.getElementById('regName').value.trim();
+      if (!sheetId) { showMsg('Sheet ID is required.', true); return; }
+      var btn = document.getElementById('regBtn');
+      btn.disabled = true; btn.textContent = 'Registering…';
+      google.script.run
+        .withSuccessHandler(function (r) { showMsg('Robot registered for ' + r.platform + '! Use Import Now to pull data.', false); loadData(); })
+        .withFailureHandler(function (e) { showMsg(e.message, true); btn.disabled = false; btn.textContent = 'Register Robot'; })
+        .imRegisterRobot(platform, sheetId, name);
+    }
+
+    function syncOhmylead() {
+      clearMsg();
+      var btn = document.getElementById('omlBtn');
+      btn.disabled = true; btn.textContent = 'Syncing…';
+      google.script.run
+        .withSuccessHandler(function () { showMsg('OhMyLead appointments synced.', false); loadData(); })
+        .withFailureHandler(function (e) { showMsg(e.message, true); btn.disabled = false; btn.textContent = '🔄 Sync Appointments'; })
+        .imSyncOhmylead();
+    }
+
+    function saveSetting(key, inputId) {
+      clearMsg();
+      var value = document.getElementById(inputId).value;
+      google.script.run
+        .withSuccessHandler(function () { showMsg('Saved.', false); loadData(); })
+        .withFailureHandler(function (e) { showMsg(e.message, true); })
+        .imSaveSetting(key, value);
+    }
+
+    loadData();
+  </script>
 </body>
 </html>

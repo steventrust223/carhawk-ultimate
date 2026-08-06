@@ -81,3 +81,24 @@ function receiveOhmyleadBooking(bookingData) {
 
   return appointmentId;
 }
+
+/**
+ * Menu wrapper: sync appointments to OhMyLead with a status alert.
+ */
+function syncOhmyleadAppointmentsUI() {
+  const ui = SpreadsheetApp.getUi();
+  if (!getQuantumSetting('OHMYLEAD_WEBHOOK_URL')) {
+    ui.alert(
+      'OhMyLead Not Configured',
+      'No webhook URL saved yet.\n\nOpen Integration Manager (CarHawk menu) and set the OhMyLead webhook URL first.',
+      ui.ButtonSet.OK
+    );
+    return;
+  }
+  try {
+    syncOhmyleadAppointments();
+    ui.alert('OhMyLead Sync', 'Sync complete. Check Activity Logs for details.', ui.ButtonSet.OK);
+  } catch (error) {
+    ui.alert('OhMyLead Sync Error', error.toString(), ui.ButtonSet.OK);
+  }
+}
