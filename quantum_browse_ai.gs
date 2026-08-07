@@ -221,6 +221,19 @@ function mapBrowseAIColumnsPlatform(headers, platform) {
     }
   }
 
+  // Browse.ai auto-adds an "Origin URL" column on workflow/detail-robot
+  // exports where no url field was trained. Without this fallback, every
+  // row would be skipped as having no URL.
+  if (columnMap.url === undefined) {
+    for (let i = 0; i < headers.length; i++) {
+      const header = String(headers[i]).toLowerCase().replace(/\s+/g, '_');
+      if (header === 'origin_url' || header === 'originurl' || header === 'task_link') {
+        columnMap.url = i;
+        break;
+      }
+    }
+  }
+
   return columnMap;
 }
 
