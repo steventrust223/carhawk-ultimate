@@ -14,7 +14,7 @@
 2. Creates 3 trigger groups:
 
 | Trigger | Frequency | Function | Purpose |
-|---------|-----------|----------|---------|
+|---------|-----------|----------|----------|
 | Hourly Sync | Every 1 hour | `quantumHourlySync()` | Import + data refresh |
 | Daily Analysis | Daily at 6 AM | `quantumDailyAnalysis()` | Batch AI + reports |
 | CRM Triggers | Variable | `setupCRMTriggers()` | Follow-ups + campaigns |
@@ -225,7 +225,7 @@ HTML email with:
 `generateMarketInsights()` returns dynamic insights:
 
 | Condition | Insight |
-|-----------|---------|
+|-----------|----------|
 | SUV count > sedan count | "SUV demand trending higher than sedans" |
 | Quick Flip count > 5 | "Quick flip opportunities above average" |
 | (always) | "Sweet spot: 2018-2020 models with under 80k miles" |
@@ -251,7 +251,7 @@ HTML email with:
 #### Test Functions
 
 | Function | Purpose |
-|----------|---------|
+|----------|----------|
 | `testCRMFunctions()` | Tests appointment, SMS, and campaign creation |
 | `createTestDeal()` | Creates sample deal in database |
 | `simulateInboundSMS()` | Logs 4 test SMS responses |
@@ -314,7 +314,7 @@ All system events are logged to the Activity Logs sheet via two functions:
 #### Log Levels Used
 
 | Level | Used For |
-|-------|---------|
+|-------|----------|
 | INFO | Normal operations, syncs, exports |
 | ALERT | Hot deal alerts, compliance warnings |
 | ERROR | API failures, sync errors |
@@ -326,7 +326,7 @@ All system events are logged to the Activity Logs sheet via two functions:
 **Source File:** quantum_utilities.gs (392 lines)
 
 | Function | Purpose |
-|----------|---------|
+|----------|----------|
 | `getQuantumSheet(name)` | Get sheet by name |
 | `getQuantumSetting(key)` | Read setting from Settings sheet |
 | `setQuantumSetting(key, value)` | Write/update setting |
@@ -353,11 +353,12 @@ All system events are logged to the Activity Logs sheet via two functions:
 | Part | File | Covers |
 |------|------|--------|
 | 1 | SPEC_PACK_PART1_SYSTEM_OVERVIEW.md | Identity, architecture, file inventory, config, menu, initialization |
-| 2 | SPEC_PACK_PART2_SHEET_SCHEMAS.md | All 25 sheet schemas with exact column definitions |
+| 2 | SPEC_PACK_PART2_SHEET_SCHEMAS.md | All 25 core + Turo sheet schemas with exact column definitions |
 | 3 | SPEC_PACK_PART3_AI_ENGINE.md | OpenAI integration, calculations, scoring, knowledge base |
 | 4 | SPEC_PACK_PART4_CRM_ENGINE.md | CRM pipeline, follow-ups, SMS/email, automation, API layer |
 | 5 | SPEC_PACK_PART5_BROWSE_AI.md | Browse.AI robots, import pipeline, 10 platforms, URL builders |
 | 6 | SPEC_PACK_PART6_INTEGRATIONS.md | SMS-iT, Ohmylead, CompanyHub, API delivery, credentials |
 | 7 | SPEC_PACK_PART7_UI_COMPONENTS.md | 18 HTML dialogs, server-side HTML, design system |
 | 8 | SPEC_PACK_PART8_TRIGGERS_ALERTS.md | Triggers, alerts, reporting, dashboard, testing, utilities |
+| **9** | **SPEC_PACK_PART9_PAM.md** | **Project Arbitrage Module -- projects, needs, matching, AI evaluation** |
 | Turo | TURO_SPEC_PACK.md | Complete Turo Rental Hold Module specification |

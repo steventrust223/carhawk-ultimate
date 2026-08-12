@@ -1,5 +1,5 @@
 # CarHawk Ultimate -- System Overview & Architecture
-## Spec Pack Part 1 of 8 | QUANTUM-2.0.0
+## Spec Pack Part 1 of 9 | QUANTUM-2.0.0
 
 ---
 
@@ -31,18 +31,19 @@ CarHawk Ultimate is an enterprise-grade Google Apps Script suite for AI-powered 
 5. **Engage** -- Automated SMS/Email follow-up sequences contact sellers
 6. **Track** -- Full CRM pipeline: leads, appointments, calls, campaigns, closed deals
 7. **Decide** -- Flip vs. Hold (Turo) decision framework with financial modeling
-8. **Report** -- Dashboards, weekly/monthly reports, ROI optimization
+8. **Arbitrage** -- Project-based sourcing: define needs, auto-match listings, AI-evaluate fits (PAM)
+9. **Report** -- Dashboards, weekly/monthly reports, ROI optimization
 
 ---
 
 ### C) File Inventory
 
-**Total Codebase: ~18,400 lines across 56 files**
+**Total Codebase: ~21,400 lines across 64 files**
 
 #### Quantum CRM Core (31 .gs files)
 
 | # | File | Lines | Purpose |
-|---|------|-------|---------|
+|---|------|-------|----------|
 | 1 | quantum_config.gs | 24 | Central version & identity constants |
 | 2 | quantum_core.gs | 110 | State management, sheet definitions, config, capital tiers |
 | 3 | quantum_utilities.gs | 392 | Settings, logging, ID generation, data helpers |
@@ -80,7 +81,7 @@ CarHawk Ultimate is an enterprise-grade Google Apps Script suite for AI-powered 
 #### Turo Rental Module (7 .gs files -- see TURO_SPEC_PACK.md)
 
 | # | File | Lines | Purpose |
-|---|------|-------|---------|
+|---|------|-------|----------|
 | 1 | turo_config.gs | 563 | Vehicle classification, pricing, seasonality |
 | 2 | turo_setup.gs | 603 | Idempotent sheet creation for 5 Turo sheets |
 | 3 | turo_engine.gs | 872 | Turo economics, hold score, risk tiers |
@@ -89,10 +90,23 @@ CarHawk Ultimate is an enterprise-grade Google Apps Script suite for AI-powered 
 | 6 | turo_compliance.gs | 235 | Insurance, registration, inspection alerts |
 | 7 | turo_tests.gs | 565 | 7-test acceptance suite |
 
+#### Project Arbitrage Module (8 files -- see SPEC_PACK_PART9_PAM.md)
+
+| # | File | Lines | Purpose |
+|---|------|-------|----------|
+| 1 | PAM_Settings.gs | 113 | Settings sheet management and defaults |
+| 2 | PAM_Utils.gs | 154 | ID generation, keyword scoring, formatting helpers |
+| 3 | PAM_Sheets.gs | 258 | Idempotent sheet creation for 6 PAM sheets |
+| 4 | PAM_DataAccess.gs | 310 | CRUD operations for all PAM sheets |
+| 5 | PAM_LogicEngine.gs | 228 | Layer 1 rule-based keyword + scoring engine |
+| 6 | PAM_AIEngine.gs | 258 | Layer 2 OpenAI gpt-4o-mini evaluation |
+| 7 | PAM_Menu.gs | 61 | Menu registration and test data seeder |
+| 8 | PAM_UI.html | 1,654 | Full Command Center dashboard (5 tabs) |
+
 #### HTML UI Components (18 files)
 
 | File | Type | Purpose |
-|------|------|---------|
+|------|------|----------|
 | AppointmentManager.html | Modal | Schedule test drives, deliveries, inspections |
 | CallLogs.html | Modal | Call history with inbound/outbound/missed tracking |
 | CampaignManager.html | Modal | SMS/Email campaign management |
@@ -115,7 +129,7 @@ CarHawk Ultimate is an enterprise-grade Google Apps Script suite for AI-powered 
 #### Config Files
 
 | File | Purpose |
-|------|---------|
+|------|----------|
 | appsscript.json | GAS manifest: timezone, scopes, runtime |
 | .clasp.json | clasp CLI: script ID, push order (56 files) |
 
@@ -124,7 +138,7 @@ CarHawk Ultimate is an enterprise-grade Google Apps Script suite for AI-powered 
 ### D) OAuth Scopes Required
 
 | Scope | Purpose |
-|-------|---------|
+|-------|----------|
 | spreadsheets.currentonly | Current spreadsheet access |
 | spreadsheets | Full Sheets access |
 | drive | Google Drive (file exports) |
@@ -200,7 +214,7 @@ const QuantumState = {
 Settings stored in the Settings sheet (key-value):
 
 | Key | Default | Type | Purpose |
-|-----|---------|------|---------|
+|-----|---------|------|----------|
 | BUSINESS_NAME | (required) | String | Company name for branding |
 | HOME_ZIP | 63101 | String | Base location for distance calc |
 | OPENAI_API_KEY | (required) | String | GPT-4 API access |
@@ -228,6 +242,7 @@ Settings stored in the Settings sheet (key-value):
 | LAST_ANALYSIS | (auto) | ISO Date | Last daily analysis |
 
 Plus 20 Turo-specific settings (see TURO_SPEC_PACK.md).
+Plus 12 PAM-specific settings (see SPEC_PACK_PART9_PAM.md).
 
 ---
 
@@ -246,6 +261,16 @@ Plus 20 Turo-specific settings (see TURO_SPEC_PACK.md).
 | 🤖 Browse.ai Robots | 9 | setBrowseAIApiKeyUI, showBrowseAIRobotsUI, linkBrowseAIRobotUI, registerRobotUI, showRobotSetupGuide, deployRobotUI, fetchAndImportBrowseAIDataUI, importFromBrowseAI, showRobotStatusUI |
 | 🛠️ Tools & Utilities | 7 | openQuantumVINDecoder, openDealCalculatorPro, generateMarketHeatMap, openKnowledgeBase, runSystemDiagnostics, openQuantumSettings, openIntegrationManager |
 | 🚗 Turo Module | 8 | analyzeTuroSelected, batchAnalyzeTuro, refreshFleetManager, addToFleetSelected, updateFleetFinancials, logMaintenanceEvent, checkComplianceAlerts, setupTuroModule |
+
+**PAM Menu (separate top-level):**
+
+| Item | Function |
+|------|----------|
+| Open Command Center | openPAMDashboard |
+| Run Logic Engine | runPAMLogicEngine |
+| Run AI Evaluation | runPAMAIEvaluation |
+| Full Cycle (Logic → AI) | runPAMFullCycle |
+| Initialize PAM Sheets | initializePAMSheets |
 
 **Quick Access (top-level):**
 - Deal Gallery, Quick Actions, Deal Analyzer, Quantum Help, About CarHawk Ultimate
