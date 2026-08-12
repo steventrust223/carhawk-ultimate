@@ -484,14 +484,20 @@ function extractStructuredTags(description) {
 function parseQuantumPrice(priceStr) {
   if (!priceStr) return 0;
 
+  // Sheets returns numeric cells as numbers, so never assume a string here.
+  if (typeof priceStr === 'number') return Math.round(priceStr);
+
+  const raw = String(priceStr);
+
   // Remove all non-numeric except decimal
-  const cleaned = priceStr.replace(/[^0-9.]/g, '');
+  const cleaned = raw.replace(/[^0-9.]/g, '');
 
   // Handle different formats
   let price = parseFloat(cleaned);
+  if (isNaN(price)) return 0;
 
   // If price seems too low, might be in thousands
-  if (price < 100 && priceStr.toLowerCase().includes('k')) {
+  if (price < 100 && raw.toLowerCase().includes('k')) {
     price *= 1000;
   }
 
@@ -573,7 +579,7 @@ function extractQuantumSellerInfo(sellerStr, description) {
 
   // Name extraction
   if (sellerStr) {
-    const nameMatch = sellerStr.match(/^([A-Za-z]+(?:\s+[A-Za-z]+)?)/);
+    const nameMatch = String(sellerStr).match(/^([A-Za-z]+(?:\s+[A-Za-z]+)?)/);
     if (nameMatch) {
       info.sellerName = nameMatch[1];
     }
