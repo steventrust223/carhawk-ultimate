@@ -99,7 +99,10 @@ function processBrowseAIIntegration(integration) {
       // often carry a blank trained url column (the real link lives in
       // Browse.ai's Origin URL column, or nowhere), so fall back to
       // scanning the row for a listing link before giving up.
-      const url = resolveField(row, columnMap, 'url') || findUrlInRow(row) || '';
+      const url = resolveField(row, columnMap, 'url')
+        || resolveField(row, columnMap, 'originUrl')
+        || findUrlInRow(row)
+        || '';
 
       // Skip if empty URL or already processed
       if (!url) {
@@ -224,16 +227,14 @@ function mapBrowseAIColumnsPlatform(headers, platform) {
     }
   }
 
-  // Browse.ai auto-adds an "Origin URL" column on workflow/detail-robot
-  // exports where no url field was trained. Without this fallback, every
-  // row would be skipped as having no URL.
-  if (columnMap.url === undefined) {
-    for (let i = 0; i < headers.length; i++) {
-      const header = String(headers[i]).toLowerCase().replace(/\s+/g, '_');
-      if (header === 'origin_url' || header === 'originurl' || header === 'task_link') {
-        columnMap.url = i;
-        break;
-      }
+  // Browse.ai auto-adds an "Origin URL" column carrying the listing URL the
+  // task ran against. Map it separately (not as url) so it can be used as an
+  // explicit fallback when the trained url column is missing or blank.
+  for (let i = 0; i < headers.length; i++) {
+    const header = String(headers[i]).toLowerCase().replace(/\s+/g, '_');
+    if (header === 'origin_url' || header === 'originurl') {
+      columnMap.originUrl = i;
+      break;
     }
   }
 
@@ -251,8 +252,12 @@ function findUrlInRow(row) {
     const val = row[i];
     if (typeof val === 'string') {
       const trimmed = val.trim();
-      // Must START with http so long descriptions containing links don't match
-      if (/^https?:\/\/\S+$/i.test(trimmed)) return trimmed;
+      // Must be the WHOLE cell so descriptions containing links don't match
+      if (!/^https?:\/\/\S+$/i.test(trimmed)) continue;
+      // Browse.ai's own "Job Link" column points at the dashboard, not the
+      // listing — never mistake it for the marketplace URL.
+      if (/browse\.ai/i.test(trimmed)) continue;
+      return trimmed;
     }
   }
   return '';
