@@ -112,7 +112,9 @@ function processQuantumImport(rowData, rowNum) {
     metrics.locationFlag,
     parsed.condition,
     metrics.conditionScore,
-    parsed.repairKeywords.join(', '),
+    // findRepairKeywords returns {keyword, severity, estimatedCost} objects —
+    // join them raw and the cell reads "[object Object]".
+    parsed.repairKeywords.map(k => (k && k.keyword) ? k.keyword : k).join(', '),
     metrics.repairRiskScore,
     metrics.estimatedRepairCost,
     metrics.marketValue,
