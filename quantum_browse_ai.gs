@@ -458,3 +458,51 @@ function markUrlProcessed(url) {
 
   props.setProperty('PROCESSED_URLS', JSON.stringify(urls));
 }
+
+// =========================================================
+// MAINTENANCE
+// =========================================================
+
+/**
+ * Clear Master Import rows and the processed-URL cache so Browse.ai data
+ * can be re-imported from scratch.
+ *
+ * Needed after the Master Import schema changes: rows written under an older
+ * column layout sit misaligned under the new headers, and the dedup cache
+ * would otherwise skip every listing on re-import.
+ *
+ * Does NOT touch Master Database — delete deals there manually if required.
+ */
+function resetBrowseAIImports() {
+  const ui = SpreadsheetApp.getUi();
+
+  const response = ui.alert(
+    'Reset Browse.ai Imports',
+    'This will:\n' +
+    '  • delete ALL data rows in Master Import (headers kept)\n' +
+    '  • clear the processed-URL cache so listings re-import\n\n' +
+    'Master Database is NOT touched.\n\nContinue?',
+    ui.ButtonSet.YES_NO
+  );
+  if (response !== ui.Button.YES) return;
+
+  const sheet = getQuantumSheet(QUANTUM_SHEETS.IMPORT.name);
+  const lastRow = sheet.getLastRow();
+  let cleared = 0;
+
+  if (lastRow > 1) {
+    cleared = lastRow - 1;
+    sheet.deleteRows(2, cleared);
+  }
+
+  PropertiesService.getScriptProperties().deleteProperty('PROCESSED_URLS');
+
+  logQuantum('Import Reset', `Cleared ${cleared} Master Import rows and the processed-URL cache`);
+
+  ui.alert(
+    'Reset Complete',
+    `Removed ${cleared} row(s) from Master Import and cleared the URL cache.\n\n` +
+    'Now run: Browse.ai Robots > Import from Sheets',
+    ui.ButtonSet.OK
+  );
+}

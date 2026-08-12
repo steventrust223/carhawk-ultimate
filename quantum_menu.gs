@@ -90,7 +90,8 @@ function createQuantumMenu() {
       .addItem('📥 Fetch & Import Data', 'fetchAndImportBrowseAIDataUI')
       .addItem('📥 Import from Sheets', 'importFromBrowseAI')
       .addSeparator()
-      .addItem('📊 Robot Status', 'showRobotStatusUI'))
+      .addItem('📊 Robot Status', 'showRobotStatusUI')
+      .addItem('🧹 Reset Imports (re-import all)', 'resetBrowseAIImports'))
 
     // Tools & Utilities
     .addSubMenu(ui.createMenu('🛠️ Tools & Utilities')
