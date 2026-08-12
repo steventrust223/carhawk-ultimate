@@ -412,11 +412,7 @@ function quantumParseVehicle(data) {
   if (zipMatch) parsed.zip = zipMatch[0];
 
   // Calculate days listed
-  if (data.postedDate) {
-    const posted = new Date(data.postedDate);
-    const now = new Date();
-    parsed.daysListed = Math.floor((now - posted) / (1000 * 60 * 60 * 24));
-  }
+  parsed.daysListed = parseDaysListed(data.postedDate);
 
   // Extract seller information with quantum patterns
   const sellerData = extractQuantumSellerInfo(data.sellerInfo, data.rawDescription);
@@ -630,4 +626,56 @@ function extractQuantumSellerInfo(sellerStr, description) {
  */
 function escapeRegExp_(str) {
   return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Convert a listing's posted-date field into a whole number of days.
+ *
+ * Marketplaces publish relative times ("17 hours ago", "a week ago",
+ * "Listed 4 days ago"), which `new Date()` cannot parse. The old code fed
+ * that straight into a date subtraction, producing NaN and writing #NUM!
+ * into the Days Listed column — and NaN then flowed into sales-velocity
+ * scoring.
+ *
+ * @return {number} days since listing; 0 when unknown or in the future
+ */
+function parseDaysListed(postedDate) {
+  if (!postedDate) return 0;
+
+  const MS_PER_DAY = 1000 * 60 * 60 * 24;
+  const now = new Date();
+
+  // Real Date object (Sheets hands these back for true date cells)
+  if (Object.prototype.toString.call(postedDate) === '[object Date]') {
+    if (isNaN(postedDate.getTime())) return 0;
+    return Math.max(0, Math.floor((now - postedDate) / MS_PER_DAY));
+  }
+
+  const text = String(postedDate).trim().toLowerCase();
+  if (!text) return 0;
+
+  // "just listed", "just now", "moments ago"
+  if (/\b(just|moments?|now)\b/.test(text) && !/\d/.test(text)) return 0;
+
+  // "17 hours ago", "a week ago", "listed 4 days ago", "about 2 months ago"
+  const rel = text.match(/(\d+|a|an)\s*(minute|min|hour|hr|day|week|month|year)s?\s*ago/);
+  if (rel) {
+    const qty = (rel[1] === 'a' || rel[1] === 'an') ? 1 : parseInt(rel[1], 10);
+    if (!isNaN(qty)) {
+      const perUnit = {
+        minute: 1 / 1440, min: 1 / 1440,
+        hour: 1 / 24, hr: 1 / 24,
+        day: 1, week: 7, month: 30, year: 365
+      };
+      return Math.max(0, Math.floor(qty * perUnit[rel[2]]));
+    }
+  }
+
+  // Fall back to a real date string, e.g. "2026-08-11"
+  const parsedDate = new Date(postedDate);
+  if (!isNaN(parsedDate.getTime())) {
+    return Math.max(0, Math.floor((now - parsedDate) / MS_PER_DAY));
+  }
+
+  return 0; // Unknown — never return NaN
 }
