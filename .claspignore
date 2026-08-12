@@ -1,0 +1,16 @@
+# Files kept in the repo but never deployed to Apps Script.
+#
+# main.gs is a stale full copy of the system: all 184 of its functions are
+# also defined in the modular quantum_*/turo_*/PAM_* files, and it declares
+# no top-level constants of its own. Apps Script puts every file in one
+# global scope, so whichever definition loads last wins — and because main.gs
+# is not in .clasp.json's filePushOrder it loaded last, silently overriding
+# the newer modular versions (e.g. the 19-column setupImportHeaders was
+# replaced by its old 16-column twin). Kept in git for reference only.
+main.gs
+main.gs.backup-v2.0.0
+
+# Local tooling / docs — not part of the Apps Script project.
+node_modules/**
+.git/**
+*.md
