@@ -69,6 +69,24 @@ function calculateQuantumMetrics(parsed) {
   // Priority calculation
   metrics.priority = calculateQuantumPriority(metrics);
 
+  // Data quality gate.
+  // Profit is marketValue - price - repairs - holding, so a listing whose
+  // price failed to capture (0) shows a huge fake profit and enormous ROI,
+  // and lands at the top of the deal list. Never rank on numbers we do not
+  // actually have — surface it for review instead.
+  const quality = assessDataQuality(parsed);
+  metrics.dataQuality = quality.status;
+  metrics.dataIssues = quality.issues.join('; ');
+
+  if (!quality.usable) {
+    metrics.profitMargin = 0;
+    metrics.roi = 0;
+    metrics.priority = 'Needs Review';
+    metrics.dealFlag = '⚠️ ' + metrics.dataIssues;
+  } else {
+    metrics.dealFlag = '';
+  }
+
   return metrics;
 }
 
@@ -389,4 +407,39 @@ function calculateQuantumPriority(metrics) {
   if (score > 70) return 'High';
   if (score > 40) return 'Medium';
   return 'Low';
+}
+
+/**
+ * Judge whether a parsed listing carries enough real data to be scored.
+ *
+ * Missing fields default to 0, and 0 is not neutral in this model: a price
+ * of 0 produces a fake profit equal to the whole market value, so the worst
+ * listings rank highest. Flag these instead of scoring them.
+ *
+ * @return {{usable:boolean, status:string, issues:string[]}}
+ */
+function assessDataQuality(parsed) {
+  const issues = [];
+
+  if (!parsed.price || parsed.price <= 0) {
+    issues.push('No price captured');
+  }
+
+  // Powersports listings legitimately use hours instead of miles.
+  const isPowersport = !!parsed.hours && parsed.hours > 0;
+  if (!isPowersport && (!parsed.mileage || parsed.mileage <= 0)) {
+    issues.push('No mileage captured');
+  }
+
+  if (!parsed.year) {
+    issues.push('No year identified');
+  }
+
+  // A price alone is not enough to value a vehicle, but it is the field that
+  // actually breaks the maths — treat any missing core field as unusable.
+  return {
+    usable: issues.length === 0,
+    status: issues.length === 0 ? 'OK' : 'Incomplete',
+    issues: issues
+  };
 }

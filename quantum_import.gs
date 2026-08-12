@@ -130,7 +130,7 @@ function processQuantumImport(rowData, rowNum) {
     parsed.sellerPhone,
     parsed.sellerEmail,
     parsed.sellerType,
-    '', // Deal Flag (AI will determine)
+    metrics.dealFlag || '', // Deal Flag (data-quality warning, else AI fills)
     parsed.hotSeller,
     parsed.multipleVehicles,
     '', // Seller Message (AI will generate)
@@ -314,23 +314,26 @@ function quantumParseVehicle(data) {
   }
   if (makeMatch) parsed.make = standardizeMake(makeMatch[0]);
 
-  // Extract model (context-aware)
+  // Extract model (context-aware).
+  // Model tokens allow hyphens so "F-150", "CR-V" and "Mazda3" survive —
+  // a bare \w+ stops at the hyphen and yields "F" for an F-150.
   if (parsed.make) {
+    const MODEL_TOKEN = '([\\w-]+(?:\\s+[\\w-]+)?)';
     // Try purged title first
-    const modelPattern = new RegExp(parsed.make + '\\s+(\\w+(?:\\s+\\w+)?)', 'i');
+    const modelPattern = new RegExp(escapeRegExp_(parsed.make) + '\\s+' + MODEL_TOKEN, 'i');
     let modelMatch = purgedTitle.match(modelPattern);
     // Facebook fallback: try description
     if (!modelMatch && data.platform === 'Facebook') {
       const rawMake = makeMatch ? makeMatch[0] : parsed.make;
-      const rawModelPattern = new RegExp(rawMake + '\\s+(\\w+(?:\\s+\\w+)?)', 'i');
+      const rawModelPattern = new RegExp(escapeRegExp_(rawMake) + '\\s+' + MODEL_TOKEN, 'i');
       modelMatch = descriptionText.match(rawModelPattern) || descriptionText.match(modelPattern);
     }
-    if (modelMatch) parsed.model = modelMatch[1];
+    if (modelMatch) parsed.model = modelMatch[1].replace(/[-\s]+$/, '');
   }
 
   // Extract trim from Craigslist purged title (often has trim after model)
   if (data.platform === 'Craigslist' && parsed.model) {
-    const trimPattern = new RegExp(parsed.model + '\\s+(limited|sport|se|le|xle|sr5|lx|ex|touring|premium|base|sxt|slt|lt|ls|xl|xlt|sel|awd|4x4|4wd)', 'i');
+    const trimPattern = new RegExp(escapeRegExp_(parsed.model) + '\\s+(limited|sport|se|le|xle|sr5|lx|ex|touring|premium|base|sxt|slt|lt|ls|xl|xlt|sel|awd|4x4|4wd)', 'i');
     const trimMatch = purgedTitle.match(trimPattern);
     if (trimMatch) parsed.trim = trimMatch[1].toUpperCase();
   }
@@ -356,6 +359,14 @@ function quantumParseVehicle(data) {
     if (mileageMatch) {
       parsed.mileage = parseInt(mileageMatch[1] + (mileageMatch[2] || '000'));
     }
+  }
+
+  // Sanity check: robots sometimes capture the model year in the mileage
+  // field (a 2025 KTM came through as "2025 miles"). A mileage that exactly
+  // matches the listing year is the year, not the odometer — drop it rather
+  // than let a near-zero reading inflate the valuation.
+  if (parsed.mileage && parsed.year && String(parsed.mileage) === String(parsed.year)) {
+    parsed.mileage = 0;
   }
 
   // Extract VIN - prefer structured tag, fall back to regex
@@ -609,4 +620,14 @@ function extractQuantumSellerInfo(sellerStr, description) {
   }
 
   return info;
+}
+
+/**
+ * Escape a string for safe use inside a RegExp.
+ * Make and model values are interpolated into patterns, and values like
+ * "Can-Am" or a mis-parsed "450 sx-f (" would otherwise alter the pattern
+ * or throw a SyntaxError.
+ */
+function escapeRegExp_(str) {
+  return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
