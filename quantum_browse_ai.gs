@@ -95,8 +95,11 @@ function processBrowseAIIntegration(integration) {
     const row = data[i];
 
     try {
-      // Resolve URL from multiple possible columns
-      const url = resolveField(row, columnMap, 'url') || '';
+      // Resolve URL from multiple possible columns. Detail-robot exports
+      // often carry a blank trained url column (the real link lives in
+      // Browse.ai's Origin URL column, or nowhere), so fall back to
+      // scanning the row for a listing link before giving up.
+      const url = resolveField(row, columnMap, 'url') || findUrlInRow(row) || '';
 
       // Skip if empty URL or already processed
       if (!url) {
@@ -235,6 +238,24 @@ function mapBrowseAIColumnsPlatform(headers, platform) {
   }
 
   return columnMap;
+}
+
+/**
+ * Last-resort URL finder: scan every cell in a row for an http(s) link.
+ * Detail-robot exports frequently leave the trained url column blank and
+ * carry the listing link in Browse.ai's auto-added Origin URL column, whose
+ * header varies. Without this, every such row is skipped as "no URL".
+ */
+function findUrlInRow(row) {
+  for (let i = 0; i < row.length; i++) {
+    const val = row[i];
+    if (typeof val === 'string') {
+      const trimmed = val.trim();
+      // Must START with http so long descriptions containing links don't match
+      if (/^https?:\/\/\S+$/i.test(trimmed)) return trimmed;
+    }
+  }
+  return '';
 }
 
 /**
