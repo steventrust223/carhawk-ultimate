@@ -4,6 +4,7 @@
   "filePushOrder": [
     "quantum_config.gs",
     "quantum_core.gs",
+    "quantum_geo.gs",
     "quantum_utilities.gs",
     "quantum_headers.gs",
     "quantum_setup.gs",

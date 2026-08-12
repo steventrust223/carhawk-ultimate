@@ -24,7 +24,7 @@ function calculateQuantumMetrics(parsed) {
   };
 
   // Distance calculation
-  metrics.distance = calculateQuantumDistance(parsed.zip);
+  metrics.distance = calculateQuantumDistance(parsed.zip, parsed.location);
   const locRisk = assessLocationRisk(metrics.distance);
   metrics.locationRisk = locRisk.risk;
   metrics.locationFlag = locRisk.flag;
@@ -72,20 +72,37 @@ function calculateQuantumMetrics(parsed) {
   return metrics;
 }
 
-function calculateQuantumDistance(targetZip) {
-  if (!targetZip) return 999; // Unknown location
+/**
+ * Distance in miles from home base to a listing.
+ *
+ * Marketplace listings usually carry "City, ST" and no ZIP, so resolve the
+ * location string to coordinates and measure real great-circle distance.
+ * Returns null when the location cannot be resolved — callers must treat
+ * that as unknown, NOT as far away, or every unresolved listing gets
+ * penalised as high risk.
+ *
+ * @param {string} targetZip   ZIP if the listing happened to include one
+ * @param {string} locationStr Raw location text, e.g. "Chesterfield, MO"
+ * @return {number|null} miles, or null if unresolvable
+ */
+function calculateQuantumDistance(targetZip, locationStr) {
+  const home = getQuantumHomeCoords();
 
-  const homeZip = getQuantumSetting('HOME_ZIP') || '63101';
+  // Prefer the location text — it resolves to a real place.
+  const point = geocodeQuantumLocation(locationStr) || geocodeQuantumLocation(targetZip);
+  if (point) {
+    return Math.round(haversineMiles(home, point));
+  }
 
-  // Simplified distance calculation
-  // In production, use Maps API for accurate distance
-  const zipDiff = Math.abs(parseInt(homeZip) - parseInt(targetZip));
-
-  // Rough approximation: 1 ZIP difference ≈ 10 miles
-  return Math.min(zipDiff * 0.1, 500);
+  return null; // Unknown — do not guess
 }
 
 function assessLocationRisk(distance) {
+  // Unknown location: stay neutral rather than assuming the worst.
+  if (distance === null || distance === undefined || isNaN(distance)) {
+    return {risk: 'Unknown', flag: '⚪', score: 25};
+  }
+
   if (distance < 25) {
     return {risk: 'Low', flag: '🟢', score: 10};
   } else if (distance < 75) {
@@ -278,9 +295,13 @@ function calculateMarketAdvantage(parsed, metrics) {
   else if (priceRatio < 0.8) advantage += 10;
   else if (priceRatio > 0.95) advantage -= 20;
 
-  // Location advantage
-  if (metrics.distance < 25) advantage += 10;
-  else if (metrics.distance > 100) advantage -= 15;
+  // Location advantage — distance is null when the location could not be
+  // resolved. Guard explicitly: `null < 25` is true in JS and would hand out
+  // a proximity bonus to listings whose location we never identified.
+  if (metrics.distance !== null && metrics.distance !== undefined && !isNaN(metrics.distance)) {
+    if (metrics.distance < 25) advantage += 10;
+    else if (metrics.distance > 100) advantage -= 15;
+  }
 
   // Condition advantage
   if (metrics.conditionScore > 80) advantage += 15;

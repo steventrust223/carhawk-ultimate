@@ -185,8 +185,10 @@ function generateCompanyHubTags(deal) {
   // Platform tag
   tags.push(deal.platform.toLowerCase());
 
-  // Distance tag
-  if (deal.distance < 25) tags.push('local');
+  // Distance tag — null means the location was never resolved, which must
+  // not fall through to 'local' (`null < 25` is true in JS).
+  if (deal.distance == null || isNaN(deal.distance)) tags.push('distance-unknown');
+  else if (deal.distance < 25) tags.push('local');
   else if (deal.distance < 75) tags.push('regional');
   else tags.push('distant');
 

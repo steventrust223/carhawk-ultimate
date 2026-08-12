@@ -371,7 +371,9 @@ function generateLeadTags(parsed, metrics) {
 
   if (metrics.priority === 'High') tags.push('high-priority');
   if (metrics.roi > 50) tags.push('high-roi');
-  if (metrics.distance < 25) tags.push('local');
+  // distance is null when the location could not be resolved; `null < 25`
+  // is true in JS, so guard before tagging a listing as local.
+  if (metrics.distance != null && !isNaN(metrics.distance) && metrics.distance < 25) tags.push('local');
   if (parsed.hotSeller) tags.push('hot-seller');
   if (parsed.platform) tags.push(parsed.platform.toLowerCase());
 
