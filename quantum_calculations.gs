@@ -171,78 +171,161 @@ function analyzeRepairRisk(repairKeywords) {
   };
 }
 
-function estimateQuantumMarketValue(parsed) {
-  // Base value by age
-  const currentYear = new Date().getFullYear();
-  const age = currentYear - parseInt(parsed.year);
+// =========================================================
+// MARKET VALUATION
+// =========================================================
+// The previous model priced purely by age: every vehicle 15+ years old
+// got a flat $4,000 base regardless of what it was, so a Corvette and a
+// worn-out sedan valued identically. It also compared mileage against
+// "expected miles = age x 12,000", which meant a 23-year-old car was
+// expected to have 276k miles — so a 256k-mile Corolla earned a low-mileage
+// BONUS. Market Value drives profit, ROI, MAO and priority, so those errors
+// inverted the deal rankings.
+//
+// This model prices by vehicle segment with a segment-specific
+// depreciation curve, then adjusts for mileage and condition.
+// =========================================================
 
-  let baseValue = 30000; // Default
+/**
+ * Segment pricing: typical new price, annual value retention, and a floor
+ * below which a running example of that segment does not realistically fall.
+ */
+const QUANTUM_SEGMENTS = {
+  performance: {base: 48000, retention: 0.95, floor: 5000},
+  heavyTruck:  {base: 58000, retention: 0.91, floor: 4000},
+  lightTruck:  {base: 44000, retention: 0.90, floor: 2500},
+  largeSuv:    {base: 46000, retention: 0.88, floor: 2200},
+  smallSuv:    {base: 34000, retention: 0.88, floor: 1800},
+  minivan:     {base: 38000, retention: 0.87, floor: 1400},
+  luxury:      {base: 58000, retention: 0.83, floor: 2200},
+  powersports: {base: 11000, retention: 0.86, floor: 800},
+  economy:     {base: 24000, retention: 0.89, floor: 900}
+};
 
-  if (age < 2) baseValue = 40000;
-  else if (age < 4) baseValue = 30000;
-  else if (age < 6) baseValue = 22000;
-  else if (age < 10) baseValue = 15000;
-  else if (age < 15) baseValue = 8000;
-  else baseValue = 4000;
+const QUANTUM_SEGMENT_PATTERNS = {
+  performance: /\b(camaro|mustang|challenger|charger|firebird|trans am|corvette|hellcat|viper|shelby|gt350|gt500|z06|grand sport|trackhawk|raptor|trx|srt|zl1|type r|sti|evo|amg)\b/i,
+  heavyTruck:  /\b(2500|3500|f-?250|f-?350|super duty)\b/i,
+  lightTruck:  /\b(f-?150|1500|sierra|tacoma|tundra|ranger|colorado|canyon|frontier|ridgeline|titan|silverado)\b/i,
+  largeSuv:    /\b(tahoe|suburban|expedition|yukon|sequoia|armada|durango|traverse|pilot|highlander|explorer|grand cherokee|4runner)\b/i,
+  smallSuv:    /\b(rav4|cr-?v|escape|equinox|rogue|compass|cherokee|tucson|sportage|forester|hr-?v|trax|encore|terrain)\b/i,
+  minivan:     /\b(odyssey|sienna|town|caravan|pacifica|carnival|transit)\b/i
+};
 
-  // Adjust for make premium
-  const makePremiums = {
-    'Toyota': 1.1,
-    'Honda': 1.08,
-    'Lexus': 1.3,
-    'BMW': 1.25,
-    'Mercedes': 1.28,
-    'Audi': 1.22,
-    'Tesla': 1.4,
-    'Porsche': 1.5,
-    'Ford': 0.95,
-    'Chevrolet': 0.93,
-    'Nissan': 0.92
-  };
+const QUANTUM_LUXURY_MAKES = /^(lexus|bmw|mercedes|audi|porsche|jaguar|land rover|infiniti|acura|cadillac|lincoln|genesis|tesla|maserati|volvo)$/i;
+const QUANTUM_POWERSPORT_MAKES = /^(ktm|yamaha|kawasaki|suzuki|harley-davidson|polaris|can-am|arctic cat|sea-doo|ski-doo|indian|triumph|cf moto)$/i;
+const QUANTUM_RELIABLE_MAKES = /^(toyota|honda|lexus|subaru|acura)$/i;
 
-  const premium = makePremiums[parsed.make] || 1.0;
-  baseValue *= premium;
+/**
+ * Classify a listing into a pricing segment from its make, model and title.
+ */
+function classifyVehicleSegment(parsed) {
+  const make = String(parsed.make || '');
+  const text = [parsed.model, parsed.title].join(' ');
 
-  // Adjust for mileage
-  const avgMilesPerYear = 12000;
-  const expectedMiles = age * avgMilesPerYear;
-  const mileageDiff = parsed.mileage - expectedMiles;
+  if (QUANTUM_POWERSPORT_MAKES.test(make)) return 'powersports';
 
-  if (mileageDiff > 20000) {
-    baseValue *= 0.85;
-  } else if (mileageDiff > 10000) {
-    baseValue *= 0.92;
-  } else if (mileageDiff < -10000) {
-    baseValue *= 1.08;
-  } else if (mileageDiff < -20000) {
-    baseValue *= 1.15;
+  // Order matters: heavy trucks before light trucks, since "2500" would
+  // otherwise be caught by the broader truck pattern.
+  const order = ['performance', 'heavyTruck', 'lightTruck', 'largeSuv', 'smallSuv', 'minivan'];
+  for (const seg of order) {
+    if (QUANTUM_SEGMENT_PATTERNS[seg].test(text)) return seg;
   }
 
-  // Condition adjustment
+  if (QUANTUM_LUXURY_MAKES.test(make)) return 'luxury';
+  return 'economy';
+}
+
+/**
+ * Mileage multiplier.
+ *
+ * Combines a relative reading (how the odometer compares to typical use for
+ * the vehicle's age) with an absolute one, because beyond roughly 150k miles
+ * a vehicle loses value regardless of how old it is.
+ */
+function quantumMileageFactor(mileage, age, segment) {
+  if (!mileage || mileage <= 0) return 1.0;
+
+  // Floor the expectation so a nearly new vehicle with high miles is not
+  // compared against an unrealistically small number.
+  const expected = Math.max(age * 12000, 15000);
+  const ratio = mileage / expected;
+
+  let relative;
+  if (ratio < 0.25) relative = 1.35;
+  else if (ratio < 0.5) relative = 1.20;
+  else if (ratio < 0.8) relative = 1.08;
+  else if (ratio <= 1.2) relative = 1.0;
+  else if (ratio < 1.6) relative = 0.94;
+  else if (ratio < 2.2) relative = 0.88;
+  else relative = 0.80;
+
+  // Implausibly low mileage on an older vehicle usually means a rolled-over
+  // or mistyped odometer, so cap the bonus rather than trusting it outright.
+  // The threshold is deliberately low: collector and performance cars really
+  // are garaged and driven ~1-2k miles a year, and capping those would
+  // undervalue exactly the listings worth chasing. Under 1k miles a year is
+  // the range where the reading is more likely wrong than remarkable.
+  if (age >= 10 && (mileage / Math.max(age, 1)) < 1000) {
+    relative = Math.min(relative, 1.10);
+  }
+
+  let absolute = 1.0;
+  if (segment !== 'powersports') {
+    if (mileage > 250000) absolute = 0.60;
+    else if (mileage > 200000) absolute = 0.70;
+    else if (mileage > 150000) absolute = 0.82;
+    else if (mileage > 120000) absolute = 0.90;
+  }
+
+  // A low-mileage bonus must survive when there is no absolute penalty:
+  // Math.min(1.35, 1.0) would cancel it.
+  return absolute < 1 ? Math.min(relative, absolute) : relative;
+}
+
+function estimateQuantumMarketValue(parsed) {
+  const currentYear = new Date().getFullYear();
+  const year = parseInt(parsed.year);
+  const age = isNaN(year) ? 12 : Math.max(0, currentYear - year);
+
+  const segment = classifyVehicleSegment(parsed);
+  const spec = QUANTUM_SEGMENTS[segment];
+
+  // Segment depreciation curve
+  let retention = spec.retention;
+  if (QUANTUM_RELIABLE_MAKES.test(String(parsed.make || ''))) {
+    retention = Math.min(0.95, retention + 0.025);
+  }
+
+  let value = spec.base * Math.pow(retention, age);
+
+  // Mileage
+  value *= quantumMileageFactor(parsed.mileage, age, segment);
+
+  // Condition
   const conditionMultipliers = {
     'Excellent': 1.15,
     'Very Good': 1.08,
+    'Very good': 1.08,
+    'Like new': 1.12,
     'Good': 1.0,
     'Fair': 0.85,
-    'Poor': 0.65
+    'Poor': 0.62,
+    'Salvage': 0.40
   };
+  value *= conditionMultipliers[parsed.condition] || 0.95;
 
-  baseValue *= conditionMultipliers[parsed.condition] || 0.9;
-
-  // Check knowledge base for model-specific adjustments
+  // Model-specific knowledge overrides the estimate when we have real data
   const knowledge = getVehicleKnowledge(parsed.make, parsed.model, parsed.year);
   if (knowledge) {
-    // Adjust based on market demand
-    if (knowledge.marketDemand === 'Very High') baseValue *= 1.1;
-    else if (knowledge.marketDemand === 'High') baseValue *= 1.05;
-    else if (knowledge.marketDemand === 'Low') baseValue *= 0.95;
+    if (knowledge.marketDemand === 'Very High') value *= 1.1;
+    else if (knowledge.marketDemand === 'High') value *= 1.05;
+    else if (knowledge.marketDemand === 'Low') value *= 0.95;
 
-    // Cap within known price range
-    if (baseValue < knowledge.priceRange.low) baseValue = knowledge.priceRange.low;
-    if (baseValue > knowledge.priceRange.high) baseValue = knowledge.priceRange.high;
+    if (value < knowledge.priceRange.low) value = knowledge.priceRange.low;
+    if (value > knowledge.priceRange.high) value = knowledge.priceRange.high;
   }
 
-  return Math.round(baseValue);
+  return Math.max(Math.round(value), spec.floor);
 }
 
 function calculateQuantumMAO(marketValue, repairCost) {
