@@ -147,3 +147,193 @@ function estimateEbikeMarketValue(parsed) {
 
   return Math.max(Math.round(value), spec.floor);
 }
+
+// =========================================================
+// MAKE / MODEL EXTRACTION
+// =========================================================
+
+/**
+ * Canonical brand names, so "rad power"/"radpower"/"RadRunner" all report
+ * as one make and the deal list groups cleanly.
+ */
+const EBIKE_BRAND_NAMES = [
+  ['Rad Power', /\b(rad ?power|radrunner|radrover|radcity|radwagon|radexpand|radmission)\b/i],
+  ['Aventon', /\baventon\b/i],
+  ['Lectric', /\blectric\b/i],
+  ['Super73', /\bsuper ?73\b/i],
+  ['Ride1Up', /\bride ?1 ?up\b/i],
+  ['Specialized', /\b(specialized|turbo levo|turbo vado|turbo como)\b/i],
+  ['Trek', /\b(trek|allant|powerfly)\b/i],
+  ['Himiway', /\bhimiway\b/i],
+  ['Velotric', /\bvelotric\b/i],
+  ['Juiced', /\bjuiced\b/i],
+  ['Blix', /\bblix\b/i],
+  ['Heybike', /\bheybike\b/i],
+  ['Magicycle', /\bmagicycle\b/i],
+  ['Engwe', /\bengwe\b/i],
+  ['Cyrusher', /\bcyrusher\b/i],
+  ['Ancheer', /\bancheer\b/i],
+  ['Gotrax', /\bgotrax\b/i],
+  ['Jetson', /\bjetson\b/i],
+  ['Swagtron', /\bswagtron\b/i],
+  ['Razor', /\brazor\b/i],
+  ['Giant', /\bgiant\b/i],
+  ['Cannondale', /\bcannondale\b/i],
+  ['Gazelle', /\bgazelle\b/i],
+  ['Haibike', /\bhaibike\b/i],
+  ['Riese & Müller', /\b(riese|m[uü]ller)\b/i],
+  ['VanMoof', /\bvanmoof\b/i],
+  ['Stromer', /\bstromer\b/i],
+  ['Tern', /\btern\b/i],
+  ['Biktrix', /\bbiktrix\b/i],
+  ['Fiido', /\bfiido\b/i]
+];
+
+/**
+ * Known model names worth surfacing, keyed loosely by brand family.
+ */
+const EBIKE_MODEL_PATTERN = /\b(radrunner|radrover|radcity|radwagon|radexpand|radmission|level ?2?|pace ?\d*|sinch ?\d*|abound|ramblas|aventure ?\d*|soltera|xp ?\d*|xpress|xpeak|one ?plus|700 ?series|500 ?series|s1|s2|r ?brooklyn|z ?miami|turbo levo|turbo vado|turbo como|allant\+? ?\d*|powerfly|verve\+?|cruiser|escape|explore|hyperscrambler|scrambler|hyperscorpion|city ?commuter|discover ?\d*|cruiser ?pro|zebra|escape ?pro|d\d)\b/i;
+
+/**
+ * Fill in make and model for an e-bike listing, whose brands the vehicle
+ * make pattern does not know. Without this, Master Database shows an empty
+ * Make/Model for every e-bike.
+ *
+ * @return {{make: string, model: string}} empty strings when unidentifiable
+ */
+function extractEbikeMakeModel(parsed) {
+  const text = [parsed.title, parsed.description].filter(Boolean).join(' ');
+  if (!text) return {make: '', model: ''};
+
+  let make = '';
+  for (const entry of EBIKE_BRAND_NAMES) {
+    if (entry[1].test(text)) { make = entry[0]; break; }
+  }
+
+  let model = '';
+  const modelMatch = text.match(EBIKE_MODEL_PATTERN);
+  if (modelMatch) {
+    model = modelMatch[0].trim();
+  } else if (make) {
+    // Fall back to whatever word follows the brand name, unless it is a
+    // generic descriptor — "Ancheer electric bike" must not yield the
+    // model "electric".
+    const generic = /^(electric|e|ebike|e-bike|bike|bicycle|cycle|mountain|fat|city|folding|new|used|the|for|with|and)$/i;
+    const after = text.match(new RegExp(make.split(' ')[0] + '\\s+([\\w-]+)', 'i'));
+    if (after && !generic.test(after[1])) model = after[1];
+  }
+
+  return {make: make, model: model || (make ? 'E-Bike' : '')};
+}
+
+// =========================================================
+// SEARCH URL BUILDERS
+// =========================================================
+// Keyword searches rather than category IDs: marketplace category
+// numbering changes without notice, whereas keyword search is stable.
+
+/** Search terms that surface e-bike listings across marketplaces. */
+const EBIKE_SEARCH_TERMS = [
+  'electric bike',
+  'ebike',
+  'e-bike',
+  'electric bicycle',
+  'electric mountain bike'
+];
+
+/**
+ * Facebook Marketplace e-bike searches.
+ */
+function buildFacebookEbikeURLs(params) {
+  const p = params || {};
+  const location = p.location || 'stlouis';
+  const minPrice = p.minPrice || 50;
+  const maxPrice = p.maxPrice || 10000;
+  const terms = p.keywords || EBIKE_SEARCH_TERMS;
+
+  return terms.map(function (term) {
+    return 'https://www.facebook.com/marketplace/' + location + '/search?' + [
+      'query=' + encodeURIComponent(term),
+      'minPrice=' + minPrice,
+      'maxPrice=' + maxPrice,
+      'daysSinceListed=7',
+      'sortBy=creation_time_descend'
+    ].join('&');
+  });
+}
+
+/**
+ * Craigslist bicycle-category searches, by owner.
+ */
+function buildCraigslistEbikeURLs(params) {
+  const p = params || {};
+  const subdomains = p.subdomains || ['stlouis'];
+  const minPrice = p.minPrice || 50;
+  const maxPrice = p.maxPrice || 10000;
+
+  const urls = [];
+  for (const subdomain of subdomains) {
+    // bia = bicycles by owner, bik = all bicycles
+    for (const category of ['bia', 'bik']) {
+      urls.push('https://' + subdomain + '.craigslist.org/search/' + category + '?' + [
+        'query=' + encodeURIComponent('electric bike'),
+        'min_price=' + minPrice,
+        'max_price=' + maxPrice,
+        'sort=date'
+      ].join('&'));
+    }
+  }
+  return urls;
+}
+
+/**
+ * OfferUp e-bike searches.
+ */
+function buildOfferUpEbikeURLs(params) {
+  const p = params || {};
+  const zip = p.zip || QUANTUM_CONFIG.HOME_ZIP;
+  const radius = p.radius || 50;
+  const minPrice = p.minPrice || 50;
+  const maxPrice = p.maxPrice || 10000;
+  const terms = p.keywords || ['electric bike', 'ebike'];
+
+  return terms.map(function (term) {
+    return 'https://offerup.com/search?' + [
+      'q=' + encodeURIComponent(term),
+      'price_min=' + minPrice,
+      'price_max=' + maxPrice,
+      'location=' + zip,
+      'radius=' + radius,
+      'sort=-posted'
+    ].join('&');
+  });
+}
+
+/**
+ * eBay e-bike searches. Local pickup is listed first because shipping a
+ * bike often erases the margin.
+ */
+function buildEbayEbikeURLs(params) {
+  const p = params || {};
+  const zip = p.zip || QUANTUM_CONFIG.HOME_ZIP;
+  const radius = p.radius || 100;
+  const minPrice = p.minPrice || 50;
+  const maxPrice = p.maxPrice || 10000;
+
+  const base = 'https://www.ebay.com/sch/i.html';
+  const common = [
+    '_nkw=' + encodeURIComponent('electric bike'),
+    '_udlo=' + minPrice,
+    '_udhi=' + maxPrice,
+    'LH_ItemCondition=3000', // Used
+    '_sop=10',               // Newly listed
+    'rt=nc'
+  ];
+
+  return [
+    // Local pickup within range
+    base + '?' + common.concat(['_stpos=' + zip, '_sadis=' + radius, '_fspt=1']).join('&'),
+    // Buy It Now nationwide
+    base + '?' + common.concat(['LH_BIN=1']).join('&')
+  ];
+}

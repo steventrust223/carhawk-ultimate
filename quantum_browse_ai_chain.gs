@@ -223,7 +223,11 @@ function deployRobotChain(chain, searchParams) {
     'AutoTrader': buildAutoTraderURLs,
     'Cars.com': buildCarsComURLs,
     'ATV Trader': buildATVTraderURLs,
-    'Cycle Trader': buildCycleTraderURLs
+    'Cycle Trader': buildCycleTraderURLs,
+    'Facebook E-Bikes': buildFacebookEbikeURLs,
+    'Craigslist E-Bikes': buildCraigslistEbikeURLs,
+    'OfferUp E-Bikes': buildOfferUpEbikeURLs,
+    'eBay E-Bikes': buildEbayEbikeURLs
   };
 
   const builder = urlBuilders[chain.platform];

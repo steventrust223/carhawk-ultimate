@@ -331,6 +331,18 @@ function quantumParseVehicle(data) {
     if (modelMatch) parsed.model = modelMatch[1].replace(/[-\s]+$/, '');
   }
 
+  // E-bike brands are absent from the vehicle make pattern, so without this
+  // every e-bike would land in the database with an empty Make and Model.
+  if (!parsed.make && isEbikeListing({
+    title: purgedTitle, description: descriptionText, model: '', make: ''
+  })) {
+    const eb = extractEbikeMakeModel({title: purgedTitle, description: descriptionText});
+    if (eb.make) {
+      parsed.make = eb.make;
+      parsed.model = eb.model;
+    }
+  }
+
   // Extract trim from Craigslist purged title (often has trim after model)
   if (data.platform === 'Craigslist' && parsed.model) {
     const trimPattern = new RegExp(escapeRegExp_(parsed.model) + '\\s+(limited|sport|se|le|xle|sr5|lx|ex|touring|premium|base|sxt|slt|lt|ls|xl|xlt|sel|awd|4x4|4wd)', 'i');

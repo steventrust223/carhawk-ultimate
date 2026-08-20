@@ -601,7 +601,11 @@ function deployMarketplaceRobot(platform, robotId, searchParams) {
     'AutoTrader': buildAutoTraderURLs,
     'Cars.com': buildCarsComURLs,
     'ATV Trader': buildATVTraderURLs,
-    'Cycle Trader': buildCycleTraderURLs
+    'Cycle Trader': buildCycleTraderURLs,
+    'Facebook E-Bikes': buildFacebookEbikeURLs,
+    'Craigslist E-Bikes': buildCraigslistEbikeURLs,
+    'OfferUp E-Bikes': buildOfferUpEbikeURLs,
+    'eBay E-Bikes': buildEbayEbikeURLs
   };
 
   const builder = urlBuilders[platform];
@@ -918,6 +922,12 @@ function showRobotStatusUI() {
   lines.push('Powersports:');
   for (const p of platforms.powersports) {
     lines.push(`  ${p.displayName} (${p.fieldCount} fields, ${p.refreshMinutes}min refresh)`);
+  }
+  if (platforms.ebike && platforms.ebike.length) {
+    lines.push('E-Bikes:');
+    for (const p of platforms.ebike) {
+      lines.push(`  ${p.displayName} (${p.fieldCount} fields, ${p.refreshMinutes}min refresh)`);
+    }
   }
 
   showLargeText_('Browse.ai Robot Status', lines.join('\n'));

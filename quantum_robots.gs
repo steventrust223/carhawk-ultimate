@@ -1100,6 +1100,256 @@ const ROBOT_REGISTRY = {
         'Set monitor to 120 minutes for powersports pace'
       ]
     }
+  },
+
+  // =======================================================
+  // E-BIKE MARKETPLACES
+  // =======================================================
+  // E-bikes are listed as general merchandise, not vehicles, so these
+  // robots target keyword searches rather than the vehicle categories.
+  // Facebook detail pages for merchandise have no "About this vehicle"
+  // panel, so an e-bike detail robot must be trained separately from the
+  // vehicle one — it cannot be reused.
+
+  FACEBOOK_EBIKE: {
+    platform: 'Facebook E-Bikes',
+    displayName: 'Facebook Marketplace (E-Bikes)',
+    category: 'ebike',
+    urlPatterns: [/facebook\.com\/marketplace/i],
+    searchConfig: {
+      baseUrl: 'https://www.facebook.com/marketplace/{location}/search',
+      defaultRadius: 60,
+      defaultMinPrice: 50,
+      defaultMaxPrice: 10000,
+      sortBy: 'creation_time_descend',
+      refreshInterval: 60,
+      maxPages: 5,
+      searchKeywords: ['electric bike', 'ebike', 'e-bike', 'electric bicycle', 'electric mountain bike']
+    },
+    columnMap: {
+      url: ['url', 'link', 'listing_url', 'origin_url'],
+      title: ['title', 'name', 'listing_title', 'item'],
+      price: ['price', 'asking_price', 'cost'],
+      location: ['location', 'city', 'area'],
+      description: ['description', 'details', 'info'],
+      sellerInfo: ['seller', 'contact', 'seller_name', 'listed_by'],
+      postedDate: ['posted', 'date', 'listed_date'],
+      images: ['images', 'photos', 'image_count'],
+      condition: ['condition', 'item_condition'],
+      mileage: ['mileage', 'miles', 'odometer'],
+      jobLink: ['job_link', 'browse_ai_link', 'task_link']
+    },
+    fieldDefaults: {images: 0, condition: 'Unknown', sellerType: 'Private'},
+    sellerDetection: {
+      dealerKeywords: ['bike shop', 'cycles', 'cyclery', 'store', 'retail', 'dealer', 'we ship', 'brand new in box', 'nib'],
+      privateKeywords: ['my bike', 'selling my', 'barely used', 'personal', 'no longer ride']
+    },
+    listingIdPattern: /\/item\/(\d+)/,
+    trainingGuide: {
+      startUrl: 'https://www.facebook.com/marketplace/stlouis/search?query=electric%20bike&sortBy=creation_time_descend',
+      robotType: 'Extract data from a list of elements on a page',
+      steps: [
+        'Search Facebook Marketplace for "electric bike"',
+        'Train a LIST robot on the results grid, capturing the listing link as "url"',
+        'Train a separate DETAIL robot on one e-bike listing page',
+        'IMPORTANT: merchandise listings have no "About this vehicle" panel, so the vehicle detail robot will not work here'
+      ],
+      fieldTraining: {
+        title: 'Listing title. Name it: title',
+        price: 'Price. Name it: price',
+        location: 'City/state line. Name it: location',
+        description: 'Seller description (expand "See more"). Name it: description',
+        sellerInfo: 'Seller name under Seller information. Name it: seller',
+        postedDate: '"Listed X ago". Name it: posted',
+        condition: 'Condition, when the seller set one. Name it: condition'
+      },
+      paginationMethod: 'infinite_scroll',
+      paginationNotes: 'Scroll 5-8 times; e-bike result sets are smaller than vehicles.',
+      importantNotes: [
+        'Brand and battery health drive value — the description field matters more than for cars',
+        'Watch for "battery is dead" / "new battery": both move resale substantially',
+        'Many listings omit year and mileage; that is expected and handled'
+      ]
+    }
+  },
+
+  CRAIGSLIST_EBIKE: {
+    platform: 'Craigslist E-Bikes',
+    displayName: 'Craigslist (E-Bikes)',
+    category: 'ebike',
+    urlPatterns: [/craigslist\.org\/.*\/(bik|bia)/i],
+    searchConfig: {
+      baseUrl: 'https://{subdomain}.craigslist.org/search/bia',
+      subdomains: {'St. Louis': 'stlouis'},
+      defaultRadius: 100,
+      defaultMinPrice: 50,
+      defaultMaxPrice: 10000,
+      sortBy: 'date',
+      refreshInterval: 60,
+      maxPages: 3,
+      searchKeywords: ['electric bike', 'ebike']
+    },
+    columnMap: {
+      url: ['url', 'link', 'listing_url', 'origin_url'],
+      title: ['title', 'post_title', 'name'],
+      price: ['price', 'asking_price'],
+      location: ['location', 'city', 'neighborhood'],
+      description: ['description', 'post_body', 'details'],
+      sellerInfo: ['seller', 'contact'],
+      postedDate: ['posted', 'date', 'post_date'],
+      images: ['images', 'photos', 'image_count'],
+      condition: ['condition'],
+      jobLink: ['job_link', 'task_link']
+    },
+    fieldDefaults: {images: 0, condition: 'Unknown', sellerType: 'Private'},
+    sellerDetection: {
+      dealerKeywords: ['bike shop', 'cyclery', 'store', 'dealer', 'we ship', 'financing'],
+      privateKeywords: ['my bike', 'selling my', 'cash only', 'no longer ride']
+    },
+    listingIdPattern: /\/(\d{10})\.html/,
+    trainingGuide: {
+      startUrl: 'https://stlouis.craigslist.org/search/bia?query=electric+bike&sort=date',
+      robotType: 'Extract data from a list of elements on a page',
+      steps: [
+        'Open the Craigslist bicycles-by-owner search for "electric bike"',
+        'Train a LIST robot on the results, capturing the post link as "url"',
+        'Train a DETAIL robot on one post for description and attributes'
+      ],
+      fieldTraining: {
+        title: 'Post title. Name it: title',
+        price: 'Price. Name it: price',
+        location: 'Location in the title line or the map area. Name it: location',
+        description: 'Post body. Name it: description',
+        postedDate: 'Posted timestamp. Name it: posted',
+        condition: 'Condition attribute, when present. Name it: condition'
+      },
+      paginationMethod: 'next_button',
+      paginationNotes: 'Craigslist paginates 120 per page; 2-3 pages is usually the whole local market.',
+      importantNotes: [
+        'Craigslist is mostly private sellers, which suits flipping',
+        'Post bodies often state battery age and mileage in plain text'
+      ]
+    }
+  },
+
+  OFFERUP_EBIKE: {
+    platform: 'OfferUp E-Bikes',
+    displayName: 'OfferUp (E-Bikes)',
+    category: 'ebike',
+    urlPatterns: [/offerup\.com/i],
+    searchConfig: {
+      baseUrl: 'https://offerup.com/search',
+      defaultRadius: 50,
+      defaultMinPrice: 50,
+      defaultMaxPrice: 10000,
+      sortBy: '-posted',
+      refreshInterval: 60,
+      maxPages: 3,
+      searchKeywords: ['electric bike', 'ebike']
+    },
+    columnMap: {
+      url: ['url', 'link', 'listing_url', 'origin_url'],
+      title: ['title', 'name', 'item_title'],
+      price: ['price', 'asking_price'],
+      location: ['location', 'city'],
+      description: ['description', 'details'],
+      sellerInfo: ['seller', 'seller_name'],
+      postedDate: ['posted', 'date'],
+      images: ['images', 'photos'],
+      condition: ['condition'],
+      sellerRating: ['seller_rating', 'rating'],
+      jobLink: ['job_link', 'task_link']
+    },
+    fieldDefaults: {images: 0, condition: 'Unknown', sellerType: 'Private'},
+    sellerDetection: {
+      dealerKeywords: ['bike shop', 'store', 'dealer', 'new in box', 'we have more'],
+      privateKeywords: ['my bike', 'selling my', 'barely used']
+    },
+    listingIdPattern: /\/item\/detail\/([\w-]+)/,
+    trainingGuide: {
+      startUrl: 'https://offerup.com/search?q=electric%20bike&sort=-posted',
+      robotType: 'Extract data from a list of elements on a page',
+      steps: [
+        'Search OfferUp for "electric bike"',
+        'Train a LIST robot on the result tiles, capturing the item link as "url"',
+        'Train a DETAIL robot on one item page'
+      ],
+      fieldTraining: {
+        title: 'Item title. Name it: title',
+        price: 'Price. Name it: price',
+        location: 'Location under the price. Name it: location',
+        description: 'Item description. Name it: description',
+        sellerInfo: 'Seller name. Name it: seller',
+        condition: 'Condition field. Name it: condition',
+        postedDate: 'Posted time. Name it: posted'
+      },
+      paginationMethod: 'infinite_scroll',
+      paginationNotes: 'Scroll 5-8 times.',
+      importantNotes: [
+        'OfferUp exposes a seller rating — useful for spotting resellers',
+        'Condition is a structured field here, unlike Craigslist'
+      ]
+    }
+  },
+
+  EBAY_EBIKE: {
+    platform: 'eBay E-Bikes',
+    displayName: 'eBay (E-Bikes)',
+    category: 'ebike',
+    urlPatterns: [/ebay\.com/i],
+    searchConfig: {
+      baseUrl: 'https://www.ebay.com/sch/i.html',
+      defaultRadius: 100,
+      defaultMinPrice: 50,
+      defaultMaxPrice: 10000,
+      sortBy: '10',
+      refreshInterval: 120,
+      maxPages: 3,
+      searchKeywords: ['electric bike', 'ebike']
+    },
+    columnMap: {
+      url: ['url', 'link', 'listing_url', 'origin_url'],
+      title: ['title', 'item_title'],
+      price: ['price', 'current_bid', 'buy_it_now_price'],
+      location: ['location', 'item_location'],
+      description: ['description', 'details'],
+      sellerInfo: ['seller', 'seller_name'],
+      postedDate: ['posted', 'date', 'listed'],
+      images: ['images', 'photos'],
+      condition: ['condition', 'item_condition'],
+      shippingCost: ['shipping', 'shipping_cost'],
+      sellerFeedback: ['seller_feedback', 'feedback'],
+      jobLink: ['job_link', 'task_link']
+    },
+    fieldDefaults: {images: 0, condition: 'Used', sellerType: 'Dealer'},
+    sellerDetection: {
+      dealerKeywords: ['store', 'outlet', 'wholesale', 'authorized dealer', 'brand new'],
+      privateKeywords: ['personal', 'my own', 'used once']
+    },
+    listingIdPattern: /\/itm\/(?:.*\/)?(\d{10,})/,
+    trainingGuide: {
+      startUrl: 'https://www.ebay.com/sch/i.html?_nkw=electric+bike&LH_ItemCondition=3000&_sop=10',
+      robotType: 'Extract data from a list of elements on a page',
+      steps: [
+        'Search eBay for "electric bike", filter to Used, sort Newly Listed',
+        'Train a LIST robot on the results, capturing the item link as "url"',
+        'Train a DETAIL robot on one item page'
+      ],
+      fieldTraining: {
+        title: 'Item title. Name it: title',
+        price: 'Price or current bid. Name it: price',
+        location: 'Item location. Name it: location',
+        description: 'Item description. Name it: description',
+        sellerInfo: 'Seller username. Name it: seller',
+        condition: 'Condition. Name it: condition'
+      },
+      paginationMethod: 'next_button',
+      paginationNotes: 'eBay shows 60 per page; 2-3 pages covers new listings.',
+      importantNotes: [
+        'Shipping frequently erases the margin on a bike — prefer local pickup results',
+        'eBay skews commercial, so expect more dealer listings than the local marketplaces'
+      ]
+    }
   }
 };
 
@@ -1579,6 +1829,7 @@ function listRegisteredRobots() {
 function getSupportedPlatforms() {
   const automotive = [];
   const powersports = [];
+  const ebike = [];
 
   for (const [key, config] of Object.entries(ROBOT_REGISTRY)) {
     const entry = {
@@ -1589,12 +1840,16 @@ function getSupportedPlatforms() {
       refreshMinutes: config.searchConfig.refreshInterval
     };
 
+    // Bucket explicitly: an else-branch would file e-bikes under
+    // powersports, which is a different market with different economics.
     if (config.category === 'automotive') {
       automotive.push(entry);
+    } else if (config.category === 'ebike') {
+      ebike.push(entry);
     } else {
       powersports.push(entry);
     }
   }
 
-  return { automotive, powersports };
+  return { automotive, powersports, ebike };
 }
