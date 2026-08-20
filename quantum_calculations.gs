@@ -43,8 +43,9 @@ function calculateQuantumMetrics(parsed) {
   // MAO calculation
   metrics.mao = calculateQuantumMAO(metrics.marketValue, metrics.estimatedRepairCost);
 
-  // Profit calculations
-  const profit = metrics.marketValue - parsed.price - metrics.estimatedRepairCost - 500; // $500 holding costs
+  // Profit calculations — holding cost scales with the item's value
+  const holdingCost = quantumHoldingCost(metrics.marketValue);
+  const profit = metrics.marketValue - parsed.price - metrics.estimatedRepairCost - holdingCost;
   metrics.profitMargin = (profit / metrics.marketValue) * 100;
   metrics.roi = (profit / (parsed.price + metrics.estimatedRepairCost + 500)) * 100;
 
@@ -283,6 +284,13 @@ function quantumMileageFactor(mileage, age, segment) {
 }
 
 function estimateQuantumMarketValue(parsed) {
+  // E-bikes price on a completely different scale and are handled by
+  // their own model; running one through the vehicle curves overvalues
+  // it by roughly an order of magnitude.
+  if (isEbikeListing(parsed)) {
+    return estimateEbikeMarketValue(parsed);
+  }
+
   const currentYear = new Date().getFullYear();
   const year = parseInt(parsed.year);
   const age = isNaN(year) ? 12 : Math.max(0, currentYear - year);
@@ -328,16 +336,31 @@ function estimateQuantumMarketValue(parsed) {
   return Math.max(Math.round(value), spec.floor);
 }
 
+/**
+ * Holding cost for a deal.
+ *
+ * A flat $500 is right for a car but absurd on a $1,200 e-bike, where it
+ * would consume 40% of the margin. Scale with value and cap at the
+ * original $500, so vehicles above $10k are unaffected.
+ */
+function quantumHoldingCost(marketValue) {
+  if (!marketValue || marketValue <= 0) return 50;
+  return Math.max(50, Math.min(500, Math.round(marketValue * 0.05)));
+}
+
 function calculateQuantumMAO(marketValue, repairCost) {
   // Quantum MAO formula
   // MAO = (ARV * 0.75) - Repair Costs - Holding Costs - Profit Margin
 
-  const holdingCosts = 500; // Base holding costs
+  const holdingCosts = quantumHoldingCost(marketValue);
   const desiredProfit = marketValue * 0.15; // 15% minimum profit
 
   const mao = (marketValue * 0.75) - repairCost - holdingCosts - desiredProfit;
 
-  return Math.max(mao, 500); // Never go below $500
+  // Floor scales with the item: a fixed $500 minimum would exceed the
+  // whole sensible offer on a cheap e-bike.
+  const floor = Math.min(500, Math.max(25, marketValue * 0.1));
+  return Math.max(mao, floor);
 }
 
 function classifyCapitalTier(price) {
@@ -508,13 +531,18 @@ function assessDataQuality(parsed) {
     issues.push('No price captured');
   }
 
-  // Powersports listings legitimately use hours instead of miles.
+  // Mileage is not universally meaningful: powersports listings report
+  // hours, and most e-bike listings have no odometer at all. Requiring it
+  // would send every e-bike to Needs Review.
   const isPowersport = !!parsed.hours && parsed.hours > 0;
-  if (!isPowersport && (!parsed.mileage || parsed.mileage <= 0)) {
+  const isEbike = isEbikeListing(parsed);
+  if (!isPowersport && !isEbike && (!parsed.mileage || parsed.mileage <= 0)) {
     issues.push('No mileage captured');
   }
 
-  if (!parsed.year) {
+  // E-bike listings routinely omit the model year, and the valuation model
+  // assumes a mid-life example in that case rather than failing.
+  if (!parsed.year && !isEbike) {
     issues.push('No year identified');
   }
 
