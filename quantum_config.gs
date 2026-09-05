@@ -17,7 +17,7 @@
  *   QUANTUM.SIGNATURE - Application icon/emoji signature
  */
 const QUANTUM = {
-  VERSION: 'QUANTUM-2.0.0',
+  VERSION: 'QUANTUM-2.1.0',
   NAME: 'CarHawk Ultimate CRM',
   SIGNATURE: '🚗⚛️'
 };
