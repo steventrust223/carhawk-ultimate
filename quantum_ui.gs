@@ -69,7 +69,7 @@ function getTopDeals(limit = 20) {
         platform: row[2] || '',
         confidence: row[41] || 0,
         sellerPhone: row[34] || '',
-        stage: row[50] || 'IMPORTED'
+        stage: row[QUANTUM_DB_COL.STAGE] || 'IMPORTED'
       });
     }
   }

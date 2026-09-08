@@ -104,11 +104,11 @@ function generateQuantumWeekly() {
     if (importDate >= weekAgo) {
       reportData.dealsAnalyzed++;
 
-      if (data[i][51] > 0) reportData.dealsContacted++; // Contact count > 0
-      if (data[i][50] === 'APPOINTMENT_SET') reportData.appointmentsSet++;
-      if (data[i][50] === 'CLOSED_WON') {
+      if (data[i][QUANTUM_DB_COL.CONTACT_COUNT] > 0) reportData.dealsContacted++;
+      if (data[i][QUANTUM_DB_COL.STAGE] === 'APPOINTMENT_SET') reportData.appointmentsSet++;
+      if (data[i][QUANTUM_DB_COL.STAGE] === 'CLOSED_WON') {
         reportData.dealsClosed++;
-        reportData.totalProfit += data[i][26] || 0;
+        reportData.totalProfit += data[i][QUANTUM_DB_COL.PROFIT_MARGIN] || 0;
       }
     }
   }

@@ -1,0 +1,21 @@
+# Files excluded from `clasp push`.
+#
+# main.gs is the legacy monolithic file, kept in the repository for
+# reference only (see README). Every one of its 184 functions is also
+# defined in a quantum_*.gs module, and it declares no unique top-level
+# constants. Because clasp pushes unlisted files after those in
+# filePushOrder, main.gs loaded LAST — and in Apps Script's shared global
+# scope the last definition of a function silently wins. The deployed
+# script was therefore running main.gs's copies, not the modules, and the
+# two had already drifted apart (syncQuantumCRM being the known case).
+#
+# Excluding it here makes the module files authoritative. Delete main.gs
+# outright once the modules have been verified in production.
+main.gs
+main.gs.backup-v2.0.0
+
+# Documentation and build tooling — not Apps Script sources.
+*.md
+*.docx
+*.pdf
+docs/**

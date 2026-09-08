@@ -210,7 +210,7 @@ function getDealById(dealId) {
         sellerName: data[i][33],
         sellerPhone: data[i][34],
         sellerEmail: data[i][35],
-        stage: data[i][50],
+        stage: data[i][QUANTUM_DB_COL.STAGE],
         rowNum: i + 1
       };
     }

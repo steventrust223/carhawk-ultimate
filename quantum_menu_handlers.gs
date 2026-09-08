@@ -121,12 +121,12 @@ function exportQuantumAnalytics() {
 
   // Count stages
   for (let i = 1; i < data.length; i++) {
-    const stage = data[i][50];
+    const stage = data[i][QUANTUM_DB_COL.STAGE];
     if (stage === 'CONTACTED') exportData.contacted++;
     if (stage === 'APPOINTMENT_SET') exportData.appointments++;
     if (stage === 'CLOSED_WON') {
       exportData.closed++;
-      exportData.totalRevenue += data[i][26] || 0;
+      exportData.totalRevenue += data[i][QUANTUM_DB_COL.PROFIT_MARGIN] || 0;
     }
   }
 
@@ -241,7 +241,7 @@ function viewColdLeads() {
   const coldLeads = [];
 
   for (let i = 1; i < data.length; i++) {
-    if (data[i][32] > 60 || data[i][50] === 'LOST') {
+    if (data[i][QUANTUM_DB_COL.DAYS_LISTED] > 60 || data[i][QUANTUM_DB_COL.STAGE] === 'LOST') {
       coldLeads.push(data[i]);
     }
   }

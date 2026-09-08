@@ -2,6 +2,48 @@
 // FILE: quantum-companyhub.gs - CompanyHub Integration
 // =========================================================
 
+/**
+ * Verdict literals as written to the Master Database by quantum_ai.gs.
+ * The emoji prefix is part of the stored value, not decoration.
+ */
+var COMPANYHUB_PASS_VERDICTS = Object.freeze(['❌ PASS', 'PASS']);
+
+/**
+ * Flip Strategy value written by generateFallbackAnalysis() when AI
+ * analysis could not complete. Such rows are incomplete and must not
+ * create CRM records: there is no CompanyHub stage or field meaning
+ * "incomplete".
+ */
+var COMPANYHUB_INCOMPLETE_STRATEGY = 'Needs Review';
+
+/**
+ * Decides whether a Master Database row should be exported to CompanyHub.
+ *
+ * Previously this gated on Recommended? === 'YES' (column 44). Nothing in
+ * the codebase ever writes that column — the only two references to it
+ * were read-side gates — so the export returned zero rows every time it
+ * ran. The gate is now deterministic and independent of the AI layer.
+ *
+ * @param {Array} row - A Master Database row.
+ * @return {boolean} True if the row should be exported.
+ */
+function isQuantumDealExportable(row) {
+  const C = QUANTUM_DB_COL;
+
+  if (row[C.PRIORITY] !== 'High') return false;
+
+  const verdict = String(row[C.VERDICT] || '').trim();
+  if (COMPANYHUB_PASS_VERDICTS.indexOf(verdict) !== -1) return false;
+
+  // Incomplete analysis: no usable numbers behind the deal.
+  if (row[C.FLIP_STRATEGY] === COMPANYHUB_INCOMPLETE_STRATEGY) return false;
+
+  // Essential identity and pricing must be present.
+  if (!row[C.PRICE] || !row[C.YEAR]) return false;
+
+  return true;
+}
+
 function exportQuantumCRM() {
   const ui = SpreadsheetApp.getUi();
   const dbSheet = getQuantumSheet(QUANTUM_SHEETS.DATABASE.name);
@@ -9,7 +51,8 @@ function exportQuantumCRM() {
   // Get deals for export
   const response = ui.alert(
     'Export to CompanyHub',
-    'Export all recommended deals to CompanyHub CRM?',
+    'Export high-priority deals (excluding PASS verdicts and rows with ' +
+      'incomplete analysis) to CompanyHub CRM?',
     ui.ButtonSet.YES_NO
   );
 
@@ -25,27 +68,29 @@ function exportQuantumCRM() {
     if (headers[h] === 'Turo Hold Score') { turoScoreColIdx = h; break; }
   }
 
+  const C = QUANTUM_DB_COL;
+
   for (let i = 1; i < data.length; i++) {
-    if (data[i][44] === 'YES') { // Recommended = YES
+    if (isQuantumDealExportable(data[i])) {
       const dealExport = {
-        dealId: data[i][0],
-        vehicle: `${data[i][5]} ${data[i][6]} ${data[i][7]}`,
-        price: data[i][13],
-        profit: data[i][26],
-        roi: data[i][27],
-        verdict: data[i][42],
-        stage: data[i][50],
-        sellerName: data[i][33],
-        sellerPhone: data[i][34],
-        sellerEmail: data[i][35],
-        platform: data[i][2],
-        location: data[i][14],
-        distance: data[i][16],
-        daysListed: data[i][32],
-        contactCount: data[i][51],
-        responseRate: data[i][54],
-        quantumScore: data[i][41],
-        flipStrategy: data[i][29]
+        dealId: data[i][C.DEAL_ID],
+        vehicle: `${data[i][C.YEAR]} ${data[i][C.MAKE]} ${data[i][C.MODEL]}`,
+        price: data[i][C.PRICE],
+        profit: data[i][C.PROFIT_MARGIN],
+        roi: data[i][C.ROI],
+        verdict: data[i][C.VERDICT],
+        stage: data[i][C.STAGE],
+        sellerName: data[i][C.SELLER_NAME],
+        sellerPhone: data[i][C.SELLER_PHONE],
+        sellerEmail: data[i][C.SELLER_EMAIL],
+        platform: data[i][C.PLATFORM],
+        location: data[i][C.LOCATION],
+        distance: data[i][C.DISTANCE],
+        daysListed: data[i][C.DAYS_LISTED],
+        contactCount: data[i][C.CONTACT_COUNT],
+        responseRate: data[i][C.RESPONSE_RATE],
+        quantumScore: data[i][C.AI_CONFIDENCE],
+        flipStrategy: data[i][C.FLIP_STRATEGY]
       };
 
       // If this deal is a Turo Hold, include Turo-specific fields
@@ -63,12 +108,27 @@ function exportQuantumCRM() {
   }
 
   if (exportDeals.length === 0) {
-    ui.alert('No recommended deals to export.');
+    ui.alert(
+      'No deals matched the export criteria: Priority = High, verdict not ' +
+      'PASS, analysis complete.'
+    );
     return;
   }
 
-  // Format for CompanyHub
-  const companyHubData = formatForCompanyHub(exportDeals);
+  // Format for CompanyHub. Stage mapping throws on an unrecognized stage
+  // rather than defaulting, so surface that instead of failing silently.
+  let companyHubData;
+  try {
+    companyHubData = formatForCompanyHub(exportDeals);
+  } catch (error) {
+    ui.alert(
+      'Export Aborted',
+      error.message + '\n\nNo file was written. Correct the deal stage and ' +
+      'run the export again.',
+      ui.ButtonSet.OK
+    );
+    return;
+  }
 
   // Generate CSV
   const csv = generateCompanyHubCSV(companyHubData);
@@ -90,46 +150,93 @@ function exportQuantumCRM() {
 
 function formatForCompanyHub(deals) {
   // CompanyHub expects specific field mapping
-  return deals.map(deal => ({
-    'Company': deal.sellerName || `${deal.vehicle} Seller`,
-    'Contact Name': deal.sellerName || 'Unknown',
-    'Phone': deal.sellerPhone,
-    'Email': deal.sellerEmail,
-    'Deal Name': deal.vehicle,
-    'Deal Value': deal.price,
-    'Expected Profit': deal.profit,
-    'ROI %': deal.roi,
-    'Stage': mapToCompanyHubStage(deal.stage),
-    'Probability': calculateDealProbability(deal),
-    'Expected Close Date': calculateExpectedCloseDate(deal),
-    'Lead Score': deal.quantumScore,
-    'Source': deal.platform,
-    'Location': deal.location,
-    'Distance': deal.distance,
-    'Days on Market': deal.daysListed,
-    'Contact Attempts': deal.contactCount,
-    'Response Rate': deal.responseRate,
-    'Tags': generateCompanyHubTags(deal),
-    'Custom Fields': {
-      'CarHawk ID': deal.dealId,
-      'Verdict': deal.verdict,
-      'Vehicle': deal.vehicle
+  return deals.map(deal => {
+    // Name the offending deal: mapToCompanyHubStage throws by design, and
+    // "unrecognized stage" is not actionable without knowing which row.
+    let stage;
+    try {
+      stage = mapToCompanyHubStage(deal.stage);
+    } catch (error) {
+      throw new Error('Deal ' + deal.dealId + ': ' + error.message);
     }
-  }));
+
+    return {
+      'Company': deal.sellerName || `${deal.vehicle} Seller`,
+      'Contact Name': deal.sellerName || 'Unknown',
+      'Phone': deal.sellerPhone,
+      'Email': deal.sellerEmail,
+      'Deal Name': deal.vehicle,
+      'Deal Value': deal.price,
+      'Expected Profit': deal.profit,
+      'ROI %': deal.roi,
+      'Stage': stage,
+      'Probability': calculateDealProbability(deal),
+      'Expected Close Date': calculateExpectedCloseDate(deal),
+      'Lead Score': deal.quantumScore,
+      'Source': deal.platform,
+      'Location': deal.location,
+      'Distance': deal.distance,
+      'Days on Market': deal.daysListed,
+      'Contact Attempts': deal.contactCount,
+      'Response Rate': deal.responseRate,
+      'Tags': generateCompanyHubTags(deal),
+      'Custom Fields': {
+        'CarHawk ID': deal.dealId,
+        'Verdict': deal.verdict,
+        'Vehicle': deal.vehicle
+      }
+    };
+  });
 }
 
+/**
+ * Translates a CarHawk pipeline stage into its CompanyHub stage name.
+ *
+ * This function previously emitted five stage names that exist in no
+ * CompanyHub pipeline — Qualified, Meeting Scheduled, Negotiation,
+ * Closed Won, Closed Lost. Only 'New Lead' and 'Contacted' were valid.
+ * 'Negotiation' against a pipeline stage named 'Negotiating' was the
+ * dangerous case: importers commonly accept a near-miss silently and
+ * file the record to a default stage rather than rejecting it, so a
+ * partially-successful import looked like a working one.
+ *
+ * It now throws rather than falling back. A stage this function cannot
+ * map is a data or schema problem that must surface at export time, not
+ * a row quietly filed under 'New Lead'.
+ *
+ * @param {string} stage - A CarHawk stage constant.
+ * @return {string} The CompanyHub stage name.
+ * @throws {Error} If the stage is empty, unknown, or maps outside the
+ *     published CompanyHub pipeline.
+ */
 function mapToCompanyHubStage(stage) {
-  const stageMap = {
-    'IMPORTED': 'New Lead',
-    'CONTACTED': 'Contacted',
-    'RESPONDED': 'Qualified',
-    'APPOINTMENT_SET': 'Meeting Scheduled',
-    'NEGOTIATING': 'Negotiation',
-    'CLOSED_WON': 'Closed Won',
-    'LOST': 'Closed Lost'
-  };
+  if (!stage) {
+    throw new Error(
+      'CompanyHub export: deal has no stage value. Expected one of: ' +
+      CARHAWK_STAGES.join(', ') + '.'
+    );
+  }
 
-  return stageMap[stage] || 'New Lead';
+  const mapped = CARHAWK_TO_COMPANYHUB_STAGE[stage];
+
+  if (!mapped) {
+    throw new Error(
+      'CompanyHub export: unrecognized CarHawk stage "' + stage +
+      '". Valid stages: ' + CARHAWK_STAGES.join(', ') + '.'
+    );
+  }
+
+  // Guards against the original defect returning by a different route:
+  // a mapping edited to a name the pipeline does not define.
+  if (COMPANYHUB_STAGES.indexOf(mapped) === -1) {
+    throw new Error(
+      'CompanyHub export: stage "' + stage + '" maps to "' + mapped +
+      '", which is not a stage in the CompanyHub pipeline. Valid stages: ' +
+      COMPANYHUB_STAGES.join(', ') + '.'
+    );
+  }
+
+  return mapped;
 }
 
 function calculateDealProbability(deal) {
